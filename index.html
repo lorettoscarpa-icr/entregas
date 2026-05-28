@@ -1098,6 +1098,8 @@ const FIREBASE_CONFIG = {
   appId: "1:428188657366:web:091e9d32ddfd712c83cb77"
 };
 let fdb=null, FIREBASE_ON=false, _fbAssinado=false, _fbMigrou=false;
+/* COLE AQUI a URL da Cloud Function da IA (passo 3). Vazio = usa a IA só dentro do Claude. */
+const AI_PROXY_URL = "https://lorettoia.lorettoscarpa.workers.dev/";
 let _shadow={};                         // último estado salvo (p/ enviar só o que mudou)
 function _snapShadow(){ _shadow={}; entregas.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }
 function initFirebase(){
@@ -1343,13 +1345,22 @@ Campos do JSON:
 - horarioHora: "HH:MM" ou "".
 - observacao: instrução extra útil pro entregador (ex: "casa com câmera no muro", "ligar ao chegar", "deixar na portaria", "levar maquininha"). NÃO repita aqui o que já está em pagamento/valor/endereço.
 Ignore CPF, RG e data de nascimento. Use "" (ou "entrega"/"cobrar" nos campos com padrão) para qualquer campo ausente.`;
-  const res = await fetch("https://api.anthropic.com/v1/messages",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, system:sys, messages:[{role:"user",content:text}] })
-  });
-  if(!res.ok) throw new Error('api '+res.status);
-  const data = await res.json();
+  let data;
+  if(AI_PROXY_URL){
+    // site hospedado → passa pela Cloud Function (que guarda a chave da Anthropic)
+    const res = await fetch(AI_PROXY_URL,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({system:sys, text}) });
+    if(!res.ok) throw new Error('proxy '+res.status);
+    data = await res.json();
+  } else {
+    // dentro do ambiente Claude (pré-visualização) → chamada direta
+    const res = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, system:sys, messages:[{role:"user",content:text}] })
+    });
+    if(!res.ok) throw new Error('api '+res.status);
+    data = await res.json();
+  }
   let txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
   txt=txt.replace(/```json|```/g,'').trim();
   return JSON.parse(txt);
