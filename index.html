@@ -439,6 +439,19 @@
   .reset-ord{font-family:var(--ff-body);font-size:13px;color:var(--gold);background:rgba(212,180,90,.16);border:1px solid rgba(212,180,90,.45);border-radius:9px;padding:5px 11px;cursor:pointer;font-weight:600}
   .reset-ord:hover{background:rgba(212,180,90,.26)}
   .ent-num-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .ent-num-left{display:flex;align-items:center;gap:11px}
+  .ent-check{width:30px;height:30px;flex:0 0 30px;border-radius:9px;border:2px solid var(--line-strong);background:var(--surface-3);color:#1c2114;font-size:16px;font-weight:800;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s;-webkit-tap-highlight-color:transparent}
+  .ent-check.on{background:var(--gold);border-color:var(--gold)}
+  .ent-card.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,180,90,.35)}
+  .ent-selbar{position:sticky;top:6px;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:linear-gradient(180deg,var(--surface-2),var(--surface-3));border:1px solid var(--gold);border-radius:14px;padding:11px 14px;margin:0 2px 13px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+  .ent-selbar-c{font-family:var(--ff-display);font-size:18px;color:var(--gold-lt)}
+  .ent-selbar-acts{display:flex;gap:8px;flex-wrap:wrap}
+  .mover-modal{max-width:380px}
+  .mover-sub{color:var(--text-mute);font-size:14px;margin:0 0 14px}
+  .mover-list{display:flex;flex-direction:column;gap:9px}
+  .mover-opt{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:14px 15px;border-radius:12px;border:1px solid var(--line-strong);background:var(--surface-3);color:var(--text);font-family:var(--ff-body);font-size:16px;font-weight:600;cursor:pointer;transition:.12s}
+  .mover-opt:hover{border-color:var(--gold);background:rgba(212,180,90,.12)}
+  .mover-opt .dot{width:12px;height:12px;border-radius:50%;flex:0 0 12px}
   .ordem-ctl{display:flex;align-items:center;gap:8px}
   .ordem-lbl{font-size:11.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.06em}
   .ordem-sel{font-family:var(--ff-display);font-size:17px;font-weight:600;color:var(--gold-lt);background:var(--surface-3);border:1px solid var(--line-strong);border-radius:10px;padding:6px 10px;min-height:40px;cursor:pointer;-webkit-tap-highlight-color:transparent;font-variant-numeric:lining-nums tabular-nums}
@@ -2406,16 +2419,25 @@ function render(){
   const matchDia = e => dataDe(e)===diaAtivo;
   renderDayNav();
 
-  let aguard = entregas.filter(e=>e.status==='aguardando' && matchDia(e) && matchVend(e)).sort((a,b)=>a.criadoEm-b.criadoEm);
-  let rota = entregas.filter(e=>e.status==='em_rota' && matchDia(e) && matchFiltro(e) && matchVend(e));
-  let entregue = entregas.filter(e=>['entregue','nao_entregue','cancelado'].includes(e.status) && matchDia(e) && matchFiltro(e) && matchVend(e)).sort((a,b)=>(b.entregueEm||b.desfechoEm||0)-(a.entregueEm||a.desfechoEm||0));
+  // vendedora comum (não geral) vê SOMENTE as próprias entregas em todas as colunas
+  const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
+  const alvoVend = ehVendPessoal ? norm(session.vendedora) : null;
+  const matchEscopo = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvoVend);
+  const rvf=document.getElementById('row-vend-filter'); if(rvf) rvf.style.display = ehVendPessoal ? 'none' : '';
+
+  let aguard = entregas.filter(e=>e.status==='aguardando' && matchDia(e) && matchVend(e) && matchEscopo(e)).sort((a,b)=>a.criadoEm-b.criadoEm);
+  let rota = entregas.filter(e=>e.status==='em_rota' && matchDia(e) && matchFiltro(e) && matchVend(e) && matchEscopo(e));
+  let entregue = entregas.filter(e=>['entregue','nao_entregue','cancelado'].includes(e.status) && matchDia(e) && matchFiltro(e) && matchVend(e) && matchEscopo(e)).sort((a,b)=>(b.entregueEm||b.desfechoEm||0)-(a.entregueEm||a.desfechoEm||0));
+  const etaV = (ehVendPessoal && diaAtivo===today) ? planAllRoutes(diaAtivo) : {};
 
   // aguardando
-  $('list-aguard').innerHTML = aguard.length ? aguard.map(cardAguardando).join('') : `<div class="empty">Nenhuma entrega esperando</div>`;
+  $('list-aguard').innerHTML = aguard.length ? aguard.map(ehVendPessoal?(e=>vcard(e,etaV)):cardAguardando).join('') : `<div class="empty">Nenhuma entrega esperando</div>`;
   $('c-aguard').textContent = aguard.length;
 
-  // rota (agrupado por entregador)
-  if(rota.length){
+  // rota (vendedora: cards dela; geral/operação: agrupado por entregador)
+  if(ehVendPessoal){
+    $('list-rota').innerHTML = rota.length ? rota.map(e=>vcard(e,etaV)).join('') : `<div class="empty">Nada em rota</div>`;
+  } else if(rota.length){
     let html='';
     ENTREGADORES.forEach(ent=>{
       const its=rota.filter(e=>e.entregador===ent.id);
@@ -2433,8 +2455,8 @@ function render(){
   } else $('list-rota').innerHTML=`<div class="empty">Nada em rota</div>`;
   $('c-rota').textContent = rota.length;
 
-  // entregue
-  $('list-entregue').innerHTML = entregue.length ? entregue.map(cardEntregue).join('') : `<div class="empty">Nenhuma entrega concluída neste dia</div>`;
+  // entregue / finalizadas
+  $('list-entregue').innerHTML = entregue.length ? entregue.map(ehVendPessoal?(e=>vcard(e,etaV)):cardEntregue).join('') : `<div class="empty">Nenhuma entrega concluída neste dia</div>`;
   $('c-entregue').textContent = entregue.length;
 
   // coluna pessoal "Minhas entregas" (só para vendedoras)
@@ -2902,6 +2924,7 @@ function applyRole(){
 }
 function logout(){
   pararRastreio();                 // encerra a transmissão de GPS, se estiver ativa
+  entSel.clear();
   entCoord=null; _prevStatus=null;
   session={role:null,entregador:null,vendedora:null,geral:false};
   document.body.classList.remove('role-entregador');
@@ -2983,6 +3006,37 @@ function definirOrdem(id, pos){
 function ordemAutomatica(){
   minhasEntregas().forEach(e=>{ delete e.ordemManual; });
   persist(); renderEntregador(); toast('Ordem automática (mais rápida) ✓');
+}
+/* ===== seleção de entregas e transferência para outro entregador ===== */
+let entSel = new Set();
+function toggleSelEnt(id){ if(entSel.has(id)) entSel.delete(id); else entSel.add(id); renderEntregador(); }
+function limparSelEnt(){ entSel.clear(); renderEntregador(); }
+function abrirMoverEntregador(){
+  if(!entSel.size) return;
+  const outros = ENTREGADORES.filter(x=>x.id!==session.entregador);
+  fecharMover();
+  const bg=document.createElement('div'); bg.className='modal-bg open'; bg.id='mover-bg';
+  bg.innerHTML=`<div class="modal mover-modal">
+    <h3 style="margin:0 0 4px">Mover ${entSel.size} entrega${entSel.size>1?'s':''} para…</h3>
+    <p class="mover-sub">Escolha quem vai assumir essas entregas.</p>
+    <div class="mover-list">
+      ${outros.map(x=>`<button class="mover-opt" onclick="moverParaEntregador('${x.id}')"><span class="dot" style="background:${x.cor}"></span>${esc(x.nome)}</button>`).join('')}
+    </div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="fecharMover()">Cancelar</button>
+  </div>`;
+  bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharMover(); });
+  document.body.appendChild(bg);
+}
+function fecharMover(){ const b=document.getElementById('mover-bg'); if(b) b.remove(); }
+function moverParaEntregador(destId){
+  const dest=ENT[destId]; let n=0;
+  entregas.forEach(e=>{
+    if(entSel.has(e.id) && e.status==='em_rota' && e.entregador===session.entregador){
+      e.entregador=destId; delete e.ordemManual; e.roteadoEm=Date.now(); n++;   // entram na rota do novo entregador
+    }
+  });
+  entSel.clear(); fecharMover(); persist(); renderEntregador();
+  toast(`${n} entrega${n>1?'s':''} movida${n>1?'s':''} para ${dest?dest.nome:'outro entregador'} ✓`);
 }
 const fmtClock = ts => new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
@@ -3090,21 +3144,10 @@ function vcard(e, eta){
   </div>`;
 }
 function renderMinhasColuna(){
-  const col=$('col-minhas'); if(!col) return;
+  // a coluna "Minhas entregas" foi removida: a vendedora já vê só as dela nas 3 colunas
+  const col=$('col-minhas'); if(col) col.style.display='none';
   const board=document.querySelector('#view-painel .board');
-  const ehVend = session.role==='vendedora' && !session.geral; // só vendedoras (não Edson/geral)
-  col.style.display = ehVend ? '' : 'none';
-  if(board) board.classList.toggle('with-minhas', ehVend);
-  if(!ehVend) return;
-  const dia=diaAtivo, isHoje=dia===todayKey();
-  const mine=entregasDaVendedora(dia);
-  const ord={em_rota:0,aguardando:1,entregue:2,nao_entregue:3,cancelado:4};
-  mine.sort((a,b)=>(ord[a.status]-ord[b.status]) || (a.criadoEm-b.criadoEm));
-  const eta = isHoje ? planAllRoutes(dia) : {};
-  $('c-minhas').textContent = mine.length;
-  $('list-minhas').innerHTML = mine.length
-    ? mine.map(e=>vcard(e,eta)).join('')
-    : `<div class="empty">Nenhuma entrega sua ${isHoje?'hoje':'neste dia'}.</div>`;
+  if(board) board.classList.remove('with-minhas');
 }
 
 /* ===== aba "Finalizadas" (vendedora): pagamento + foto + numeração ===== */
@@ -3245,7 +3288,15 @@ function renderEntregador(){
       </div>`;
     }).join('')}
   </div>` : '';
-  $('ent-list').innerHTML=alerta + ordemNota + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
+  [...entSel].forEach(id=>{ if(!items.some(e=>e.id===id)) entSel.delete(id); });   // tira da seleção o que saiu da rota
+  const selBar = entSel.size ? `<div class="ent-selbar">
+      <span class="ent-selbar-c"><b>${entSel.size}</b> selecionada${entSel.size>1?'s':''}</span>
+      <div class="ent-selbar-acts">
+        <button class="btn btn-ghost btn-mini" onclick="limparSelEnt()">limpar</button>
+        <button class="btn btn-primary btn-mini" onclick="abrirMoverEntregador()">↪ Mover p/ outro entregador</button>
+      </div>
+    </div>` : '';
+  $('ent-list').innerHTML=alerta + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
   const lb=$('btn-minha-loc'); if(lb){ lb.textContent = fromGps?'📍 Atualizar localização':'📍 Usar minha localização'; lb.disabled=false; lb.classList.toggle('on', fromGps); }
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
@@ -3267,9 +3318,13 @@ function cardEntregadorView(p,n,fromGps,total){
   const leg = p.leg!=null
     ? `<div class="ent-leg">${origemLbl} · ~${fmtDur(Math.max(1,Math.round(p.leg)))}${p.arr?` · chegada prevista <b>${fmtClock(p.arr)}</b>`:''}</div>`
     : `<div class="ent-leg">📍 sem localização no mapa — confira o endereço</div>`;
-  return `<div class="ent-card ${temHora?'alerta':''}" style="${temHora?'':'border-left-color:'+ent.cor}">
+  const _sel = entSel.has(e.id);
+  return `<div class="ent-card ${temHora?'alerta':''} ${_sel?'sel':''}" style="${temHora?'':'border-left-color:'+ent.cor}">
     <div class="ent-num-row">
-      <div class="num">Entrega ${n} de ${total||1}</div>
+      <div class="ent-num-left">
+        <button class="ent-check ${_sel?'on':''}" onclick="toggleSelEnt('${e.id}')" aria-label="Selecionar para mover">${_sel?'✓':''}</button>
+        <div class="num">Entrega ${n} de ${total||1}</div>
+      </div>
       <label class="ordem-ctl">
         <span class="ordem-lbl">ordem na rota</span>
         <select class="ordem-sel" onchange="definirOrdem('${e.id}', +this.value)" aria-label="Escolher a posição desta entrega">
