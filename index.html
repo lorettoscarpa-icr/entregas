@@ -2965,7 +2965,7 @@ function planAllRoutes(dia){
 /* link de rastreio do cliente: token OPACO numa PÁGINA SEPARADA (TRACK_BASE),
    sem nenhum código do painel — assim o cliente não vê nem acessa o painel.
    Deixe TRACK_BASE vazio para usar a própria página (enquanto não hospedar a separada). */
-const TRACK_BASE = "";   // ex: "https://lorettoscarpa-icr.github.io/rastreio/"
+const TRACK_BASE = "https://lorettoscarpa-icr.github.io/rastreio/";   // repositório SEPARADO, só rastreio — sem nada do painel
 function _b64u(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function _ub64u(s){ s=String(s||'').replace(/-/g,'+').replace(/_/g,'/'); try{ return decodeURIComponent(escape(atob(s))); }catch(_){ return ''; } }
 function _chk(id){ let n=0; const s='LSx'+id; for(let i=0;i<s.length;i++) n=(n*31+s.charCodeAt(i))%100000; return n; }
