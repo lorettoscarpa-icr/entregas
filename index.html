@@ -451,6 +451,34 @@
   .vstop{font-size:11.5px;color:var(--text-mute);background:var(--surface-3);border-radius:999px;padding:2px 9px}
   .vtrack-eta{font-size:13.5px;color:var(--text-soft);margin-left:auto}
   .vfalta{color:var(--gold-lt);font-weight:600}
+  .vlive{display:inline-block;margin-left:7px;font-size:11px;font-weight:700;color:#7fd17f;background:rgba(127,209,127,.14);border:1px solid rgba(127,209,127,.4);border-radius:999px;padding:1px 8px;animation:pulselive 1.8s ease-in-out infinite}
+  @keyframes pulselive{0%,100%{opacity:1}50%{opacity:.5}}
+  /* ===== tela de rastreio do cliente ===== */
+  #track-view{display:none;position:fixed;inset:0;z-index:200;flex-direction:column;background:var(--bg)}
+  .track-top{padding:18px 20px 14px;text-align:center;background:linear-gradient(180deg,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
+  .track-logo{width:44px;height:44px;border-radius:50%;border:2px solid var(--gold);color:var(--gold);font-family:var(--ff-grand);font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;margin:0 auto}
+  .track-brand-txt{font-family:var(--ff-eyebrow);letter-spacing:.34em;font-size:11px;color:var(--gold);margin-top:8px}
+  .track-h{font-family:var(--ff-display);font-size:24px;font-weight:600;margin-top:4px}
+  #track-map{flex:1;min-height:0;width:100%}
+  .track-card{background:var(--surface);border-top:1px solid var(--line-strong);padding:20px;text-align:center;box-shadow:0 -10px 30px rgba(0,0,0,.25)}
+  .track-pulse{width:12px;height:12px;border-radius:50%;background:var(--calm);margin:0 auto 10px;animation:pulselive 1.4s ease-in-out infinite}
+  .track-pulse.done{background:var(--calm);animation:none}
+  .track-pulse.off{background:var(--text-mute);animation:none}
+  .track-st{font-family:var(--ff-display);font-size:22px;font-weight:600;color:var(--text)}
+  .track-eta{font-family:var(--ff-grand);font-size:34px;font-weight:700;color:var(--gold);margin-top:4px;line-height:1.1}
+  .track-eta:empty{display:none}
+  .track-sub{font-size:14px;color:var(--text-soft);margin-top:6px}
+  .track-mk-dest{filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+  /* aviso de entrega concluída (vendedora) */
+  .notif{position:fixed;top:14px;left:50%;z-index:400;display:flex;align-items:center;gap:13px;
+    max-width:92%;width:420px;background:linear-gradient(135deg,var(--surface-2),var(--surface));border:1px solid rgba(127,174,107,.5);
+    border-left:4px solid var(--calm);border-radius:14px;padding:14px 16px;box-shadow:0 14px 40px rgba(0,0,0,.4);cursor:pointer;
+    transition:transform .45s cubic-bezier(.2,.9,.3,1.2);transform:translateX(-50%) translateY(-160%)}
+  .notif.show{transform:translateX(-50%) translateY(0)}
+  .notif-ic{font-size:26px;flex-shrink:0}
+  .notif-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .notif-txt b{font-family:var(--ff-display);font-size:18px;color:var(--text)}
+  .notif-txt span{font-size:13px;color:var(--text-soft)}
   .vtrack-eta b{font-family:var(--ff-display);font-size:18px;color:var(--teal);font-weight:600}
   .vtrack-eta.muted{color:var(--text-mute);font-style:italic}
   .vmeta{font-size:13.5px;line-height:1.6;padding-left:0!important}
@@ -887,6 +915,26 @@
   </div>
 </div>
 
+<div id="track-view">
+  <div class="track-top">
+    <div class="track-logo">LS</div>
+    <div class="track-brand-txt">LORETTO SCARPA</div>
+    <div class="track-h" id="track-title">Acompanhe sua entrega</div>
+  </div>
+  <div id="track-map"></div>
+  <div class="track-card">
+    <div class="track-pulse" id="track-pulse"></div>
+    <div class="track-st" id="track-st">Carregando…</div>
+    <div class="track-eta" id="track-eta"></div>
+    <div class="track-sub" id="track-sub"></div>
+  </div>
+</div>
+
+<div class="notif" id="notif" onclick="this.classList.remove('show')">
+  <div class="notif-ic">🎉</div>
+  <div class="notif-txt"><b id="notif-t">Entrega concluída</b><span id="notif-s"></span></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Firebase (compat) — sincronização em tempo real das entregas -->
@@ -1097,7 +1145,7 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "428188657366",
   appId: "1:428188657366:web:091e9d32ddfd712c83cb77"
 };
-let fdb=null, FIREBASE_ON=false, _fbAssinado=false, _fbMigrou=false;
+let fdb=null, FIREBASE_ON=false, _fbAssinado=false, _fbMigrou=false, _clienteMode=false;
 /* COLE AQUI a URL da Cloud Function da IA (passo 3). Vazio = usa a IA só dentro do Claude. */
 const AI_PROXY_URL = "https://lorettoia.lorettoscarpa.workers.dev/";
 let _shadow={};                         // último estado salvo (p/ enviar só o que mudou)
@@ -1108,13 +1156,12 @@ function initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
     FIREBASE_ON = true;
-    firebase.auth().onAuthStateChanged(u=>{ if(u) assinarEntregas(); });
+    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarRastreio(); } });
     return true;
   }catch(e){ console.warn('Firebase init falhou — seguindo com localStorage', e); FIREBASE_ON=false; return false; }
 }
 function assinarEntregas(){
-  if(!FIREBASE_ON || _fbAssinado) return; _fbAssinado=true;
-  fdb.collection('entregas').onSnapshot(snap=>{
+  if(!FIREBASE_ON || _fbAssinado) return; _fbAssinado=true;  fdb.collection('entregas').onSnapshot(snap=>{
     const arr=[]; snap.forEach(d=>arr.push(d.data()));
     // 1ª sincronização: nuvem vazia + temos dados locais → sobe os locais (migração única)
     if(arr.length===0 && entregas.length>0 && !_fbMigrou){ _fbMigrou=true; _subirTudo(entregas.slice()); return; }
@@ -1136,6 +1183,114 @@ function _rerenderAtual(){
   if(session.role==='entregador') renderEntregador();
   else if(session.role==='gestor') renderGestor();
   else { render(); }
+}
+/* posições ao vivo dos entregadores (rastreio) — alimenta o ETA real das vendedoras */
+let liveEnt={}, _rastAssinado=false;
+function assinarRastreio(){
+  if(!FIREBASE_ON || _rastAssinado) return; _rastAssinado=true;
+  fdb.collection('rastreio').onSnapshot(snap=>{
+    const m={}; snap.forEach(d=>{ m[d.id]=d.data(); });
+    liveEnt=m;
+    _rerenderAtual();
+  }, err=>console.warn('rastreio: leitura bloqueada', err));
+}
+function posicaoViva(id){
+  const r=liveEnt[id];
+  if(r && r.ativo && r.lat!=null && (Date.now()-(r.atualizadoEm||0) < 90000)) return {lat:r.lat, lng:r.lng};
+  return null;
+}
+/* ===== rastreio do cliente (link público ?track=ID) ===== */
+let _trackMap=null, _trackLayer=null, _trackEntDoc=null, _ultEntrega=null, _trackUnsubEnt=null;
+const _homeIcon = ()=>L.divIcon({html:'<div style="font-size:26px;line-height:1">🏠</div>',className:'track-mk-dest',iconSize:[30,30],iconAnchor:[15,28]});
+const _motoIcon = ()=>L.divIcon({html:'<div style="font-size:28px;line-height:1">🛵</div>',className:'track-mk-ent',iconSize:[32,32],iconAnchor:[16,16]});
+function iniciarRastreioCliente(id){
+  if(id==='demo'){ iniciarDemoRastreio(); return; }   // link de demonstração
+  _clienteMode=true;
+  document.body.classList.add('cliente');
+  const lg=$('login'); if(lg) lg.style.display='none';
+  $('track-view').style.display='flex';
+  const sub=()=>{
+    fdb.collection('entregas').doc(String(id)).onSnapshot(d=>{
+      if(!d.exists){ $('track-st').textContent='Entrega não encontrada'; $('track-pulse').className='track-pulse off'; return; }
+      _ultEntrega=d.data();
+      if(_ultEntrega.entregador && !_trackUnsubEnt){
+        _trackUnsubEnt=fdb.collection('rastreio').doc(_ultEntrega.entregador).onSnapshot(rd=>{ _trackEntDoc=rd.exists?rd.data():null; atualizarRastreioCliente(); },()=>{});
+      }
+      atualizarRastreioCliente();
+    }, ()=>{ $('track-st').textContent='Não consegui carregar agora'; });
+  };
+  if(typeof firebase!=='undefined' && FIREBASE_ON){ firebase.auth().signInAnonymously().then(sub).catch(sub); }
+  else { $('track-st').textContent='Sem conexão com o servidor'; $('track-pulse').className='track-pulse off'; }
+  setInterval(atualizarRastreioCliente, 20000);   // reavalia o "ao vivo" mesmo sem novo sinal
+}
+function trackEnsureMap(){
+  if(typeof L==='undefined' || _trackMap) return;
+  _trackMap=L.map('track-map',{zoomControl:true,attributionControl:false}).setView([-16.6869,-49.2648],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_trackMap);
+  _trackLayer=L.layerGroup().addTo(_trackMap);
+  setTimeout(()=>_trackMap.invalidateSize(),120);
+}
+function pararTrackEnt(){ if(_trackUnsubEnt){ _trackUnsubEnt(); _trackUnsubEnt=null; } }
+function iniciarDemoRastreio(){
+  _clienteMode=true; document.body.classList.add('cliente');
+  const lg=$('login'); if(lg) lg.style.display='none';
+  $('track-view').style.display='flex';
+  $('track-title').textContent='Acompanhe sua entrega';
+  const dest={lat:-16.7055,lng:-49.2650}, start={lat:-16.6800,lng:-49.2920};
+  _ultEntrega={id:'demo',cliente:'Cliente Teste',status:'em_rota',entregador:'gustavo',coord:dest};
+  let step=0; const total=30;
+  const passo=()=>{
+    if(step>total){ _ultEntrega.status='entregue'; _trackEntDoc=null; atualizarRastreioCliente(); return; }
+    const t=step/total;
+    _trackEntDoc={ativo:true, lat:start.lat+(dest.lat-start.lat)*t, lng:start.lng+(dest.lng-start.lng)*t, atualizadoEm:Date.now()};
+    atualizarRastreioCliente();
+    step++; setTimeout(passo, 1500);
+  };
+  passo();
+}
+function atualizarRastreioCliente(){
+  const e=_ultEntrega; if(!e) return;
+  const dest=coordOf(e);
+  const st=$('track-st'), eta=$('track-eta'), sub=$('track-sub'), pulse=$('track-pulse'), title=$('track-title');
+  if(e.status==='entregue'){
+    title.textContent='Pedido entregue'; st.textContent='✓ Entregue!'; eta.textContent='';
+    sub.textContent='Obrigado por comprar na Loretto Scarpa 💛'; pulse.className='track-pulse done';
+    desenharTrack(dest,null); pararTrackEnt(); return;
+  }
+  if(e.status==='nao_entregue' || e.status==='cancelado'){
+    title.textContent='Entrega encerrada'; st.textContent='Entrega encerrada'; eta.textContent='';
+    sub.textContent='Fale com a loja para mais informações.'; pulse.className='track-pulse off';
+    desenharTrack(dest,null); pararTrackEnt(); return;
+  }
+  const r=_trackEntDoc;
+  const viva=(r && r.ativo && r.lat!=null && (Date.now()-(r.atualizadoEm||0)<90000)) ? {lat:r.lat,lng:r.lng} : null;
+  if(e.status==='aguardando'){
+    st.textContent='Preparando seu pedido'; eta.textContent='';
+    sub.textContent='Assim que sair para entrega, você vê o trajeto aqui.'; pulse.className='track-pulse off';
+    desenharTrack(dest,null); return;
+  }
+  // em_rota
+  if(viva && dest){
+    const min=Math.max(1,Math.round(legMin(viva,dest)));
+    st.textContent='Seu pedido está a caminho 🛵';
+    eta.textContent = min<=2 ? 'Chegando!' : `~${fmtDur(min)}`;
+    sub.textContent = min<=2 ? 'O entregador está pertinho de você.' : 'Tempo estimado até você.';
+    pulse.className='track-pulse'; desenharTrack(dest,viva);
+  } else {
+    st.textContent='Seu pedido está a caminho 🛵'; eta.textContent='';
+    sub.textContent='Aguardando o sinal de GPS do entregador…'; pulse.className='track-pulse';
+    desenharTrack(dest,null);
+  }
+}
+function desenharTrack(dest, ent){
+  trackEnsureMap(); if(!_trackMap||!_trackLayer) return;
+  _trackLayer.clearLayers();
+  const pts=[];
+  if(dest){ L.marker([dest.lat,dest.lng],{icon:_homeIcon()}).addTo(_trackLayer); pts.push([dest.lat,dest.lng]); }
+  if(ent){ L.marker([ent.lat,ent.lng],{icon:_motoIcon()}).addTo(_trackLayer); pts.push([ent.lat,ent.lng]); }
+  if(dest&&ent) L.polyline([[ent.lat,ent.lng],[dest.lat,dest.lng]],{color:'#d4b45a',weight:3,opacity:.6,dashArray:'6 8'}).addTo(_trackLayer);
+  if(pts.length===1) _trackMap.setView(pts[0],15);
+  else if(pts.length>1) _trackMap.fitBounds(pts,{padding:[60,60],maxZoom:16});
 }
 const selected = new Set();
 let _anim = false;                 // entrada animada só em ações deliberadas
@@ -1865,6 +2020,7 @@ function render(){
   // coluna pessoal "Minhas entregas" (só para vendedoras)
   renderMinhasColuna();
   if(tabAtiva==='fin') renderFinalizadas();
+  checkNotificacoes();
 
   // KPIs (do dia em foco)
   $('k-aguard').textContent = aguard.length;
@@ -2232,6 +2388,8 @@ function confirmarLoginSenha(){
   if(!_loginPend) return;
   const pwd=$('login-pwd').value;
   if(!pwd){ $('login-pwd-err').textContent='Digite a senha'; return; }
+  // pede a permissão de notificação AGORA (dentro do toque), pros perfis que recebem avisos
+  try{ if(_loginPend.session.role==='vendedora' && 'Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(_){}
   const entrar=()=>{ session=Object.assign({}, _loginPend.session); _loginPend=null; applyRole(); };
   if(!FIREBASE_ON || typeof firebase==='undefined'){ entrar(); return; } // offline → entra direto
   $('login-pwd-err').style.color='var(--text-mute)'; $('login-pwd-err').textContent='Entrando...';
@@ -2303,6 +2461,8 @@ function applyRole(){
   }
 }
 function logout(){
+  pararRastreio();                 // encerra a transmissão de GPS, se estiver ativa
+  entCoord=null; _prevStatus=null;
   session={role:null,entregador:null,vendedora:null,geral:false};
   document.body.classList.remove('role-entregador');
   filtroVend='todas'; tabAtiva='painel';
@@ -2358,12 +2518,14 @@ function planAllRoutes(dia){
   entregas.filter(e=>e.status==='em_rota' && dataDe(e)===dia).forEach(e=>{
     (byEnt[e.entregador]=byEnt[e.entregador]||[]).push(e);
   });
-  Object.values(byEnt).forEach(items=>{
-    const plan = planRota(items, loja, Date.now());
-    plan.forEach((p,i)=>{ info[p.e.id]={arr:p.arr, pos:i+1, total:plan.length}; });
+  Object.keys(byEnt).forEach(entId=>{
+    const viva = posicaoViva(entId);          // posição real do entregador, se estiver transmitindo
+    const plan = planRota(byEnt[entId], viva||loja, Date.now());
+    plan.forEach((p,i)=>{ info[p.e.id]={arr:p.arr, pos:i+1, total:plan.length, live:!!viva}; });
   });
   return info;
 }
+function linkRastreio(e){ return location.href.split('?')[0].split('#')[0] + '?track=' + encodeURIComponent(e.id); }
 function msgVend(e, eta){
   const primeiro = e.cliente ? esc(e.cliente.split(' ')[0]) : '';
   const ola = primeiro ? `Oi, ${primeiro}! ` : 'Oi! ';
@@ -2371,7 +2533,8 @@ function msgVend(e, eta){
   if(e.status==='em_rota'){
     const info = eta && eta[e.id];
     const prev = info && info.arr ? ` A previsão de chegada é por volta das ${fmtClock(info.arr)}.` : '';
-    return `${ola}Passando pra avisar que o seu pedido da Loretto Scarpa já saiu e está a caminho.${prev}${ass}`;
+    const link = `\n\n📍 Acompanhe em tempo real: ${linkRastreio(e)}`;
+    return `${ola}Passando pra avisar que o seu pedido da Loretto Scarpa já saiu e está a caminho.${prev}${link}${ass}`;
   }
   if(e.status==='aguardando'){
     return `${ola}Seu pedido da Loretto Scarpa já está sendo preparado e logo sai para entrega. Te aviso assim que estiver a caminho!${ass}`;
@@ -2393,7 +2556,8 @@ function vcard(e, eta){
   if(e.status==='em_rota'){
     const ent=ENT[e.entregador]||{nome:'?',cor:'#888'};
     const info=eta[e.id];
-    const pos = info ? `<span class="vstop">parada ${info.pos} de ${info.total}</span>` : '';
+    const liveTag = info&&info.live ? `<span class="vlive">🟢 ao vivo</span>` : '';
+    const pos = info ? `<span class="vstop">parada ${info.pos} de ${info.total}</span>${liveTag}` : '';
     let prev;
     if(info&&info.arr){
       const min=Math.round((info.arr-Date.now())/60000);
@@ -2484,12 +2648,54 @@ function fcard(e){
 }
 
 let entCoord=null; // localização atual do entregador (GPS), quando disponível
+/* ===== rastreio ao vivo: o entregador transmite a posição pro Firebase ===== */
+let _watchId=null, _wakeLock=null, _lastBroadcast=0;
+async function pedirWakeLock(){
+  try{ if('wakeLock' in navigator && !_wakeLock){ _wakeLock=await navigator.wakeLock.request('screen'); _wakeLock.addEventListener('release',()=>{ _wakeLock=null; }); } }catch(e){}
+}
+function liberarWakeLock(){ try{ if(_wakeLock){ _wakeLock.release(); _wakeLock=null; } }catch(e){} }
+function transmitirPosicao(c){
+  if(!FIREBASE_ON || !fdb || !session.entregador) return;
+  const ent=ENT[session.entregador]||{};
+  fdb.collection('rastreio').doc(session.entregador).set({
+    entregador:session.entregador, nome:ent.nome||'', cor:ent.cor||'#d4b45a',
+    lat:c.latitude, lng:c.longitude, precisao:c.accuracy||null,
+    ativo:true, atualizadoEm:Date.now()
+  }).catch(e=>console.warn('rastreio: gravação falhou', e));
+}
+function iniciarRastreio(){
+  if(session.role!=='entregador' || !navigator.geolocation) return;
+  if(minhasEntregas().length===0){ pararRastreio(); return; }   // sem rota → não transmite
+  pedirWakeLock();
+  if(_watchId!=null) return;                                     // já está transmitindo
+  _watchId = navigator.geolocation.watchPosition(
+    pos=>{
+      entCoord={lat:pos.coords.latitude, lng:pos.coords.longitude};
+      const agora=Date.now();
+      if(agora-_lastBroadcast >= 6000){       // transmite a cada ~6s
+        _lastBroadcast=agora;
+        transmitirPosicao(pos.coords);
+        renderEntregador();                    // atualiza ordem/ETA dele
+      }
+    },
+    err=>{ /* permissão negada/sem sinal — segue sem rastreio ao vivo */ },
+    {enableHighAccuracy:true, maximumAge:5000, timeout:15000}
+  );
+}
+function pararRastreio(){
+  if(_watchId!=null){ navigator.geolocation.clearWatch(_watchId); _watchId=null; }
+  liberarWakeLock();
+  if(FIREBASE_ON && fdb && session && session.entregador){
+    fdb.collection('rastreio').doc(session.entregador).set({ativo:false, atualizadoEm:Date.now()},{merge:true}).catch(()=>{});
+  }
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && session.role==='entregador') iniciarRastreio(); });
 function usarMinhaLocalizacao(auto){
   const btn=$('btn-minha-loc');
   if(!navigator.geolocation){ if(!auto) toast('Seu aparelho não permite localização'); return; }
   if(btn){ btn.textContent='📍 localizando...'; btn.disabled=true; }
   navigator.geolocation.getCurrentPosition(
-    pos=>{ entCoord={lat:pos.coords.latitude, lng:pos.coords.longitude}; renderEntregador(); if(!auto) toast('Próxima parada a partir de onde você está ✓'); },
+    pos=>{ entCoord={lat:pos.coords.latitude, lng:pos.coords.longitude}; renderEntregador(); iniciarRastreio(); if(!auto) toast('Próxima parada a partir de onde você está ✓'); },
     err=>{
       if(btn){ btn.textContent = entCoord?'📍 Atualizar localização':'📍 Usar minha localização'; btn.disabled=false; }
       if(!auto) toast(err.code===1?'Permita o acesso à localização no navegador':'Não consegui pegar sua localização agora');
@@ -2521,6 +2727,7 @@ function renderEntregador(){
   $('ent-list').innerHTML=alerta + ordemNota + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps)).join('');
   const lb=$('btn-minha-loc'); if(lb){ lb.textContent = fromGps?'📍 Atualizar localização':'📍 Usar minha localização'; lb.disabled=false; lb.classList.toggle('on', fromGps); }
   ensureMapEnt(); renderMapEnt();
+  iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
 }
 function msgPadrao(){
   const ent=ENT[session.entregador]; const nome=ent?ent.nome:'';
@@ -2530,7 +2737,7 @@ function cardEntregadorView(p,n,fromGps){
   const e=p.e;
   const ent=ENT[e.entregador]||{cor:'#888'};
   const temHora = e.horarioTipo && e.horarioHora;
-  const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgPadrao())}` : '';
+  const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgPadrao()+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}` : '';
   const origemLbl = n===1 ? (fromGps?'📍 da sua localização':'🏬 saindo da loja') : '↳ da parada anterior';
   const leg = p.leg!=null
     ? `<div class="ent-leg">${origemLbl} · ~${fmtDur(Math.max(1,Math.round(p.leg)))}${p.arr?` · chegada prevista <b>${fmtClock(p.arr)}</b>`:''}</div>`
@@ -2616,6 +2823,38 @@ function abrirRotaMaps(){
 /* ============ toast ============ */
 let toastT;
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+/* ===== aviso à vendedora quando a entrega dela é concluída ===== */
+let _prevStatus=null, _notifT=null;
+function beepNotif(){
+  try{
+    const ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination); o.type='sine'; o.frequency.value=880;
+    g.gain.setValueAtTime(0.0001,ac.currentTime); g.gain.exponentialRampToValueAtTime(0.18,ac.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.4);
+    o.start(); o.stop(ac.currentTime+0.42);
+  }catch(_){}
+}
+function notificarEntregaConcluida(e){
+  const pag = e.pagamento ? ' · '+pagamentoLabel(e) : '';
+  $('notif-t').textContent = `Entrega de ${e.cliente||'cliente'} concluída`;
+  $('notif-s').textContent = `Deu tudo certo${pag}`;
+  const n=$('notif'); n.classList.add('show'); clearTimeout(_notifT); _notifT=setTimeout(()=>n.classList.remove('show'),7000);
+  beepNotif();
+  try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('Loretto · Entrega concluída', {body:`${e.cliente||'Cliente'} — deu tudo certo${pag}`, tag:'entrega-'+e.id}); } }catch(_){}
+}
+function checkNotificacoes(){
+  if(!session || session.role!=='vendedora'){ _prevStatus=null; return; }
+  if(_prevStatus===null){ _prevStatus={}; entregas.forEach(e=>_prevStatus[e.id]=e.status); return; } // 1ª carga: memoriza sem avisar
+  const ehGeral=!!session.geral;
+  entregas.forEach(e=>{
+    const antes=_prevStatus[e.id];
+    if(antes && antes!=='entregue' && e.status==='entregue'){
+      if(ehGeral || canonVend(e.vendedora||'')===session.vendedora) notificarEntregaConcluida(e);
+    }
+  });
+  _prevStatus={}; entregas.forEach(e=>_prevStatus[e.id]=e.status);
+}
 
 /* ============ clock ============ */
 /* ============ GESTOR: relatório mensal + custos ============ */
@@ -2753,9 +2992,14 @@ entregas.forEach(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.
 if(_migrou) persist();
 refreshVendChips();
 renderFiltersVend();
-renderFilters(); renderEntPick(); animateNext(); render(); tick();
-initFirebase();   // conecta ao Firestore (sincroniza em tempo real); se indisponível, segue no localStorage
-setInterval(tick,1000);
+const _trackId = new URLSearchParams(location.search).get('track');
+if(_trackId){
+  _clienteMode=true; initFirebase(); iniciarRastreioCliente(_trackId);   // link público do cliente
+} else {
+  renderFilters(); renderEntPick(); animateNext(); render(); tick();
+  initFirebase();   // conecta ao Firestore (sincroniza em tempo real); se indisponível, segue no localStorage
+  setInterval(tick,1000);
+}
 setInterval(()=>{ render(); if(session.role==='entregador') renderEntregador(); }, 30000); // atualiza cronômetros
 $('paste').addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.ctrlKey) doParse(); });
 </script>
