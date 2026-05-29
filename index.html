@@ -506,6 +506,8 @@
   .comprov-thumb:hover{border-color:var(--gold)}
   #pay-foto-prev img{width:80px;height:80px;object-fit:cover;border-radius:9px;border:1px solid var(--line);margin-top:8px}
   .pay-cam-btn{width:100%;background:var(--surface-3);color:var(--text);border:1px solid var(--line-strong);font-weight:600;justify-content:center}
+  .pay-foto-btns{display:flex;gap:8px}
+  .pay-foto-btns .pay-cam-btn{width:auto;flex:1}
   .pay-cam-btn:hover{border-color:var(--gold)}
   .pay-cam-btn.done{background:rgba(127,174,107,.16);border-color:rgba(127,174,107,.5);color:var(--calm)}
   #pay-foto{font-family:var(--ff-body);font-size:12px;color:var(--text-soft)}
@@ -560,6 +562,9 @@
   .vcard{background:linear-gradient(160deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:var(--radius);padding:15px 16px;margin-bottom:12px;box-shadow:var(--elev-1);transition:transform .16s,box-shadow .16s}
   .vcard:hover{transform:translateY(-2px);box-shadow:var(--elev-hover)}
   .vcard-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+  .vcard.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,180,90,.35)}
+  .vcard-check{width:26px;height:26px;flex:0 0 26px;border-radius:8px;border:2px solid var(--line-strong);background:var(--surface-3);color:#1c2114;font-size:14px;font-weight:800;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s;-webkit-tap-highlight-color:transparent}
+  .vcard-check.on{background:var(--gold);border-color:var(--gold)}
   .vbadge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px;letter-spacing:.02em}
   .vbadge.aguard{background:rgba(224,179,65,.16);color:var(--warn)}
   .vbadge.rota{background:rgba(111,176,166,.16);color:var(--teal)}
@@ -1094,7 +1099,11 @@
     <input id="pay-note" placeholder="Ex: R$ 120 no pix + R$ 80 no cartão">
     <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:14px 0 6px" id="pay-foto-lbl">Foto do pagamento</label>
     <input type="file" id="pay-foto" accept="image/*" capture="environment" onchange="carregarComprovante(this)" style="display:none">
-    <button type="button" class="btn pay-cam-btn" id="pay-cam-btn" onclick="document.getElementById('pay-foto').click()">📷 Tirar foto do pagamento</button>
+    <input type="file" id="pay-foto-arq" accept="image/*" onchange="carregarComprovante(this)" style="display:none">
+    <div class="pay-foto-btns">
+      <button type="button" class="btn pay-cam-btn" id="pay-cam-btn" onclick="document.getElementById('pay-foto').click()">📷 Tirar foto</button>
+      <button type="button" class="btn pay-cam-btn" id="pay-arq-btn" onclick="document.getElementById('pay-foto-arq').click()">📎 Anexar do celular</button>
+    </div>
     <div id="pay-foto-prev"></div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closePay()">Cancelar</button>
@@ -2098,8 +2107,8 @@ function abrirPagamento(id){
   $('pay-prod').value = (e && (e.produtoEntregue||e.produto)) || '';
   $('pay-num').value  = (e && (e.numeracaoEntregue||_extrairNum(e.produto))) || '';
   $('pay-note').value = (e && e.pagamentoObs) || '';
-  $('pay-foto').value=''; $('pay-foto-prev').innerHTML=''; if(jaFin && e.temComprovante) previewComprovante(e.id);
-  const cb=$('pay-cam-btn'); if(cb){ cb.textContent=(jaFin&&e.temComprovante)?'📷 Refazer foto':'📷 Tirar foto do pagamento'; cb.classList.toggle('done', !!(jaFin&&e.temComprovante)); }
+  $('pay-foto').value=''; if($('pay-foto-arq')) $('pay-foto-arq').value=''; $('pay-foto-prev').innerHTML=''; if(jaFin && e.temComprovante) previewComprovante(e.id);
+  const cb=$('pay-cam-btn'); if(cb){ cb.textContent=(jaFin&&e.temComprovante)?'📷 Refazer':'📷 Tirar foto'; cb.classList.toggle('done', !!(jaFin&&e.temComprovante)); }
   const h=document.querySelector('#pay-modal h3'); if(h) h.textContent = jaFin ? 'Corrigir entrega' : 'Finalizar entrega';
   const okBtn=document.querySelector('#pay-modal .form-actions .btn-primary'); if(okBtn) okBtn.textContent = jaFin ? '✓ Salvar correção' : '✓ Confirmar entrega';
   renderPayOpts(); renderCartaoTipo(); renderPayVals(); renderTaxa(); atualizarFotoReq(); $('pay-modal').classList.add('open');
@@ -2181,7 +2190,7 @@ function carregarComprovante(input){
   comprimirImagem(f, 720, 0.45).then(b64=>{
     payFoto=b64;
     $('pay-foto-prev').innerHTML=`<img src="${b64}">`;
-    const cb=$('pay-cam-btn'); if(cb){ cb.textContent='📷 Refazer foto'; cb.classList.add('done'); cb.style.display=''; }
+    const cb=$('pay-cam-btn'); if(cb){ cb.textContent='📷 Refazer'; cb.classList.add('done'); cb.style.display=''; }
   }).catch(()=>toast('Não consegui ler a imagem'));
 }
 function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFoto=null; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=TAXA_ENTREGA; }
@@ -2321,6 +2330,31 @@ function confirmarEnvio(id, entId){
   if(e && ent && podeMexer(e)){ e.status='em_rota'; e.entregador=entId; e.roteadoEm=Date.now(); delete e.ordemManual; persist(); }
   fecharMover(); render();
   toast(`Enviado para ${ent?ent.nome:'entregador'} 🛵`);
+}
+/* seleção de VÁRIAS entregas aguardando (vendedora) p/ mandar de uma vez */
+let selVend = new Set();
+function toggleSelVend(id){ if(selVend.has(id)) selVend.delete(id); else selVend.add(id); render(); }
+function limparSelVend(){ selVend.clear(); render(); }
+function enviarSelVend(){
+  if(!selVend.size) return;
+  fecharMover();
+  const bg=document.createElement('div'); bg.className='modal-bg open'; bg.id='mover-bg';
+  bg.innerHTML=`<div class="modal mover-modal">
+    <h3 style="margin:0 0 4px">Enviar ${selVend.size} entrega${selVend.size>1?'s':''} para…</h3>
+    <p class="mover-sub">Quem vai levar essas entregas?</p>
+    <div class="mover-list">
+      ${ENTREGADORES.map(x=>`<button class="mover-opt" onclick="confirmarEnvioLote('${x.id}')"><span class="dot" style="background:${x.cor}"></span>${esc(x.nome)}</button>`).join('')}
+    </div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="fecharMover()">Cancelar</button>
+  </div>`;
+  bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharMover(); });
+  document.body.appendChild(bg);
+}
+function confirmarEnvioLote(entId){
+  const ent=ENT[entId]; let n=0;
+  entregas.forEach(e=>{ if(selVend.has(e.id) && e.status==='aguardando' && podeMexer(e)){ e.status='em_rota'; e.entregador=entId; e.roteadoEm=Date.now(); delete e.ordemManual; n++; } });
+  selVend.clear(); fecharMover(); persist(); render();
+  toast(`${n} entrega${n>1?'s':''} enviada${n>1?'s':''} para ${ent?ent.nome:'entregador'} 🛵`);
 }
 function copyText(txt, ok, fallbackText){
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -2481,12 +2515,34 @@ function render(){
   const etaV = (ehVendPessoal && diaAtivo===today) ? planAllRoutes(diaAtivo) : {};
 
   // aguardando
-  $('list-aguard').innerHTML = aguard.length ? aguard.map(ehVendPessoal?(e=>vcard(e,etaV)):cardAguardando).join('') : `<div class="empty">Nenhuma entrega esperando</div>`;
+  if(ehVendPessoal){
+    [...selVend].forEach(id=>{ if(!aguard.some(e=>e.id===id)) selVend.delete(id); });   // limpa o que saiu de aguardando
+    const selBar = selVend.size ? `<div class="ent-selbar">
+        <span class="ent-selbar-c"><b>${selVend.size}</b> selecionada${selVend.size>1?'s':''}</span>
+        <div class="ent-selbar-acts">
+          <button class="btn btn-ghost btn-mini" onclick="limparSelVend()">limpar</button>
+          <button class="btn btn-primary btn-mini" onclick="enviarSelVend()">🛵 Enviar p/ entregador</button>
+        </div>
+      </div>` : '';
+    $('list-aguard').innerHTML = selBar + (aguard.length ? aguard.map(e=>vcard(e,etaV)).join('') : `<div class="empty">Nenhuma entrega esperando</div>`);
+  } else {
+    $('list-aguard').innerHTML = aguard.length ? aguard.map(cardAguardando).join('') : `<div class="empty">Nenhuma entrega esperando</div>`;
+  }
   $('c-aguard').textContent = aguard.length;
 
-  // rota (vendedora: cards dela; geral/operação: agrupado por entregador)
+  // rota (vendedora: agrupada por entregador ativo, só os dela; geral/operação: agrupado por entregador)
   if(ehVendPessoal){
-    $('list-rota').innerHTML = rota.length ? rota.map(e=>vcard(e,etaV)).join('') : `<div class="empty">Nada em rota</div>`;
+    if(rota.length){
+      let html='';
+      ENTREGADORES.forEach(ent=>{
+        const its=rota.filter(e=>e.entregador===ent.id);
+        if(!its.length) return;   // só entregadores que estão levando entregas dela
+        html+=`<div class="rota-group"><div class="rota-group-head">
+          <span class="gname" style="color:${ent.cor}"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:${ent.cor}"></span>${ent.nome} · ${its.length}</span>
+        </div>${its.map(e=>vcard(e,etaV)).join('')}</div>`;
+      });
+      $('list-rota').innerHTML = html;
+    } else $('list-rota').innerHTML=`<div class="empty">Nada em rota</div>`;
   } else if(rota.length){
     let html='';
     ENTREGADORES.forEach(ent=>{
@@ -2974,7 +3030,7 @@ function applyRole(){
 }
 function logout(){
   pararRastreio();                 // encerra a transmissão de GPS, se estiver ativa
-  entSel.clear();
+  entSel.clear(); selVend.clear();
   entCoord=null; _prevStatus=null;
   session={role:null,entregador:null,vendedora:null,geral:false};
   document.body.classList.remove('role-entregador');
@@ -3174,8 +3230,10 @@ function vcard(e, eta){
   }
   const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgVend(e,eta))}` : '';
   const temHora = e.horarioTipo && e.horarioHora;
-  return `<div class="vcard" style="border-left-color:${accent}">
-    <div class="vcard-top">${badge}${pagBadge(e)}</div>
+  const _selv = e.status==='aguardando' && selVend.has(e.id);
+  const _podeSel = podeMexer(e) && e.status==='aguardando';
+  return `<div class="vcard ${_selv?'sel':''}" style="border-left-color:${accent}">
+    <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}</div>
     <div class="vcard-name">${esc(e.cliente)}</div>
     ${track}
     <div class="meta vmeta">
