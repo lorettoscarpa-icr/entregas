@@ -559,7 +559,16 @@
   .vstat span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);margin-top:4px;display:block}
   .vsec{margin-bottom:22px}
   .vsec-h{font-family:var(--ff-display);font-size:18px;font-weight:600;color:var(--text-soft);letter-spacing:.3px;margin:0 2px 11px;display:flex;align-items:center;gap:8px}
-  .vcard{background:linear-gradient(160deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:var(--radius);padding:15px 16px;margin-bottom:12px;box-shadow:var(--elev-1);transition:transform .16s,box-shadow .16s}
+  .vcard{background:linear-gradient(160deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:var(--radius);padding:0;margin-bottom:10px;box-shadow:var(--elev-1);transition:transform .16s,box-shadow .16s;overflow:hidden}
+  .vhead{display:flex;align-items:flex-start;gap:10px;padding:14px 15px;cursor:pointer;user-select:none}
+  .vhead-content{flex:1;min-width:0}
+  .vhead-content .vcard-top{margin-bottom:7px}
+  .vhead-name{font-family:var(--ff-display);font-size:23px;font-weight:600;color:var(--text);line-height:1.05;margin-bottom:2px}
+  .vtoggle{width:34px;height:34px;flex:0 0 34px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface-3);color:var(--gold-lt);font-size:22px;font-weight:400;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.12s;-webkit-tap-highlight-color:transparent;margin-top:2px}
+  .vtoggle:hover{border-color:var(--gold);background:rgba(212,180,90,.16)}
+  .vcard.open .vtoggle{color:var(--text-soft)}
+  .vbody{padding:12px 15px 15px;border-top:1px solid var(--line);animation:vfade .18s ease}
+  @keyframes vfade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
   .vcard:hover{transform:translateY(-2px);box-shadow:var(--elev-hover)}
   .vcard-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
   .vcard.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,180,90,.35)}
@@ -2333,6 +2342,8 @@ function confirmarEnvio(id, entId){
 }
 /* seleção de VÁRIAS entregas aguardando (vendedora) p/ mandar de uma vez */
 let selVend = new Set();
+const vAberto = new Set();   // cards expandidos (padrão: minimizado)
+function toggleVcard(id){ if(vAberto.has(id)) vAberto.delete(id); else vAberto.add(id); render(); }
 function toggleSelVend(id){ if(selVend.has(id)) selVend.delete(id); else selVend.add(id); render(); }
 function limparSelVend(){ selVend.clear(); render(); }
 function enviarSelVend(){
@@ -3232,24 +3243,32 @@ function vcard(e, eta){
   const temHora = e.horarioTipo && e.horarioHora;
   const _selv = e.status==='aguardando' && selVend.has(e.id);
   const _podeSel = podeMexer(e) && e.status==='aguardando';
-  return `<div class="vcard ${_selv?'sel':''}" style="border-left-color:${accent}">
-    <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}</div>
-    <div class="vcard-name">${esc(e.cliente)}</div>
-    ${track}
-    <div class="meta vmeta">
-      ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
-      ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
-      ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
-      ${temHora?`<div class="row"><span class="ico">⏰</span><span style="color:var(--warn)">${hrLabel(e.horarioTipo)} ${esc(e.horarioHora)}</span></div>`:''}
-      ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
+  const aberto = vAberto.has(e.id);
+  return `<div class="vcard ${aberto?'open':'mini'} ${_selv?'sel':''}" style="border-left-color:${accent}">
+    <div class="vhead" onclick="toggleVcard('${e.id}')">
+      <div class="vhead-content">
+        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}</div>
+        <div class="vhead-name">${esc(e.cliente)}</div>
+        ${track}
+      </div>
+      <button class="vtoggle" onclick="event.stopPropagation();toggleVcard('${e.id}')" aria-label="${aberto?'Minimizar':'Ver mais informações'}">${aberto?'–':'+'}</button>
     </div>
-    <div class="vcard-acts">
-      ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
-      ${wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>'}
-      ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
-      ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
-    </div>
+    ${aberto?`<div class="vbody">
+      <div class="meta vmeta">
+        ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
+        ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
+        ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
+        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
+        ${temHora?`<div class="row"><span class="ico">⏰</span><span style="color:var(--warn)">${hrLabel(e.horarioTipo)} ${esc(e.horarioHora)}</span></div>`:''}
+        ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
+      </div>
+      <div class="vcard-acts">
+        ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
+        ${wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>'}
+        ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
+        ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
+      </div>
+    </div>`:''}
   </div>`;
 }
 function renderMinhasColuna(){
