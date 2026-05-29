@@ -522,6 +522,9 @@
   .fcard-foto{width:92px;height:92px;object-fit:cover;border-radius:12px;border:1px solid var(--line-strong);cursor:pointer;flex-shrink:0;transition:transform .15s}
   .fcard-foto:hover{transform:scale(1.04)}
   .fcard-nofoto{width:92px;height:92px;border-radius:12px;border:1px dashed var(--line-strong);flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--text-mute);text-align:center}
+  .fcard-foto-btn{width:92px;height:92px;border-radius:12px;border:1px solid var(--line-strong);flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--text-soft);text-align:center;background:var(--surface-3);cursor:pointer;font-family:var(--ff-body);line-height:1.2;transition:.15s}
+  .fcard-foto-btn:hover{border-color:var(--gold);color:var(--text)}
+  .foto-load,.foto-erro{font-size:12px;color:var(--text-mute);padding:8px 0}
   .vmin-sub{font-size:13.5px;color:var(--text-soft);margin:0 2px 16px}
   .vmin-sub b{color:var(--gold)}
   .vmin-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
@@ -1396,6 +1399,7 @@ function assinarEntregas(){
     if(arr.length===0 && entregas.length>0 && !_fbMigrou){ _fbMigrou=true; _subirTudo(entregas.slice()); return; }
     _fbMigrou=true;
     entregas = arr.map(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.vendedora) e.vendedora=c; } return e; });
+    migrarComprovantes(entregas);       // tira fotos pesadas de dentro do array (memória)
     _snapShadow();
     store.save(entregas);               // mantém cache local
     _rerenderAtual();
@@ -1904,6 +1908,36 @@ async function saveEntrega(){
   persist(); refreshVendChips(); clearForm(); togglePanel(false); animateNext(); render();
   toast(coord?'Entrega cadastrada ✓':'Entrega cadastrada (sem localização no mapa)');
 }
+/* ===== comprovantes guardados FORA do array de entregas =====
+   A foto (base64) é pesada. Mantê-la dentro do array fazia o persist() reserializar
+   TODAS as fotos a cada gravação → estourava a memória do celular. Agora cada foto
+   fica na sua própria chave (local) + coleção 'comprovantes' (nuvem) e é carregada só
+   quando alguém abre o comprovante. O array guarda só o flag e.temComprovante. */
+const FOTO_KEY = id => 'loretto_foto_'+id;
+function fotoLocalGet(id){ try{ return localStorage.getItem(FOTO_KEY(id))||''; }catch(_){ return ''; } }
+function fotoLocalSet(id,b64){ try{ localStorage.setItem(FOTO_KEY(id),b64); return true; }catch(_){ return false; } }
+function fotoLocalDel(id){ try{ localStorage.removeItem(FOTO_KEY(id)); }catch(_){} }
+function fotoCloudSet(id,b64){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('comprovantes').doc(String(id)).set({foto:b64,ts:Date.now()}).catch(()=>{}); }catch(_){} } }
+function fotoCloudDel(id){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('comprovantes').doc(String(id)).delete().catch(()=>{}); }catch(_){} } }
+function fotoCloudGet(id){ if(!(FIREBASE_ON&&fdb)) return Promise.resolve(''); try{ return fdb.collection('comprovantes').doc(String(id)).get().then(d=>d.exists?(d.data().foto||''):'').catch(()=>''); }catch(_){ return Promise.resolve(''); } }
+function salvarComprovante(id,b64){ const ok=fotoLocalSet(id,b64); fotoCloudSet(id,b64); return ok; }
+function removerComprovante(id){ fotoLocalDel(id); fotoCloudDel(id); }
+function previewComprovante(id){
+  const wrap=$('pay-foto-prev'); if(!wrap) return;
+  const local=fotoLocalGet(id);
+  if(local){ wrap.innerHTML=`<img src="${local}">`; return; }
+  wrap.innerHTML='<div class="foto-load">carregando comprovante…</div>';
+  fotoCloudGet(id).then(b64=>{ if(b64){ fotoLocalSet(id,b64); wrap.innerHTML=`<img src="${b64}">`; } else wrap.innerHTML=''; });
+}
+/* tira fotos legadas que estão DENTRO do array e move pra fora (uma vez) */
+function migrarComprovantes(arr){
+  let mig=false;
+  arr.forEach(e=>{ if(typeof e.comprovante==='string' && e.comprovante.startsWith('data:')){
+    fotoLocalSet(e.id, e.comprovante); fotoCloudSet(e.id, e.comprovante);
+    e.temComprovante=true; delete e.comprovante; mig=true;
+  }});
+  return mig;
+}
 function persist(){
   const okLocal = store.save(entregas);          // cache local sempre
   if(!FIREBASE_ON || !fdb) return okLocal;
@@ -2014,8 +2048,8 @@ function abrirPagamento(id){
   $('pay-prod').value = (e && (e.produtoEntregue||e.produto)) || '';
   $('pay-num').value  = (e && (e.numeracaoEntregue||_extrairNum(e.produto))) || '';
   $('pay-note').value = (e && e.pagamentoObs) || '';
-  $('pay-foto').value=''; $('pay-foto-prev').innerHTML = (jaFin && e.comprovante)?`<img src="${e.comprovante}">`:'';
-  const cb=$('pay-cam-btn'); if(cb){ cb.textContent=(jaFin&&e.comprovante)?'📷 Refazer foto':'📷 Tirar foto do pagamento'; cb.classList.toggle('done', !!(jaFin&&e.comprovante)); }
+  $('pay-foto').value=''; $('pay-foto-prev').innerHTML=''; if(jaFin && e.temComprovante) previewComprovante(e.id);
+  const cb=$('pay-cam-btn'); if(cb){ cb.textContent=(jaFin&&e.temComprovante)?'📷 Refazer foto':'📷 Tirar foto do pagamento'; cb.classList.toggle('done', !!(jaFin&&e.temComprovante)); }
   const h=document.querySelector('#pay-modal h3'); if(h) h.textContent = jaFin ? 'Corrigir entrega' : 'Finalizar entrega';
   const okBtn=document.querySelector('#pay-modal .form-actions .btn-primary'); if(okBtn) okBtn.textContent = jaFin ? '✓ Salvar correção' : '✓ Confirmar entrega';
   renderPayOpts(); renderCartaoTipo(); renderPayVals(); renderTaxa(); atualizarFotoReq(); $('pay-modal').classList.add('open');
@@ -2094,7 +2128,7 @@ function comprimirImagem(file, maxW, quality){
 }
 function carregarComprovante(input){
   const f=input.files && input.files[0]; if(!f) return;
-  comprimirImagem(f, 900, 0.5).then(b64=>{
+  comprimirImagem(f, 720, 0.45).then(b64=>{
     payFoto=b64;
     $('pay-foto-prev').innerHTML=`<img src="${b64}">`;
     const cb=$('pay-cam-btn'); if(cb){ cb.textContent='📷 Refazer foto'; cb.classList.add('done'); cb.style.display=''; }
@@ -2109,7 +2143,7 @@ function confirmarPagamento(){
   const e=entregas.find(x=>x.id===payId); if(!e){ closePay(); return; }
   const corrigindo = e.status==='entregue';
   const semCob = paySel.length===1 && PAG_SEM_COBRANCA.includes(paySel[0]);
-  if(!semCob && !payFoto && !e.comprovante){ toast('📷 Tire a foto do pagamento antes de finalizar'); return; }
+  if(!semCob && !payFoto && !e.temComprovante){ toast('📷 Tire a foto do pagamento antes de finalizar'); return; }
   e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now();
   e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
   e.cartaoTipo = paySel.includes('cartao') ? payCartaoTipo : null;
@@ -2118,15 +2152,21 @@ function confirmarPagamento(){
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
   e.pagamentoValores = Object.keys(vals).length ? vals : null;
   e.produtoEntregue=prod; e.numeracaoEntregue=num;
-  if(payFoto) e.comprovante=payFoto;
-  if(semCob){ delete e.comprovante; }   // parceria/já pago: sem comprovante de pagamento
-  let ok = persist();
-  if(!ok && payFoto){ delete e.comprovante; persist(); toast('Foto grande demais p/ salvar local — entrega salva sem comprovante'); }
+  delete e.comprovante;                         // a foto NUNCA fica dentro do array (pesa demais)
+  if(payFoto){ const ok=salvarComprovante(e.id, payFoto); e.temComprovante=true; if(!ok && !(FIREBASE_ON&&fdb)) toast('Sem espaço local p/ a foto — entrega salva mesmo assim'); }
+  if(semCob){ removerComprovante(e.id); e.temComprovante=false; }   // parceria/já pago: sem comprovante
+  persist();
   closePay(); render();
   if(session.role==='entregador') renderEntregador();
   toast(corrigindo ? 'Correção salva ✓' : 'Entrega finalizada ✓');
 }
-function verComprovante(id){ const e=entregas.find(x=>x.id===id); if(!e||!e.comprovante)return; $('img-full').src=e.comprovante; $('img-modal').classList.add('open'); }
+function verComprovante(id){
+  $('img-modal').classList.add('open');
+  const img=$('img-full'); img.removeAttribute('src');
+  const local=fotoLocalGet(id);
+  if(local){ img.src=local; return; }
+  fotoCloudGet(id).then(b64=>{ if(b64){ fotoLocalSet(id,b64); img.src=b64; } else { closeImg(); toast('Comprovante não encontrado'); } });
+}
 function closeImg(){ $('img-modal').classList.remove('open'); }
 function marcarEntregue(id){ abrirPagamento(id); } // agora passa pela confirmação de pagamento
 function voltarAguardando(id){
@@ -2154,7 +2194,7 @@ function trazerPendencias(){
 function excluir(id){
   if(_bloqueado(id)) return;
   if(!confirm('Excluir esta entrega?'))return;
-  entregas = entregas.filter(x=>x.id!==id); selected.delete(id); persist(); render();
+  entregas = entregas.filter(x=>x.id!==id); selected.delete(id); removerComprovante(id); persist(); render();
 }
 
 /* ============ rota ============ */
@@ -2338,7 +2378,7 @@ function cardEntregue(e){
       ${e.pagamentoObs?`<div class="row"><span class="ico">💬</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
       <div class="row"><span class="ico">🛵</span><span>${ent.nome}${dur?` · entregue em ${dur}`:''}</span></div>
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
-      ${e.comprovante?`<img class="comprov-thumb" src="${e.comprovante}" onclick="verComprovante('${e.id}')" title="Ver comprovante">`:''}
+      ${e.temComprovante?`<button class="btn btn-ghost btn-mini" onclick="verComprovante('${e.id}')" title="Ver comprovante">📷 Comprovante</button>`:''}
     </div>
     <div class="card-actions norail">
       ${podeMexer(e)?`
@@ -2823,7 +2863,7 @@ function applyRole(){
     // todos os perfis (vendedoras e Edson) veem o quadro completo, com acesso a TODAS as entregas
     const ehGeral = !!session.geral;
     $('role-label').innerHTML = ehGeral
-      ? 'Operação · <b>Edson</b>'
+      ? `Operação · <b>${esc(session.vendedora)}</b>`
       : `Vendedora · <b>${esc(session.vendedora)}</b>`;
     filtroVend='todas';
     // só o Edson (geral) pode lançar venda para outra vendedora; as vendedoras lançam só no nome delas
@@ -3053,8 +3093,8 @@ function fcard(e){
         ${e.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(e.observacao)}</span></div>`:''}
         ${(e.bairro||e.cidade)?`<div class="frow"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
       </div>
-      ${e.comprovante
-        ? `<img class="fcard-foto" src="${e.comprovante}" onclick="verComprovante('${e.id}')" title="Toque para ampliar">`
+      ${e.temComprovante
+        ? `<button class="fcard-foto fcard-foto-btn" onclick="verComprovante('${e.id}')" title="Toque para ver">📷<br>ver comprovante</button>`
         : `<div class="fcard-nofoto">📷<br>sem foto</div>`}
     </div>
   </div>`;
@@ -3421,6 +3461,7 @@ renderLojaStatus();
 // limpa grafias antigas de vendedoras (Michelle->Michelly, Natalia->Natália, etc.)
 let _migrou=false;
 entregas.forEach(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.vendedora){ e.vendedora=c; _migrou=true; } } });
+if(migrarComprovantes(entregas)) _migrou=true;   // tira fotos legadas de dentro do array
 if(_migrou) persist();
 refreshVendChips();
 renderFiltersVend();
