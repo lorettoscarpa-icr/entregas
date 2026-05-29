@@ -435,6 +435,15 @@
   .ent-alert b{color:var(--warn)}
   .ent-order-note{font-size:12.5px;color:var(--text-mute);margin:0 2px 13px;display:flex;align-items:center;gap:7px;font-style:italic;font-family:var(--ff-display);font-size:15px}
   .ent-order-note.gps{color:#bcd4ff;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:11px;padding:9px 13px;font-style:normal}
+  .ent-order-note.manual{color:var(--gold-lt);background:rgba(212,180,90,.12);border:1px solid rgba(212,180,90,.4);border-radius:11px;padding:9px 13px;font-style:normal;flex-wrap:wrap}
+  .reset-ord{font-family:var(--ff-body);font-size:13px;color:var(--gold);background:rgba(212,180,90,.16);border:1px solid rgba(212,180,90,.45);border-radius:9px;padding:5px 11px;cursor:pointer;font-weight:600}
+  .reset-ord:hover{background:rgba(212,180,90,.26)}
+  .ent-num-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .ordem-ctl{display:flex;align-items:center;gap:8px}
+  .ordem-lbl{font-size:11.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.06em}
+  .ordem-sel{font-family:var(--ff-display);font-size:17px;font-weight:600;color:var(--gold-lt);background:var(--surface-3);border:1px solid var(--line-strong);border-radius:10px;padding:6px 10px;min-height:40px;cursor:pointer;-webkit-tap-highlight-color:transparent;font-variant-numeric:lining-nums tabular-nums}
+  .ordem-sel:focus{outline:none;border-color:var(--gold)}
+  .vstop.manual{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid rgba(212,180,90,.4)}
   .ent-leg{font-size:12.5px;color:var(--text-mute);margin-bottom:10px;letter-spacing:.01em}
   .ent-leg b{color:var(--text-soft);font-weight:600}
   /* ações grandes, pensadas pro dedão */
@@ -2934,6 +2943,47 @@ function planRota(items, loja, startTs){
   noC.forEach(e=>out.push({e, arr:null, leg:null}));
   return out;
 }
+/* ===== ordem da rota: automática (mais rápida) OU manual (o entregador escolhe) ===== */
+function origemRota(){ return entCoord || lojaCoords() || {lat:-16.6869,lng:-49.2648}; }
+function rotaManualAtiva(){ return minhasEntregas().some(e=>e.ordemManual!=null); }
+function ordemManualOrdenada(items){
+  return items.slice().sort((a,b)=>((a.ordemManual==null?1e9:a.ordemManual)-(b.ordemManual==null?1e9:b.ordemManual))||((a.roteadoEm||0)-(b.roteadoEm||0)));
+}
+/* calcula trechos/horários seguindo uma ordem JÁ definida (sem reordenar) */
+function planFixo(ordered, origem, startTs){
+  let cur=origem, t=startTs, out=[];
+  ordered.forEach(e=>{ const c=coordOf(e);
+    if(c){ const leg=legMin(cur,c), arr=t+leg*60000; out.push({e,arr,leg}); t=arr+config.servicoMin*60000; cur=c; }
+    else out.push({e,arr:null,leg:null});
+  });
+  return out;
+}
+/* a ordem que vale agora (manual se o entregador organizou; senão a automática) */
+function ordemAtual(){
+  const items=minhasEntregas();
+  if(items.some(e=>e.ordemManual!=null)) return ordemManualOrdenada(items);
+  return planRota(items, origemRota(), Date.now()).map(p=>p.e);
+}
+/* congela a ordem mostrada agora em números 1..n (entra no modo manual) */
+function _congelarOrdem(){ ordemAtual().forEach((e,i)=>{ e.ordemManual=i+1; }); }
+/* define a posição exata da parada (o entregador escolhe o número 1..n) */
+function definirOrdem(id, pos){
+  const novoManual = !rotaManualAtiva();
+  if(novoManual) _congelarOrdem();                    // 1ª escolha: vira "minha ordem"
+  let ord=ordemManualOrdenada(minhasEntregas());
+  const i=ord.findIndex(e=>e.id===id); if(i<0) return;
+  pos=Math.max(1, Math.min(ord.length, pos|0));
+  if(pos-1!==i){
+    const it=ord.splice(i,1)[0]; ord.splice(pos-1, 0, it);
+    ord.forEach((e,k)=>{ e.ordemManual=k+1; });
+  }
+  if(pos-1!==i || novoManual){ persist(); renderEntregador(); }
+}
+/* volta pra ordem automática (mais rápida) */
+function ordemAutomatica(){
+  minhasEntregas().forEach(e=>{ delete e.ordemManual; });
+  persist(); renderEntregador(); toast('Ordem automática (mais rápida) ✓');
+}
 const fmtClock = ts => new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
 /* ============ MINHAS ENTREGAS (vendedora) ============ */
@@ -2953,11 +3003,13 @@ function planAllRoutes(dia){
   Object.keys(byEnt).forEach(entId=>{
     const viva = posicaoViva(entId);          // posição real do entregador, se estiver transmitindo
     const t0 = Date.now();
-    const plan = planRota(byEnt[entId], viva||loja, t0);
+    const items = byEnt[entId];
+    const manual = items.some(e=>e.ordemManual!=null);   // o entregador organizou a ordem dele
+    const plan = manual ? planFixo(ordemManualOrdenada(items), viva||loja, t0) : planRota(items, viva||loja, t0);
     plan.forEach((p,i)=>{
       // etaMin = tempo de viagem a partir de ONDE o entregador está agora (não é cronômetro)
       const etaMin = (p.arr!=null) ? Math.max(0, (p.arr - t0)/60000) : null;
-      info[p.e.id]={arr:p.arr, etaMin, pos:i+1, total:plan.length, live:!!viva};
+      info[p.e.id]={arr:p.arr, etaMin, pos:i+1, total:plan.length, live:!!viva, manual};
     });
   });
   return info;
@@ -3003,7 +3055,8 @@ function vcard(e, eta){
     const ent=ENT[e.entregador]||{nome:'?',cor:'#888'};
     const info=eta[e.id];
     const liveTag = info&&info.live ? `<span class="vlive">🟢 ao vivo</span>` : '';
-    const pos = info ? `<span class="vstop">parada ${info.pos} de ${info.total}</span>${liveTag}` : '';
+    const ordemTag = info&&info.manual ? `<span class="vstop manual">✋ ordem do entregador</span>` : '';
+    const pos = info ? `<span class="vstop">entrega ${info.pos} de ${info.total}</span>${ordemTag}${liveTag}` : '';
     let prev;
     if(info && info.etaMin!=null){
       const min=Math.max(1,Math.round(info.etaMin));
@@ -3148,7 +3201,7 @@ function usarMinhaLocalizacao(auto){
   if(!navigator.geolocation){ if(!auto) toast('Seu aparelho não permite localização'); return; }
   if(btn){ btn.textContent='📍 localizando...'; btn.disabled=true; }
   navigator.geolocation.getCurrentPosition(
-    pos=>{ entCoord={lat:pos.coords.latitude, lng:pos.coords.longitude}; renderEntregador(); iniciarRastreio(); if(!auto) toast('Próxima parada a partir de onde você está ✓'); },
+    pos=>{ entCoord={lat:pos.coords.latitude, lng:pos.coords.longitude}; renderEntregador(); iniciarRastreio(); if(!auto) toast('Próxima entrega a partir de onde você está ✓'); },
     err=>{
       if(btn){ btn.textContent = entCoord?'📍 Atualizar localização':'📍 Usar minha localização'; btn.disabled=false; }
       if(!auto) toast(err.code===1?'Permita o acesso à localização no navegador':'Não consegui pegar sua localização agora');
@@ -3163,7 +3216,8 @@ function renderEntregador(){
   const loja=lojaCoords()||{lat:-16.6869,lng:-49.2648};
   const fromGps = !!entCoord;
   const origem = entCoord || loja;                 // ordena de onde ele está, se tiver GPS
-  const plan=planRota(items, origem, Date.now());
+  const manual = items.some(e=>e.ordemManual!=null);
+  const plan = manual ? planFixo(ordemManualOrdenada(items), origem, Date.now()) : planRota(items, origem, Date.now());
   const ordered=plan.map(p=>p.e);
   const est=routeEstMin(items);
   const start=items.length?Math.min(...items.map(e=>e.roteadoEm||e.criadoEm)):Date.now();
@@ -3174,9 +3228,11 @@ function renderEntregador(){
   const alerta = comHora.length
     ? `<div class="ent-alert"><b>⏰ Atenção aos horários combinados:</b><br>${comHora.map(e=>`${esc(e.cliente)} — ${hrLabel(e.horarioTipo)} <b>${e.horarioHora}</b>`).join(' · ')}</div>`
     : '';
-  const ordemNota = items.length ? (fromGps
-      ? `<div class="ent-order-note gps">📍 Ordem a partir de onde você está agora. Se já tiver se movido, toque em <b>Atualizar localização</b>.</div>`
-      : `<div class="ent-order-note">🧭 Ordem saindo da loja — toque em <b>Usar minha localização</b> pra ordenar a partir de onde você está.</div>`) : '';
+  const ordemNota = items.length ? (manual
+      ? `<div class="ent-order-note manual">✋ Você organizou a <b>sua ordem</b>. <button class="reset-ord" onclick="ordemAutomatica()">↺ voltar à automática</button></div>`
+      : (fromGps
+        ? `<div class="ent-order-note gps">📍 Saindo de onde você está agora (ordem mais rápida). Em cada entrega, escolha o número (1º, 2º, 3º…) pra montar a sua ordem.</div>`
+        : `<div class="ent-order-note">🧭 Saindo da loja. Toque em <b>Usar minha localização</b> pra sair de onde você está — ou escolha o número em cada entrega pra montar a sua ordem.</div>`)) : '';
   const finHoje = entregas.filter(e=>e.entregador===session.entregador && dataDe(e)===todayKey() && ['entregue','nao_entregue','cancelado'].includes(e.status)).sort((a,b)=>(b.entregueEm||b.desfechoEm||0)-(a.entregueEm||a.desfechoEm||0));
   const finHTML = finHoje.length ? `<div class="ent-fin">
     <div class="ent-fin-h">✓ Finalizadas hoje (${finHoje.length}) — errou? toque para corrigir</div>
@@ -3189,16 +3245,16 @@ function renderEntregador(){
       </div>`;
     }).join('')}
   </div>` : '';
-  $('ent-list').innerHTML=alerta + ordemNota + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps)).join('') + finHTML;
+  $('ent-list').innerHTML=alerta + ordemNota + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
   const lb=$('btn-minha-loc'); if(lb){ lb.textContent = fromGps?'📍 Atualizar localização':'📍 Usar minha localização'; lb.disabled=false; lb.classList.toggle('on', fromGps); }
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
 }
 function msgPadrao(){
   const ent=ENT[session.entregador]; const nome=ent?ent.nome:'';
-  return `Olá, meu nome é ${nome}, sou responsável pela entrega do seu pedido da Loretto Scarpa. Estou realizando uma rota de entregas e gostaria de informar que seu pedido está a caminho.\nPara sua comodidade, estou enviando a minha localização pra que você possa acompanhar meu deslocamento em tempo real.\nQualquer dúvida, estou à disposição.\nAgradecemos por escolher a Loretto Scarpa!`;
+  return `Olá, meu nome é ${nome}, sou o entregador da Loretto Scarpa.\nA sua entrega já está em rota. Estou enviando a minha localização para você acompanhar.\n\nQualquer dúvida, estou à disposição. 🤝`;
 }
-function cardEntregadorView(p,n,fromGps){
+function cardEntregadorView(p,n,fromGps,total){
   const e=p.e;
   const ent=ENT[e.entregador]||{cor:'#888'};
   const temHora = e.horarioTipo && e.horarioHora;
@@ -3207,12 +3263,20 @@ function cardEntregadorView(p,n,fromGps){
   const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgPadrao()+taxaTxt+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}` : '';
   const telV = telVend(e.vendedora);
   const waVend = telV ? `https://wa.me/${telV}?text=${encodeURIComponent('Oi'+(e.vendedora?' '+e.vendedora.split(' ')[0]:'')+'! Aqui é o entregador, sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. ')}` : '';
-  const origemLbl = n===1 ? (fromGps?'📍 da sua localização':'🏬 saindo da loja') : '↳ da parada anterior';
+  const origemLbl = n===1 ? (fromGps?'📍 da sua localização':'🏬 saindo da loja') : '↳ da entrega anterior';
   const leg = p.leg!=null
     ? `<div class="ent-leg">${origemLbl} · ~${fmtDur(Math.max(1,Math.round(p.leg)))}${p.arr?` · chegada prevista <b>${fmtClock(p.arr)}</b>`:''}</div>`
     : `<div class="ent-leg">📍 sem localização no mapa — confira o endereço</div>`;
   return `<div class="ent-card ${temHora?'alerta':''}" style="${temHora?'':'border-left-color:'+ent.cor}">
-    <div class="num">Parada ${n}</div>
+    <div class="ent-num-row">
+      <div class="num">Entrega ${n} de ${total||1}</div>
+      <label class="ordem-ctl">
+        <span class="ordem-lbl">ordem na rota</span>
+        <select class="ordem-sel" onchange="definirOrdem('${e.id}', +this.value)" aria-label="Escolher a posição desta entrega">
+          ${Array.from({length:total||1},(_,k)=>`<option value="${k+1}"${k+1===n?' selected':''}>${k+1}º</option>`).join('')}
+        </select>
+      </label>
+    </div>
     <div class="name">${esc(e.cliente)}</div>
     ${temHora?`<div class="hr-alert">⏰ ENTREGAR ${hrLabel(e.horarioTipo).toUpperCase()} ${e.horarioHora}</div>`:''}
     ${e.tipo==='troca'?`<div class="hr-alert" style="background:rgba(143,156,214,.16);color:#8e9cd6">🔁 TROCA — leve o novo e TRAGA o par antigo</div>`:''}
@@ -3254,7 +3318,7 @@ function renderMapEnt(){
   layerEnt.clearLayers();
   const bounds=[], loja=lojaCoords(), ent=ENT[session.entregador]||{cor:'#d4b45a'};
   const origem = entCoord || loja || {lat:-16.68,lng:-49.26};
-  const ordered=orderEntregas(minhasEntregas(), origem);
+  const ordered=ordemAtual();
   const path=[];
   if(entCoord){
     L.circleMarker([entCoord.lat,entCoord.lng],{radius:9,color:'#fff',weight:3,fillColor:'#3b82f6',fillOpacity:1}).addTo(layerEnt).bindPopup('📍 Você está aqui');
@@ -3273,21 +3337,20 @@ function renderMapEnt(){
   if(bounds.length) mapEnt.fitBounds(bounds,{padding:[45,45],maxZoom:14});
 }
 function copiarMinhaRota(){
-  const loja=lojaCoords()||{lat:-16.68,lng:-49.26};
-  const items=orderEntregas(minhasEntregas(), loja);
+  const items=ordemAtual();
   if(!items.length){ toast('Sem entregas na rota'); return; }
   const txt=buildRouteText(items, ENT[session.entregador]);
   copyText(txt, ()=>toast('Lista copiada'), txt);
 }
 function abrirRotaMaps(){
-  const loja=lojaCoords();
-  const items=orderEntregas(minhasEntregas(), loja||{lat:-16.68,lng:-49.26});
+  const items=ordemAtual();
   const pts=items.map(coordOf).filter(Boolean);
-  if(!pts.length){ toast('Nenhuma parada com localização'); return; }
+  if(!pts.length){ toast('Nenhuma entrega com localização'); return; }
+  const origem = entCoord || lojaCoords();        // sai de onde o entregador está (ou da loja)
   const dest=`${pts[pts.length-1].lat},${pts[pts.length-1].lng}`;
   const way=pts.slice(0,-1).map(p=>`${p.lat},${p.lng}`).join('|');
   let url=`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
-  if(loja) url+=`&origin=${loja.lat},${loja.lng}`;
+  if(origem) url+=`&origin=${origem.lat},${origem.lng}`;
   if(way) url+=`&waypoints=${encodeURIComponent(way)}`;
   window.open(url,'_blank');
 }
