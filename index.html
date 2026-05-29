@@ -133,6 +133,8 @@
   textarea::placeholder,input::placeholder{color:var(--text-mute)}
   .paste-row{display:flex;gap:10px;align-items:flex-end}
   .paste-row textarea{min-height:46px}
+  .paste-btns{display:flex;flex-direction:column;gap:8px}
+  .paste-cta{width:100%;margin-bottom:10px;min-height:50px;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px}
   .fields{display:grid;grid-template-columns:1fr 1fr;gap:13px}
   .fields .full{grid-column:1/-1}
   .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
@@ -624,6 +626,8 @@
   .vbtn.ghost{background:var(--surface-2);color:var(--text-soft);flex:0 1 auto;padding:0 16px}
   .vbtn.ghost:hover{color:var(--text);border-color:var(--line-strong)}
   .vbtn.disabled{flex:1 1 150px;color:var(--text-mute);background:transparent;border-style:dashed;cursor:default;font-weight:400;font-size:12.5px}
+  .vbtn.primary{flex:1 1 100%;background:linear-gradient(135deg,var(--gold),#c79a3b);color:#1c2114;border:none;font-weight:700;box-shadow:0 8px 20px -9px rgba(212,180,90,.7)}
+  .vbtn.primary:hover{filter:brightness(1.06)}
   @media(max-width:540px){
     .vmin-head{align-items:stretch}
     .vmin-daynav{min-width:0;width:100%}
@@ -681,6 +685,9 @@
   }
   @media(max-width:540px){
     .fields{grid-template-columns:1fr}
+    .paste-row{flex-direction:column;align-items:stretch}
+    .paste-btns{flex-direction:row}
+    .paste-btns .btn{flex:1}
     .clock{display:none}
     .routebar{flex-direction:column;align-items:stretch}
     .routebar .selinfo{text-align:center}
@@ -815,10 +822,11 @@
     </div>
     <div class="panel-body">
       <div class="paste-zone">
-        <label>Colar mensagem do WhatsApp <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(detecta nome, telefone, endereço, valor e horário)</span></label>
+        <label>Preencher pela mensagem do WhatsApp <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(detecta nome, telefone, endereço, valor e horário)</span></label>
+        <button class="btn btn-primary paste-cta" id="btn-colar" onclick="colarEpreencher()">📋 Colar mensagem e preencher</button>
         <div class="paste-row">
-          <textarea id="paste" placeholder="Cole uma mensagem para conferir, ou várias (separadas por ⛔) para importar em lote..."></textarea>
-          <div style="display:flex;flex-direction:column;gap:8px">
+          <textarea id="paste" placeholder="…ou cole a mensagem aqui (toque e segure → Colar) e use ✨ Preencher com IA. Para vários, separe por ⛔"></textarea>
+          <div class="paste-btns">
             <button class="btn btn-primary" id="btn-ai" onclick="aiPreencher()">✨ Preencher com IA</button>
             <button class="btn btn-ghost" onclick="importarLote()">Importar lote</button>
           </div>
@@ -835,7 +843,7 @@
           <input id="f-vend" placeholder="Quem fez a venda" list="vend-list" autocomplete="off">
           <div class="vend-chips" id="vend-chips"></div>
         </div>
-        <div><label>Contato</label><input id="f-contato" placeholder="(62) 9....-...."></div>
+        <div><label>Contato</label><input id="f-contato" type="tel" inputmode="tel" placeholder="(62) 9....-...."></div>
         <div>
           <label>Bairro <button type="button" class="link-btn" id="btn-bairro" onclick="buscarBairro()">📍 buscar pelo mapa</button></label>
           <input id="f-bairro" placeholder="Vila / setor">
@@ -1734,6 +1742,26 @@ function doParse(){
   toast('Conferir os campos e cadastrar ✓');
   if($('f-link').value && !$('f-bairro').value.trim()) buscarBairroAuto(coordFrom($('f-link').value), false);
 }
+async function colarEpreencher(){
+  const btn=$('btn-colar'), old=btn?btn.textContent:'';
+  // sem suporte à leitura da área de transferência → cai pro modo manual
+  if(!(navigator.clipboard && navigator.clipboard.readText)){
+    $('paste').focus(); toast('Cole a mensagem no campo abaixo e toque em ✨ Preencher com IA'); return;
+  }
+  if(btn){ btn.textContent='📋 Lendo...'; btn.disabled=true; }
+  let txt='';
+  try{ txt = await navigator.clipboard.readText(); }
+  catch(e){
+    if(btn){ btn.textContent=old; btn.disabled=false; }
+    $('paste').focus();
+    toast('Toque e segure no campo abaixo → Colar, depois ✨ Preencher com IA');
+    return;
+  }
+  if(btn){ btn.textContent=old; btn.disabled=false; }
+  if(!txt || !txt.trim()){ toast('Nada copiado — copie a mensagem no WhatsApp primeiro 🙂'); $('paste').focus(); return; }
+  $('paste').value = txt.trim();
+  aiPreencher();   // mesmo preenchimento (com IA) usado no computador
+}
 async function aiPreencher(){
   const t = $('paste').value.trim();
   if(!t){ toast('Cole a mensagem primeiro'); return; }
@@ -2271,6 +2299,28 @@ function copiarGrupo(entId){
   const ent=ENT[entId];
   const txt=buildRouteText(items, ent);
   copyText(txt, ()=>toast(`Rota do ${ent.nome} copiada`), txt);
+}
+/* enviar UMA entrega aguardando para um entregador (escolhendo quem) */
+function enviarParaEntregador(id){
+  const e=entregas.find(x=>x.id===id); if(!e || !podeMexer(e)) return;
+  fecharMover();
+  const bg=document.createElement('div'); bg.className='modal-bg open'; bg.id='mover-bg';
+  bg.innerHTML=`<div class="modal mover-modal">
+    <h3 style="margin:0 0 4px">Enviar para o entregador…</h3>
+    <p class="mover-sub">Quem vai levar a entrega${e.cliente?` do(a) <b>${esc(e.cliente)}</b>`:''}?</p>
+    <div class="mover-list">
+      ${ENTREGADORES.map(x=>`<button class="mover-opt" onclick="confirmarEnvio('${id}','${x.id}')"><span class="dot" style="background:${x.cor}"></span>${esc(x.nome)}</button>`).join('')}
+    </div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="fecharMover()">Cancelar</button>
+  </div>`;
+  bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharMover(); });
+  document.body.appendChild(bg);
+}
+function confirmarEnvio(id, entId){
+  const e=entregas.find(x=>x.id===id), ent=ENT[entId];
+  if(e && ent && podeMexer(e)){ e.status='em_rota'; e.entregador=entId; e.roteadoEm=Date.now(); delete e.ordemManual; persist(); }
+  fecharMover(); render();
+  toast(`Enviado para ${ent?ent.nome:'entregador'} 🛵`);
 }
 function copyText(txt, ok, fallbackText){
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -3137,6 +3187,7 @@ function vcard(e, eta){
       ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
     </div>
     <div class="vcard-acts">
+      ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
       ${wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>'}
       ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
       ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
