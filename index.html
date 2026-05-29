@@ -31,7 +31,7 @@
     --ff-body:'Jost',sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
+  html{height:100%}
   body{
     font-family:var(--ff-body);color:var(--text);
     background:
@@ -48,13 +48,12 @@
       rgba(212,180,90,.022) 0px, rgba(212,180,90,.022) 1px,
       transparent 1px, transparent 14px);
   }
-  /* ---- atmospheric orbs ---- */
-  .orb{position:fixed;border-radius:50%;filter:blur(85px);opacity:.42;z-index:0;pointer-events:none}
-  .orb.a{width:520px;height:520px;background:radial-gradient(circle,#46672f,transparent 70%);top:-180px;left:-120px;animation:drift1 26s ease-in-out infinite}
-  .orb.b{width:440px;height:440px;background:radial-gradient(circle,#7a5e22,transparent 70%);bottom:-160px;right:-100px;animation:drift2 32s ease-in-out infinite}
-  .orb.c{width:360px;height:360px;background:radial-gradient(circle,#324c1c,transparent 70%);top:40%;left:55%;animation:drift1 38s ease-in-out infinite reverse}
-  @keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,40px)}}
-  @keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-50px,-40px)}}
+  /* ---- atmospheric orbs (estáticos: sem animação contínua, que pesava no celular) ---- */
+  .orb{position:fixed;border-radius:50%;filter:blur(70px);opacity:.38;z-index:0;pointer-events:none}
+  .orb.a{width:520px;height:520px;background:radial-gradient(circle,#46672f,transparent 70%);top:-180px;left:-120px}
+  .orb.b{width:440px;height:440px;background:radial-gradient(circle,#7a5e22,transparent 70%);bottom:-160px;right:-100px}
+  .orb.c{width:360px;height:360px;background:radial-gradient(circle,#324c1c,transparent 70%);top:40%;left:55%}
+  @media(max-width:820px){ .orb{display:none} }   /* no celular, fundo limpo = mais leve */
   .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:22px 18px 0}
 
   /* ---- header ---- */
@@ -355,6 +354,22 @@
   .login-btn-canc{width:100%;background:transparent;border:none;color:var(--text-mute);font-family:var(--ff-eyebrow);font-size:9px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;margin-top:12px;padding:6px;transition:color .2s}
   .login-btn-canc:hover{color:var(--text)}
   .login-erro{font-size:11px;color:#e07070;text-align:center;margin-top:12px;min-height:16px;letter-spacing:.5px}
+  /* ── tutorial de primeiro uso ── */
+  .tut-ov{display:none;position:fixed;inset:0;z-index:320;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:22px}
+  .tut-ov.open{display:flex}
+  .tut-box{position:relative;background:linear-gradient(180deg,var(--surface),var(--surface-2));border:1px solid var(--line-strong);border-radius:var(--radius);max-width:420px;width:100%;padding:34px 26px 24px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+  .tut-x{position:absolute;top:12px;right:14px;background:transparent;border:none;color:var(--text-mute);font-size:18px;cursor:pointer;line-height:1}
+  .tut-x:hover{color:var(--text)}
+  .tut-ic{font-size:46px;line-height:1;margin-bottom:12px}
+  .tut-step{font-family:var(--ff-eyebrow);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+  .tut-t{font-family:var(--ff-display);font-size:26px;font-weight:600;color:var(--gold-lt);margin-bottom:10px;line-height:1.15}
+  .tut-d{font-family:var(--ff-body);font-size:15px;line-height:1.55;color:var(--text-soft);min-height:104px}
+  .tut-d b{color:var(--text);font-weight:600}
+  .tut-dots{display:flex;gap:7px;justify-content:center;margin:18px 0 16px}
+  .tut-dot{width:7px;height:7px;border-radius:50%;background:var(--line-strong);transition:.2s}
+  .tut-dot.on{background:var(--gold);width:20px;border-radius:5px}
+  .tut-nav{display:flex;gap:10px}
+  .tut-nav .btn{flex:1;justify-content:center}
   .login-opt.vend{flex-direction:row;justify-content:flex-start;gap:13px;padding:15px 17px;text-align:left}
   .login-opt.vend .av{width:46px;height:46px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;
     font-family:var(--ff-display);font-size:23px;font-weight:600;color:var(--gold);background-size:cover;background-position:center;
@@ -383,10 +398,17 @@
   .ent-loc-btn:hover{border-color:var(--gold)}
   .ent-loc-btn.on{background:rgba(59,130,246,.16);border-color:#3b82f6;color:#bcd4ff}
   #area-entregador{max-width:640px;margin:0 auto}
+  #ent-list{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
   .ent-actions{display:flex;gap:8px}
   .ent-resumo{background:rgba(59,68,48,.5);border:1px solid var(--line);border-radius:14px;padding:13px 16px;margin-bottom:16px;font-size:14px;color:var(--text-soft);display:flex;gap:20px;flex-wrap:wrap}
   .ent-resumo b{font-family:var(--ff-display);font-size:22px;color:var(--text);font-weight:600;margin-right:5px}
   #map-ent{height:300px;border-radius:var(--radius);border:1px solid var(--line);margin-bottom:16px;background:var(--surface-2);z-index:1}
+  .ent-fin{margin-top:20px;border-top:1px dashed var(--line);padding-top:14px}
+  .ent-fin-h{font-family:var(--ff-eyebrow);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);margin-bottom:10px}
+  .ent-fin-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;flex-wrap:wrap}
+  .ent-fin-cli{font-size:14.5px;color:var(--text)}
+  .ent-fin-cli small{display:block;color:var(--text-mute);font-size:12px;margin-top:1px}
+  .ent-fin-acts{display:flex;gap:7px;flex-shrink:0}
   .ent-resumo{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:16px}
   .ent-resumo .stat{background:rgba(59,68,48,.5);border:1px solid var(--line);border-radius:13px;padding:12px 8px;text-align:center;box-shadow:var(--elev-1)}
   .ent-resumo .stat b{display:block;font-family:var(--ff-display);font-size:25px;color:var(--text);font-weight:600;line-height:1.1}
@@ -419,6 +441,27 @@
   .filters2{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-6px 0 16px}
   .filters2 .flt-lbl{font-size:12px;color:var(--text-mute);letter-spacing:.04em}
   .pay-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #pay-cartao:not(:empty){margin-top:12px}
+  .cartao-tipo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .ctp{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px;color:var(--text-soft);font-family:var(--ff-eyebrow);font-size:13px;letter-spacing:.04em;cursor:pointer;transition:.15s}
+  .ctp:hover{border-color:var(--line-strong)}
+  .ctp.on{background:rgba(212,180,90,.16);border-color:var(--gold);color:var(--gold-lt);font-weight:600}
+  #pay-taxa:not(:empty){margin-top:12px}
+  .pay-taxa-row{display:flex;align-items:center;gap:11px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px;cursor:pointer;transition:.15s}
+  .pay-taxa-row:hover{border-color:var(--line-strong)}
+  .pay-taxa-row.on{background:rgba(224,179,65,.14);border-color:var(--warn)}
+  .pay-taxa-box{flex:0 0 auto;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--bg)}
+  .pay-taxa-row.on .pay-taxa-box{background:var(--warn);border-color:var(--warn)}
+  .pay-taxa-txt{flex:1;font-size:13px;color:var(--text-soft);line-height:1.3}
+  .pay-taxa-txt b{color:var(--text)}
+  .pay-taxa-val{flex:0 0 auto;font-family:var(--ff-eyebrow);font-weight:600;color:var(--warn)}
+  #pay-vals:not(:empty){margin-top:12px}
+  .pay-val-lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin-bottom:8px}
+  .pay-val-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .pay-val-row label{flex:0 0 auto;min-width:96px;font-family:var(--ff-eyebrow);font-size:12px;letter-spacing:.04em;color:var(--text-soft);display:flex;align-items:center;gap:6px}
+  .pay-val-row input{flex:1;text-align:right}
+  .pay-val-total{display:flex;justify-content:space-between;align-items:center;margin-top:11px;padding-top:9px;border-top:1px dashed var(--line);font-size:13px;color:var(--text-soft)}
+  .pay-val-total b{color:var(--gold-lt);font-size:16px;font-family:var(--ff-display)}
   .pay-opt{font-family:var(--ff-body);background:var(--bg2);border:1px solid var(--line);border-radius:13px;padding:15px;cursor:pointer;color:var(--text);transition:.15s;font-size:14px;font-weight:500;display:flex;align-items:center;gap:9px}
   .pay-opt:hover{border-color:var(--line-strong)}
   .pay-opt.on{border-color:var(--gold);background:rgba(217,164,65,.14);color:var(--gold)}
@@ -644,6 +687,7 @@
       </div>
       <div id="rolebar" class="rolebar" style="display:none">
         <span id="role-label"></span>
+        <button class="btn btn-ghost btn-mini" onclick="abrirTutorial()" title="Como usar">❓ Como usar</button>
         <button class="btn btn-ghost btn-mini" onclick="logout()">Trocar</button>
       </div>
     </div>
@@ -795,7 +839,7 @@
       <div id="list-rota"></div>
     </div>
     <div class="col">
-      <div class="col-head"><span class="title"><span class="tick entregue"></span>Entregue</span><span class="count" id="c-entregue">0</span></div>
+      <div class="col-head"><span class="title"><span class="tick entregue"></span>Finalizadas</span><span class="count" id="c-entregue">0</span></div>
       <div id="list-entregue"></div>
     </div>
   </div>
@@ -909,7 +953,7 @@
 <div class="routebar" id="routebar">
   <div class="selinfo"><span id="sel-count">0</span> selecionadas<small id="sel-est">monte a rota e copie</small></div>
   <div class="ent-pick" id="ent-pick"></div>
-  <button class="btn btn-primary" onclick="enviarRota()">Copiar rota ▸</button>
+  <button class="btn btn-primary" onclick="enviarRota()">Montar rota ▸</button>
 </div>
 
 <!-- image viewer -->
@@ -952,10 +996,16 @@
 <div class="modal-bg" id="pay-modal">
   <div class="modal">
     <h3>Finalizar entrega</h3>
-    <p>Como o cliente pagou?</p>
+    <p>Como o cliente pagou? <span style="color:var(--text-mute);font-weight:400;font-size:12px">— pode marcar até 2 formas</span></p>
     <div class="pay-opts" id="pay-opts"></div>
-    <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:14px 0 6px">Observação do pagamento (opcional)</label>
-    <input id="pay-note" placeholder="Ex: metade no pix, metade em dinheiro">
+    <div id="pay-cartao"></div>
+    <div id="pay-vals"></div>
+    <div id="pay-taxa"></div>
+    <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);display:block;margin:16px 0 6px">Produto que o cliente ficou *</label>
+    <input id="pay-prod" placeholder="Modelo do sapato (ex: Tênis Oxford couro)">
+    <input id="pay-num" inputmode="numeric" placeholder="Numeração (ex: 40)" style="margin-top:8px">
+    <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:16px 0 6px">Observação do pagamento (opcional)</label>
+    <input id="pay-note" placeholder="Ex: R$ 120 no pix + R$ 80 no cartão">
     <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:14px 0 6px" id="pay-foto-lbl">Foto do pagamento</label>
     <input type="file" id="pay-foto" accept="image/*" capture="environment" onchange="carregarComprovante(this)" style="display:none">
     <button type="button" class="btn pay-cam-btn" id="pay-cam-btn" onclick="document.getElementById('pay-foto').click()">📷 Tirar foto do pagamento</button>
@@ -1003,6 +1053,22 @@
 <div class="toast" id="toast"></div>
 
 <!-- Firebase (compat) — sincronização em tempo real das entregas -->
+<!-- TUTORIAL DE PRIMEIRO USO -->
+<div class="tut-ov" id="tut" onclick="if(event.target===this)fecharTutorial()">
+  <div class="tut-box">
+    <button class="tut-x" onclick="fecharTutorial()" aria-label="Fechar">✕</button>
+    <div class="tut-ic" id="tut-ic">📦</div>
+    <div class="tut-step" id="tut-step">1 / 5</div>
+    <div class="tut-t" id="tut-t"></div>
+    <div class="tut-d" id="tut-d"></div>
+    <div class="tut-dots" id="tut-dots"></div>
+    <div class="tut-nav">
+      <button class="btn btn-ghost" id="tut-prev" onclick="tutNav(-1)">‹ Voltar</button>
+      <button class="btn btn-primary" id="tut-next" onclick="tutNav(1)">Próximo ›</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1018,6 +1084,16 @@ const ENTREGADORES = [
 ];
 const ENT = Object.fromEntries(ENTREGADORES.map(e=>[e.id,e]));
 const VENDEDORAS = ['Jhennifer','Ialey','Michelly','Natália']; // equipe de vendas
+// WhatsApp das vendedoras (só dígitos: 55 + DDD + número)
+const TEL_VEND = { Jhennifer:'5562981688990', Ialey:'5562981728039', 'Natália':'5562982001112', Michelly:'5562981940350' };
+// resolve o telefone a partir do nome registrado na venda (tolera grafias)
+function telVend(nome){
+  if(!nome) return '';
+  const nt = norm(nome);
+  if(TEL_VEND[nome]) return TEL_VEND[nome];
+  for(const v of VENDEDORAS){ if(norm(v).slice(0,4)===nt.slice(0,4)) return TEL_VEND[v]||''; }
+  return '';
+}
 const FOTOS = {
   "Edson": "data:image/jpeg;base64,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",
   "Yuri": "data:image/jpeg;base64,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",
@@ -1035,8 +1111,14 @@ const PAGAMENTOS = [
   {id:'cartao',   label:'Cartão',          ico:'💳'},
   {id:'dinheiro', label:'Dinheiro',        ico:'💵'},
   {id:'japago',   label:'Já estava pago',  ico:'✅'},
+  {id:'parceria', label:'Parceria',        ico:'🤝'},
 ];
+const PAG_SEM_COBRANCA = ['japago','parceria'];   // não cobram → sem foto e sem valor
 const PAG = Object.fromEntries(PAGAMENTOS.map(p=>[p.id,p]));
+// Taxa de entrega (R$ 19,90). Cobrada: troca SEM defeito · Senador Canedo/Goianira ·
+// cliente NÃO fica com 2 pares. Sem taxa: 2+ pares OU troca por defeito.
+const TAXA_ENTREGA = 19.90;
+function taxaCidade(e){ const c=normTxt(e&&e.cidade); return (c.includes('senador canedo')||c.includes('goianira')) ? TAXA_ENTREGA : 0; }
 function pagLabel(id){ const p=PAG[id]; return p?`${p.ico} ${p.label}`:''; }
 const URGENCIA = {atencao:20, urgente:45}; // minutos
 const KEY = 'loretto_entregas_v1';
@@ -1171,10 +1253,13 @@ function reverseGeoBairro(coord){
   const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coord.lat}&lon=${coord.lng}&accept-language=pt-BR&zoom=18`;
   return fetch(url,{headers:{'Accept':'application/json'}}).then(r=>r.json()).then(j=>{
     const a=j.address||{};
+    const rua=a.road||a.pedestrian||a.residential||a.path||'';
+    const num=a.house_number||'';
+    const endereco = rua ? (num ? `${rua}, ${num}` : rua) : '';
     return {
       bairro: a.suburb||a.neighbourhood||a.city_district||a.quarter||a.residential||'',
       cidade: a.city||a.town||a.municipality||a.village||a.county||'',
-      rua: a.road||''
+      rua, numero:num, endereco
     };
   });
 }
@@ -1262,12 +1347,18 @@ function assinarRastreio(){
   fdb.collection('rastreio').onSnapshot(snap=>{
     const m={}; snap.forEach(d=>{ m[d.id]=d.data(); });
     liveEnt=m;
-    _rerenderAtual();
+    _rerenderAtualThrottled();
   }, err=>console.warn('rastreio: leitura bloqueada', err));
+}
+let _rastThrTimer=null, _rastPend=false;
+function _rerenderAtualThrottled(){
+  if(_rastThrTimer){ _rastPend=true; return; }
+  _rerenderAtual();
+  _rastThrTimer=setTimeout(()=>{ _rastThrTimer=null; if(_rastPend){ _rastPend=false; _rerenderAtualThrottled(); } }, 2500);
 }
 function posicaoViva(id){
   const r=liveEnt[id];
-  if(r && r.ativo && r.lat!=null && (Date.now()-(r.atualizadoEm||0) < 90000)) return {lat:r.lat, lng:r.lng};
+  if(r && r.ativo && r.lat!=null && (Date.now()-(r.atualizadoEm||0) < 150000)) return {lat:r.lat, lng:r.lng};
   return null;
 }
 /* ===== rastreio do cliente (link público ?track=ID) ===== */
@@ -1324,8 +1415,8 @@ function atualizarRastreioCliente(){
   const dest=coordOf(e);
   const st=$('track-st'), eta=$('track-eta'), sub=$('track-sub'), pulse=$('track-pulse'), title=$('track-title');
   if(e.status==='entregue'){
-    title.textContent='Pedido entregue'; st.textContent='✓ Entregue!'; eta.textContent='';
-    sub.textContent='Obrigado por comprar na Loretto Scarpa 💛'; pulse.className='track-pulse done';
+    title.textContent='Entrega finalizada'; st.textContent='✓ Pedido entregue'; eta.textContent='';
+    sub.textContent='Esta entrega já foi concluída. Obrigado por comprar na Loretto Scarpa 💛'; pulse.className='track-pulse done';
     desenharTrack(dest,null); pararTrackEnt(); return;
   }
   if(e.status==='nao_entregue' || e.status==='cancelado'){
@@ -1334,7 +1425,7 @@ function atualizarRastreioCliente(){
     desenharTrack(dest,null); pararTrackEnt(); return;
   }
   const r=_trackEntDoc;
-  const viva=(r && r.ativo && r.lat!=null && (Date.now()-(r.atualizadoEm||0)<90000)) ? {lat:r.lat,lng:r.lng} : null;
+  const viva=(r && r.ativo && r.lat!=null && (Date.now()-(r.atualizadoEm||0)<150000)) ? {lat:r.lat,lng:r.lng} : null;
   if(e.status==='aguardando'){
     st.textContent='Preparando seu pedido'; eta.textContent='';
     sub.textContent='Assim que sair para entrega, você vê o trajeto aqui.'; pulse.className='track-pulse off';
@@ -1657,9 +1748,13 @@ function buscarBairroAuto(coord, manual){
   reverseGeoBairro(coord).then(res=>{
     if(res.bairro && (manual || !$('f-bairro').value.trim())) $('f-bairro').value=res.bairro;
     if(res.cidade && (manual || !$('f-cidade').value.trim())) $('f-cidade').value=res.cidade;
-    if(res.rua && !$('f-end').value.trim()) $('f-end').value=res.rua;
+    if(res.endereco && !$('f-end').value.trim()) $('f-end').value=res.endereco;  // rua + número
     if(btn) btn.textContent='📍 buscar pelo mapa';
-    if(!res.bairro && manual) toast('Não encontrei o bairro pra esse ponto');
+    if(manual){
+      if(res.endereco) toast('📍 Endereço pelo link: '+res.endereco);
+      else if(res.bairro) toast('Achei o bairro, mas o número não está no mapa');
+      else toast('Não encontrei o endereço pra esse ponto');
+    }
   }).catch(()=>{ if(btn) btn.textContent='📍 buscar pelo mapa'; if(manual) toast('Falha ao buscar (sem internet?)'); });
 }
 
@@ -1809,25 +1904,94 @@ function toggleSel(id){
   if(selected.has(id)) selected.delete(id); else selected.add(id);
   render();
 }
-let payId=null, payMethod=null, payFoto=null;
+let payId=null, paySel=[], payFoto=null, payVal={}, payCartaoTipo=null, payTaxa=false;
+function _num(v){ v=String(v||'').replace(/[^\d.,]/g,''); if(v.includes(',')) v=v.replace(/\./g,'').replace(',', '.'); const n=parseFloat(v); return isNaN(n)?0:n; }
+function _brl(n){ return 'R$ '+Number(n||0).toFixed(2).replace('.',','); }
+function _extrairNum(txt){ const m=/\b([23][0-9]|4[0-6])\b/.exec(txt||''); return m?m[1]:''; }
 function abrirPagamento(id){
   if(_bloqueado(id)) return;
   payId=id; payFoto=null;
   const e=entregas.find(x=>x.id===id);
-  payMethod = (e && e.pagPrevisto==='pago') ? 'japago' : null; // já vem paga → pré-seleciona "já pago"
-  $('pay-note').value=''; $('pay-foto').value=''; $('pay-foto-prev').innerHTML='';
-  const cb=$('pay-cam-btn'); if(cb){ cb.textContent='📷 Tirar foto do pagamento'; cb.classList.remove('done'); }
-  renderPayOpts(); atualizarFotoReq(); $('pay-modal').classList.add('open');
+  const jaFin = e && e.status==='entregue';
+  if(jaFin){                                   // CORRIGIR: traz o que já foi registrado
+    paySel = [e.pagamento, e.pagamento2].filter(Boolean);
+    payVal = Object.assign({}, e.pagamentoValores||{});
+    payCartaoTipo = e.cartaoTipo || null;
+    payTaxa = e.taxaEntrega ? true : false;
+  } else {
+    paySel = (e && e.pagPrevisto==='pago') ? ['japago'] : [];
+    payVal = {};
+    payCartaoTipo = null;
+    payTaxa = taxaCidade(e) > 0;              // já sugere a taxa quando é Senador Canedo/Goianira
+  }
+  $('pay-prod').value = (e && (e.produtoEntregue||e.produto)) || '';
+  $('pay-num').value  = (e && (e.numeracaoEntregue||_extrairNum(e.produto))) || '';
+  $('pay-note').value = (e && e.pagamentoObs) || '';
+  $('pay-foto').value=''; $('pay-foto-prev').innerHTML = (jaFin && e.comprovante)?`<img src="${e.comprovante}">`:'';
+  const cb=$('pay-cam-btn'); if(cb){ cb.textContent=(jaFin&&e.comprovante)?'📷 Refazer foto':'📷 Tirar foto do pagamento'; cb.classList.toggle('done', !!(jaFin&&e.comprovante)); }
+  const h=document.querySelector('#pay-modal h3'); if(h) h.textContent = jaFin ? 'Corrigir entrega' : 'Finalizar entrega';
+  const okBtn=document.querySelector('#pay-modal .form-actions .btn-primary'); if(okBtn) okBtn.textContent = jaFin ? '✓ Salvar correção' : '✓ Confirmar entrega';
+  renderPayOpts(); renderCartaoTipo(); renderPayVals(); renderTaxa(); atualizarFotoReq(); $('pay-modal').classList.add('open');
 }
 function renderPayOpts(){
-  $('pay-opts').innerHTML = PAGAMENTOS.map(p=>`<div class="pay-opt ${payMethod===p.id?'on':''}" onclick="escolherPag('${p.id}')"><span class="pi">${p.ico}</span>${p.label}</div>`).join('');
+  $('pay-opts').innerHTML = PAGAMENTOS.map(p=>`<div class="pay-opt ${paySel.includes(p.id)?'on':''}" onclick="escolherPag('${p.id}')"><span class="pi">${p.ico}</span>${p.label}</div>`).join('');
 }
-function escolherPag(m){ payMethod=m; renderPayOpts(); atualizarFotoReq(); }
+function renderCartaoTipo(){
+  const wrap=$('pay-cartao'); if(!wrap) return;
+  if(!paySel.includes('cartao')){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<label class="pay-val-lbl">💳 Cartão — crédito ou débito? *</label>
+    <div class="cartao-tipo">
+      <button type="button" class="ctp ${payCartaoTipo==='credito'?'on':''}" onclick="setCartaoTipo('credito')">Crédito</button>
+      <button type="button" class="ctp ${payCartaoTipo==='debito'?'on':''}" onclick="setCartaoTipo('debito')">Débito</button>
+    </div>`;
+}
+function setCartaoTipo(t){ payCartaoTipo = (payCartaoTipo===t)?null:t; renderCartaoTipo(); }
+function renderTaxa(){
+  const wrap=$('pay-taxa'); if(!wrap) return;
+  const e=entregas.find(x=>x.id===payId);
+  const cidade = taxaCidade(e)>0;
+  const dica = cidade ? '(Senador Canedo/Goianira)' : (e&&e.tipo==='troca' ? '(troca sem defeito)' : '(cliente não ficou com 2 pares)');
+  wrap.innerHTML = `<div class="pay-taxa-row ${payTaxa?'on':''}" onclick="toggleTaxa()">
+      <span class="pay-taxa-box">${payTaxa?'✓':''}</span>
+      <span class="pay-taxa-txt">Cobrar <b>taxa de entrega</b> <span style="color:var(--text-mute)">${dica}</span></span>
+      <span class="pay-taxa-val">${_brl(TAXA_ENTREGA)}</span>
+    </div>`;
+}
+function toggleTaxa(){ payTaxa=!payTaxa; renderTaxa(); }
+function escolherPag(m){
+  if(PAG_SEM_COBRANCA.includes(m)){ paySel = paySel.includes(m) ? [] : [m]; }   // exclusiva
+  else {
+    paySel = paySel.filter(x=>!PAG_SEM_COBRANCA.includes(x));
+    if(paySel.includes(m)) paySel = paySel.filter(x=>x!==m);
+    else if(paySel.length<2) paySel.push(m);
+    else { toast('Você pode marcar no máximo 2 formas'); return; }
+  }
+  if(!paySel.includes('cartao')) payCartaoTipo=null;   // tirou o cartão → limpa crédito/débito
+  renderPayOpts(); renderCartaoTipo(); renderPayVals(); atualizarFotoReq();
+}
+function renderPayVals(){
+  const wrap=$('pay-vals'); if(!wrap) return;
+  const sel = paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m));
+  if(!sel.length){ wrap.innerHTML=''; return; }
+  const linhas = sel.map(m=>{ const p=PAG_MAP[m];
+    return `<div class="pay-val-row"><label>${p.ico} ${p.label}</label><input inputmode="decimal" id="pv-${m}" placeholder="R$ 0,00" value="${payVal[m]||''}" oninput="setPayVal('${m}',this.value)"></div>`;
+  }).join('');
+  const total = sel.reduce((s,m)=>s+_num(payVal[m]),0);
+  const titulo = sel.length>1 ? 'Quanto em cada forma' : 'Valor recebido';
+  wrap.innerHTML = `<label class="pay-val-lbl">${titulo}</label>${linhas}<div class="pay-val-total"><span>Total recebido</span><b>${_brl(total)}</b></div>`;
+}
+function setPayVal(m,v){
+  payVal[m]=v;
+  const sel=paySel.filter(x=>!PAG_SEM_COBRANCA.includes(x));
+  const total=sel.reduce((s,x)=>s+_num(payVal[x]),0);
+  const t=document.querySelector('#pay-vals .pay-val-total b'); if(t) t.textContent=_brl(total);
+}
 function atualizarFotoReq(){
-  const jaPago = payMethod==='japago';
+  const semCob = paySel.length===1 && PAG_SEM_COBRANCA.includes(paySel[0]);
+  const parc = paySel.length===1 && paySel[0]==='parceria';
   const lbl=$('pay-foto-lbl'), cb=$('pay-cam-btn');
-  if(lbl) lbl.textContent = jaPago ? 'Foto (opcional — já estava pago)' : 'Foto do pagamento (PIX, dinheiro ou cartão)';
-  if(cb) cb.style.display = jaPago && !payFoto ? 'none' : '';   // já pago não precisa de foto
+  if(lbl) lbl.textContent = semCob ? (parc?'Foto (opcional — entrega de parceria)':'Foto (opcional — já estava pago)') : 'Foto do pagamento (PIX, dinheiro ou cartão)';
+  if(cb) cb.style.display = semCob && !payFoto ? 'none' : '';
 }
 function comprimirImagem(file, maxW, quality){
   return new Promise((res,rej)=>{
@@ -1850,19 +2014,31 @@ function carregarComprovante(input){
     const cb=$('pay-cam-btn'); if(cb){ cb.textContent='📷 Refazer foto'; cb.classList.add('done'); cb.style.display=''; }
   }).catch(()=>toast('Não consegui ler a imagem'));
 }
-function closePay(){ $('pay-modal').classList.remove('open'); payId=null; payMethod=null; payFoto=null; }
+function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFoto=null; payVal={}; payCartaoTipo=null; payTaxa=false; }
 function confirmarPagamento(){
-  if(!payMethod){ toast('Selecione a forma de pagamento'); return; }
-  if(payMethod!=='japago' && !payFoto){ toast('📷 Tire a foto do pagamento antes de finalizar'); return; }
+  if(!paySel.length){ toast('Selecione a forma de pagamento'); return; }
+  if(paySel.includes('cartao') && !payCartaoTipo){ toast('💳 No cartão, marque crédito ou débito'); return; }
+  const prod=$('pay-prod').value.trim(), num=$('pay-num').value.trim();
+  if(!prod || !num){ toast('👟 Informe o modelo e a numeração que o cliente ficou'); return; }
   const e=entregas.find(x=>x.id===payId); if(!e){ closePay(); return; }
-  e.status='entregue'; e.entregueEm=Date.now();
-  e.pagamento=payMethod; e.pagamentoObs=$('pay-note').value.trim();
+  const corrigindo = e.status==='entregue';
+  const semCob = paySel.length===1 && PAG_SEM_COBRANCA.includes(paySel[0]);
+  if(!semCob && !payFoto && !e.comprovante){ toast('📷 Tire a foto do pagamento antes de finalizar'); return; }
+  e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now();
+  e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
+  e.cartaoTipo = paySel.includes('cartao') ? payCartaoTipo : null;
+  e.taxaEntrega = payTaxa ? TAXA_ENTREGA : null;
+  // valores por forma (ex: Pix 120 + Cartão 80) — formas "sem cobrança" não têm valor
+  const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
+  e.pagamentoValores = Object.keys(vals).length ? vals : null;
+  e.produtoEntregue=prod; e.numeracaoEntregue=num;
   if(payFoto) e.comprovante=payFoto;
+  if(semCob){ delete e.comprovante; }   // parceria/já pago: sem comprovante de pagamento
   let ok = persist();
   if(!ok && payFoto){ delete e.comprovante; persist(); toast('Foto grande demais p/ salvar local — entrega salva sem comprovante'); }
   closePay(); render();
   if(session.role==='entregador') renderEntregador();
-  toast('Entrega finalizada ✓');
+  toast(corrigindo ? 'Correção salva ✓' : 'Entrega finalizada ✓');
 }
 function verComprovante(id){ const e=entregas.find(x=>x.id===id); if(!e||!e.comprovante)return; $('img-full').src=e.comprovante; $('img-modal').classList.add('open'); }
 function closeImg(){ $('img-modal').classList.remove('open'); }
@@ -1871,6 +2047,14 @@ function voltarAguardando(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e)return;
   e.status='aguardando'; e.entregador=null; persist(); render();
+}
+function desfazerFinal(id){
+  if(_bloqueado(id)) return;
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  e.status = e.entregador ? 'em_rota' : 'aguardando';
+  delete e.entregueEm; delete e.desfechoEm; delete e.motivo;
+  persist(); render(); if(session.role==='entregador') renderEntregador();
+  toast(e.status==='em_rota' ? 'Voltou para a rota — refaça a finalização' : 'Voltou para aguardando');
 }
 function trazerPendencias(){
   const hoje=todayKey();
@@ -2059,14 +2243,22 @@ function cardEntregue(e){
   return `<div class="card" style="border-left-color:var(--calm)">
     <div class="card-top" style="margin-bottom:6px">
       <div class="name" style="font-size:18px">${esc(e.cliente)}</div>
-      ${e.pagamento?`<span class="badge-pag">${pagLabel(e.pagamento)}</span>`:''}
+      ${e.pagamento?`<span class="badge-pag">${esc(pagamentoLabel(e))}</span>`:''}
     </div>
     <div class="meta" style="padding-left:0;font-size:12px">
+      ${(e.produtoEntregue||e.numeracaoEntregue)?`<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,e.numeracaoEntregue?'Nº '+e.numeracaoEntregue:''].filter(Boolean).join(' · '))}</span></div>`:''}
       ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
       ${e.pagamentoObs?`<div class="row"><span class="ico">💬</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
       <div class="row"><span class="ico">🛵</span><span>${ent.nome}${dur?` · entregue em ${dur}`:''}</span></div>
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
       ${e.comprovante?`<img class="comprov-thumb" src="${e.comprovante}" onclick="verComprovante('${e.id}')" title="Ver comprovante">`:''}
+    </div>
+    <div class="card-actions norail">
+      ${podeMexer(e)?`
+      <button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>
+      <button class="btn btn-ghost btn-mini" onclick="editar('${e.id}')">Editar dados</button>
+      <button class="iconbtn" onclick="desfazerFinal('${e.id}')" title="Desfazer — volta para a rota">↩</button>
+      `:`<span class="ro-note">👁 de ${esc(e.vendedora||'outra')} · somente leitura</span>`}
     </div>
   </div>`;
 }
@@ -2568,6 +2760,7 @@ function applyRole(){
     renderEntregador();
     usarMinhaLocalizacao(true);     // tenta ordenar já a partir de onde ele está
   }
+  talvezMostrarTutorial();          // mostra o guia no primeiro acesso de cada perfil
 }
 function logout(){
   pararRastreio();                 // encerra a transmissão de GPS, se estiver ativa
@@ -2630,19 +2823,33 @@ function planAllRoutes(dia){
   });
   Object.keys(byEnt).forEach(entId=>{
     const viva = posicaoViva(entId);          // posição real do entregador, se estiver transmitindo
-    const plan = planRota(byEnt[entId], viva||loja, Date.now());
-    plan.forEach((p,i)=>{ info[p.e.id]={arr:p.arr, pos:i+1, total:plan.length, live:!!viva}; });
+    const t0 = Date.now();
+    const plan = planRota(byEnt[entId], viva||loja, t0);
+    plan.forEach((p,i)=>{
+      // etaMin = tempo de viagem a partir de ONDE o entregador está agora (não é cronômetro)
+      const etaMin = (p.arr!=null) ? Math.max(0, (p.arr - t0)/60000) : null;
+      info[p.e.id]={arr:p.arr, etaMin, pos:i+1, total:plan.length, live:!!viva};
+    });
   });
   return info;
 }
-function linkRastreio(e){ return location.href.split('?')[0].split('#')[0] + '?track=' + encodeURIComponent(e.id); }
+/* link de rastreio do cliente: token OPACO numa PÁGINA SEPARADA (TRACK_BASE),
+   sem nenhum código do painel — assim o cliente não vê nem acessa o painel.
+   Deixe TRACK_BASE vazio para usar a própria página (enquanto não hospedar a separada). */
+const TRACK_BASE = "";   // ex: "https://lorettoscarpa-icr.github.io/rastreio/"
+function _b64u(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function _ub64u(s){ s=String(s||'').replace(/-/g,'+').replace(/_/g,'/'); try{ return decodeURIComponent(escape(atob(s))); }catch(_){ return ''; } }
+function _chk(id){ let n=0; const s='LSx'+id; for(let i=0;i<s.length;i++) n=(n*31+s.charCodeAt(i))%100000; return n; }
+function tokenRastreio(id){ return _b64u('LSR1|'+id+'|'+_chk(id)); }
+function idDeToken(tok){ const m=/^LSR1\|(.+)\|(\d+)$/.exec(_ub64u(tok)); if(!m) return null; return _chk(m[1])===Number(m[2]) ? m[1] : null; }
+function linkRastreio(e){ const base=(TRACK_BASE||location.href.split('?')[0].split('#')[0]).replace(/#.*$/,''); return base + '#acompanhar/' + tokenRastreio(e.id); }
 function msgVend(e, eta){
   const primeiro = e.cliente ? esc(e.cliente.split(' ')[0]) : '';
   const ola = primeiro ? `Oi, ${primeiro}! ` : 'Oi! ';
   const ass = `\n\nQualquer dúvida é só me chamar 💛\n${session.vendedora} — Loretto Scarpa`;
   if(e.status==='em_rota'){
     const info = eta && eta[e.id];
-    const prev = info && info.arr ? ` A previsão de chegada é por volta das ${fmtClock(info.arr)}.` : '';
+    const prev = info && info.etaMin!=null ? ` A previsão de chegada é por volta das ${fmtClock(Date.now()+Math.max(1,Math.round(info.etaMin))*60000)}.` : '';
     const link = `\n\n📍 Acompanhe em tempo real: ${linkRastreio(e)}`;
     return `${ola}Passando pra avisar que o seu pedido da Loretto Scarpa já saiu e está a caminho.${prev}${link}${ass}`;
   }
@@ -2669,10 +2876,11 @@ function vcard(e, eta){
     const liveTag = info&&info.live ? `<span class="vlive">🟢 ao vivo</span>` : '';
     const pos = info ? `<span class="vstop">parada ${info.pos} de ${info.total}</span>${liveTag}` : '';
     let prev;
-    if(info&&info.arr){
-      const min=Math.round((info.arr-Date.now())/60000);
-      const falta = min>1 ? `em ~${fmtDur(min)}` : (min>=0?'chegando':'previsto');
-      prev = `<div class="vtrack-eta">chegada <b>${fmtClock(info.arr)}</b> <span class="vfalta">· ${falta}</span></div>`;
+    if(info && info.etaMin!=null){
+      const min=Math.max(1,Math.round(info.etaMin));
+      const chegada=fmtClock(Date.now()+min*60000);
+      const falta = min<=2 ? 'chegando' : `~${fmtDur(min)}`;
+      prev = `<div class="vtrack-eta">faltam <b>${falta}</b> <span class="vfalta">· chegada ~${chegada}</span></div>`;
     } else {
       prev = `<div class="vtrack-eta muted">sem previsão — endereço sem localização</div>`;
     }
@@ -2719,9 +2927,13 @@ function renderMinhasColuna(){
 /* ===== aba "Finalizadas" (vendedora): pagamento + foto + numeração ===== */
 const PAG_MAP = Object.fromEntries(PAGAMENTOS.map(p=>[p.id,p]));
 function pagamentoLabel(e){
-  const p = PAG_MAP[e.pagamento];
-  if(p) return `${p.ico} ${p.label}`;
-  return e.pagPrevisto==='pago' ? '✅ Já estava pago' : '💵 A cobrar';
+  const vals=e.pagamentoValores||{};
+  const nomes=[e.pagamento, e.pagamento2].filter(Boolean).map(id=>{ const p=PAG_MAP[id]; if(!p) return ''; const v=vals[id];
+    const tipo = (id==='cartao' && e.cartaoTipo) ? ` (${e.cartaoTipo==='credito'?'crédito':'débito'})` : '';
+    return `${p.ico} ${p.label}${tipo}${v?` ${_brl(v)}`:''}`; }).filter(Boolean);
+  let base = nomes.length ? nomes.join(' + ') : (e.pagPrevisto==='pago' ? '✅ Já estava pago' : '💵 A cobrar');
+  if(e.taxaEntrega) base += ` · 🏷️ taxa ${_brl(e.taxaEntrega)}`;
+  return base;
 }
 function renderFinalizadas(){
   if(session.role!=='vendedora') return;
@@ -2746,6 +2958,7 @@ function fcard(e){
     <div class="fcard-body">
       <div class="fcard-info">
         <div class="fcard-name">${esc(e.cliente)}</div>
+        ${(e.produtoEntregue||e.numeracaoEntregue)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,e.numeracaoEntregue?'Nº '+e.numeracaoEntregue:''].filter(Boolean).join(' · '))}</b></span></div>`:''}
         ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
         ${e.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(e.observacao)}</span></div>`:''}
         ${(e.bairro||e.cidade)?`<div class="frow"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
@@ -2782,14 +2995,14 @@ function iniciarRastreio(){
     pos=>{
       entCoord={lat:pos.coords.latitude, lng:pos.coords.longitude};
       const agora=Date.now();
-      if(agora-_lastBroadcast >= 6000){       // transmite a cada ~6s
+      if(agora-_lastBroadcast >= 60000){      // transmite a cada ~1 min (leve, sem pesar o site)
         _lastBroadcast=agora;
         transmitirPosicao(pos.coords);
         renderEntregador();                    // atualiza ordem/ETA dele
       }
     },
     err=>{ /* permissão negada/sem sinal — segue sem rastreio ao vivo */ },
-    {enableHighAccuracy:true, maximumAge:5000, timeout:15000}
+    {enableHighAccuracy:true, maximumAge:30000, timeout:20000}
   );
 }
 function pararRastreio(){
@@ -2834,7 +3047,19 @@ function renderEntregador(){
   const ordemNota = items.length ? (fromGps
       ? `<div class="ent-order-note gps">📍 Ordem a partir de onde você está agora. Se já tiver se movido, toque em <b>Atualizar localização</b>.</div>`
       : `<div class="ent-order-note">🧭 Ordem saindo da loja — toque em <b>Usar minha localização</b> pra ordenar a partir de onde você está.</div>`) : '';
-  $('ent-list').innerHTML=alerta + ordemNota + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps)).join('');
+  const finHoje = entregas.filter(e=>e.entregador===session.entregador && dataDe(e)===todayKey() && ['entregue','nao_entregue','cancelado'].includes(e.status)).sort((a,b)=>(b.entregueEm||b.desfechoEm||0)-(a.entregueEm||a.desfechoEm||0));
+  const finHTML = finHoje.length ? `<div class="ent-fin">
+    <div class="ent-fin-h">✓ Finalizadas hoje (${finHoje.length}) — errou? toque para corrigir</div>
+    ${finHoje.map(e=>{
+      const ic = e.status==='entregue' ? '✓' : '✕';
+      const desc = e.status==='entregue' ? pagamentoLabel(e) : (e.status==='cancelado'?'Não comprou':'Não entregue');
+      return `<div class="ent-fin-row">
+        <span class="ent-fin-cli">${ic} ${esc(e.cliente)}<small>${esc(desc)}</small></span>
+        <span class="ent-fin-acts">${e.status==='entregue'?`<button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>`:''}<button class="btn btn-ghost btn-mini" onclick="desfazerFinal('${e.id}')">↩ Desfazer</button></span>
+      </div>`;
+    }).join('')}
+  </div>` : '';
+  $('ent-list').innerHTML=alerta + ordemNota + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps)).join('') + finHTML;
   const lb=$('btn-minha-loc'); if(lb){ lb.textContent = fromGps?'📍 Atualizar localização':'📍 Usar minha localização'; lb.disabled=false; lb.classList.toggle('on', fromGps); }
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
@@ -2847,7 +3072,10 @@ function cardEntregadorView(p,n,fromGps){
   const e=p.e;
   const ent=ENT[e.entregador]||{cor:'#888'};
   const temHora = e.horarioTipo && e.horarioHora;
-  const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgPadrao()+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}` : '';
+  const taxaTxt = taxaCidade(e)>0 ? `\n\n🏷️ Taxa de entrega: ${_brl(TAXA_ENTREGA)} (referente à sua região).` : '';
+  const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgPadrao()+taxaTxt+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}` : '';
+  const telV = telVend(e.vendedora);
+  const waVend = telV ? `https://wa.me/${telV}?text=${encodeURIComponent('Oi'+(e.vendedora?' '+e.vendedora.split(' ')[0]:'')+'! Aqui é o entregador, sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. ')}` : '';
   const origemLbl = n===1 ? (fromGps?'📍 da sua localização':'🏬 saindo da loja') : '↳ da parada anterior';
   const leg = p.leg!=null
     ? `<div class="ent-leg">${origemLbl} · ~${fmtDur(Math.max(1,Math.round(p.leg)))}${p.arr?` · chegada prevista <b>${fmtClock(p.arr)}</b>`:''}</div>`
@@ -2866,10 +3094,13 @@ function cardEntregadorView(p,n,fromGps){
       ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
       ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
       ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
+      ${e.vendedora?`<div class="row"><span class="ico">👤</span><span>Vendedora: <b>${esc(e.vendedora)}</b></span></div>`:''}
+      ${taxaCidade(e)>0?`<div class="row"><span class="ico">🏷️</span><span style="color:var(--warn)">Cobrar taxa de entrega: <b>${_brl(TAXA_ENTREGA)}</b> (Senador Canedo/Goianira)</span></div>`:''}
     </div>
     <div class="ent-acts">
       ${e.link?`<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`:''}
       ${wa?`<a class="ent-btn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:''}
+      ${waVend?`<a class="ent-btn" href="${waVend}" target="_blank" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</a>`:''}
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
       <button class="ent-btn full" style="background:rgba(224,106,82,.12);color:var(--urgent);border-color:rgba(224,106,82,.35)" onclick="abrirDesfecho('${e.id}','nao_entregue')">✕ Não consegui entregar</button>
       <button class="ent-btn full" style="background:rgba(138,145,122,.16);color:var(--text-soft);border-color:rgba(138,145,122,.42)" onclick="abrirDesfecho('${e.id}','cancelado')">✕ Não deu certo</button>
@@ -3102,9 +3333,61 @@ entregas.forEach(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.
 if(_migrou) persist();
 refreshVendChips();
 renderFiltersVend();
-const _trackId = new URLSearchParams(location.search).get('track');
+
+/* ====== TUTORIAL DE PRIMEIRO USO ====== */
+const TUTORIAIS = {
+  vendedora: [
+    {ic:'🛍️', t:'Cadastrar uma venda', d:'Toque em <b>+ Nova entrega</b> e <b>cole a conversa do WhatsApp</b> — a IA preenche cliente, endereço, produto e valor sozinha. Você confere e salva.'},
+    {ic:'📋', t:'O quadro de entregas', d:'<b>Aguardando</b> = esperando rota · <b>Em rota</b> = já com o entregador · <b>Finalizadas</b> = concluídas. A coluna <b>Minhas</b> mostra só as suas, em destaque.'},
+    {ic:'🟢', t:'Acompanhar ao vivo', d:'Quando o entregador está com a sua entrega, aparece <b>🟢 ao vivo</b> e <b>quanto falta pra chegar</b> — calculado pela posição real dele no mapa.'},
+    {ic:'📍', t:'Avisar o cliente', d:'No card, toque em <b>Avisar cliente</b>: abre o WhatsApp com a mensagem pronta e um <b>link de rastreio</b> pra ele acompanhar a moto em tempo real.'},
+    {ic:'✅', t:'Conferir o recebido', d:'Na aba <b>Finalizadas</b> você vê a(s) forma(s) de pagamento, os <b>valores</b>, a foto do comprovante e o produto que cada cliente ficou.'},
+  ],
+  entregador: [
+    {ic:'🛵', t:'Sua rota do dia', d:'A tela mostra suas entregas <b>na melhor ordem</b>. Toque em <b>Usar minha localização</b> pra ordenar a partir de onde você está agora.'},
+    {ic:'🗺️', t:'Ir até o cliente', d:'Toque em <b>Abrir no Maps</b> pra navegar. O tempo aqui no app é uma <b>estimativa</b>; no Maps você vê o tempo exato, com o trânsito.'},
+    {ic:'✓', t:'Finalizar a entrega', d:'Ao entregar, toque em <b>Entregue</b>: escolha a <b>forma de pagamento</b> (pode marcar 2, ou <b>Parceria</b>), tire a <b>foto</b> e informe o <b>modelo e a numeração</b> que o cliente ficou.'},
+    {ic:'✏️', t:'Errou? É só corrigir', d:'Logo abaixo da rota tem <b>Finalizadas hoje</b>. Toque em <b>Corrigir</b> pra arrumar pagamento/produto, ou <b>Desfazer</b> pra a entrega voltar pra sua rota.'},
+  ],
+  gestor: [
+    {ic:'📊', t:'Visão geral do mês', d:'No topo: <b>entregas do mês</b>, <b>custo total</b> e <b>custo por entrega</b>, além de quem mais entregou.'},
+    {ic:'🛵', t:'Custo por entregador', d:'Cada entregador mostra entregas e custo. O Gustavo entra como <b>fixo</b> (salário + vale); os demais, por <b>entrega</b>.'},
+    {ic:'⚙️', t:'Ajustar os custos', d:'Em <b>Ajustar valores</b> você edita salário, vale, gasolina, manutenção e o valor por entrega — tudo recalcula na hora.'},
+    {ic:'📅', t:'Comparar meses', d:'Use as setas no topo pra navegar entre os meses e acompanhar a evolução.'},
+  ],
+};
+let _tutRole=null, _tutStep=0;
+function abrirTutorial(){ _tutRole=(typeof session!=='undefined'&&session&&session.role)||'vendedora'; _tutStep=0; renderTut(); $('tut').classList.add('open'); }
+function fecharTutorial(){ $('tut').classList.remove('open'); if(_tutRole){ try{ localStorage.setItem('loretto_tut_'+_tutRole,'1'); }catch(_){ } } }
+function renderTut(){
+  const steps=TUTORIAIS[_tutRole]||TUTORIAIS.vendedora; const s=steps[_tutStep];
+  $('tut-ic').textContent=s.ic; $('tut-t').textContent=s.t; $('tut-d').innerHTML=s.d;
+  $('tut-step').textContent=`${_tutStep+1} / ${steps.length}`;
+  $('tut-dots').innerHTML=steps.map((_,i)=>`<span class="tut-dot ${i===_tutStep?'on':''}"></span>`).join('');
+  $('tut-prev').style.visibility=_tutStep===0?'hidden':'visible';
+  $('tut-next').textContent=_tutStep===steps.length-1?'Concluir ✓':'Próximo ›';
+}
+function tutNav(d){
+  const steps=TUTORIAIS[_tutRole]||TUTORIAIS.vendedora;
+  if(d>0 && _tutStep===steps.length-1){ fecharTutorial(); return; }
+  _tutStep=Math.max(0,Math.min(steps.length-1,_tutStep+d)); renderTut();
+}
+function talvezMostrarTutorial(){
+  const r=session&&session.role; if(!r) return;
+  let visto=false; try{ visto=localStorage.getItem('loretto_tut_'+r)==='1'; }catch(_){}
+  if(!visto) setTimeout(abrirTutorial, 650);
+}
+
+const _hashTok = (/^#acompanhar\/(.+)$/.exec(location.hash||'')||[])[1];
+const _trackId = _hashTok ? idDeToken(_hashTok) : new URLSearchParams(location.search).get('track');
 if(_trackId){
-  _clienteMode=true; initFirebase(); iniciarRastreioCliente(_trackId);   // link público do cliente
+  _clienteMode=true; initFirebase(); iniciarRastreioCliente(_trackId);   // link público do cliente (token opaco)
+} else if(_hashTok){
+  // token inválido/adulterado — não abre o painel, mostra erro de rastreio
+  _clienteMode=true; document.body.classList.add('cliente');
+  const lg=$('login'); if(lg) lg.style.display='none';
+  $('track-view').style.display='flex';
+  $('track-st').textContent='Link de rastreio inválido'; const tp=$('track-pulse'); if(tp) tp.className='track-pulse off';
 } else {
   renderFilters(); renderEntPick(); animateNext(); render(); tick();
   initFirebase();   // conecta ao Firestore (sincroniza em tempo real); se indisponível, segue no localStorage
