@@ -69,7 +69,7 @@
   .brand .mark{font-family:var(--ff-display);font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:var(--gold);font-weight:600}
   .brand h1{font-family:var(--ff-display);font-weight:600;font-size:36px;line-height:1;letter-spacing:.5px}
   .brand h1 span{font-style:italic;color:var(--text-soft);font-weight:500}
-  .clock{text-align:right;font-variant-numeric:tabular-nums}
+  .clock{text-align:right;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:"lnum" 1,"tnum" 1}
   .clock .time{font-family:var(--ff-display);font-size:30px;font-weight:600;line-height:1}
   .clock .date{font-size:12px;color:var(--text-mute);text-transform:capitalize;letter-spacing:.04em}
 
@@ -84,12 +84,23 @@
   .daynav-hoje:hover{border-color:var(--line-strong);color:var(--text)}
   .daynav-hoje.hidden{display:none}
   .badge-agendada{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px;background:rgba(143,156,214,.18);color:#8e9cd6;white-space:nowrap;flex-shrink:0;letter-spacing:.02em}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-  .kpi{background:linear-gradient(160deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;position:relative;overflow:hidden;box-shadow:var(--elev-1)}
-  .kpi::after{content:"";position:absolute;inset:0;background:radial-gradient(120px 60px at 100% 0,rgba(217,164,65,.10),transparent);pointer-events:none}
-  .kpi .lbl{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-mute);margin-bottom:7px}
-  .kpi .val{font-family:var(--ff-display);font-size:34px;font-weight:600;line-height:1;display:flex;align-items:baseline;gap:6px}
-  .kpi .val small{font-size:14px;color:var(--text-soft);font-family:var(--ff-body)}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .kpi{--accent:var(--gold);--accent-soft:rgba(217,164,65,.12);--accent-line:rgba(217,164,65,.34);
+    position:relative;overflow:hidden;background:linear-gradient(158deg,var(--surface),var(--surface-2));
+    border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--radius);
+    padding:15px 16px 16px;box-shadow:var(--elev-1);
+    transition:transform .18s cubic-bezier(.2,.7,.2,1),box-shadow .18s}
+  .kpi:hover{transform:translateY(-2px);box-shadow:var(--elev-hover)}
+  .kpi::after{content:"";position:absolute;inset:0;background:radial-gradient(160px 80px at 100% 0,var(--accent-soft),transparent 72%);pointer-events:none}
+  .kpi-ico{position:absolute;top:13px;right:13px;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line)}
+  .kpi .lbl{font-family:var(--ff-eyebrow);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-mute);margin-bottom:10px;padding-right:34px;line-height:1.35}
+  .kpi .val{font-family:var(--ff-display);font-size:38px;font-weight:600;line-height:1;color:var(--text);display:flex;align-items:baseline;gap:6px;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:"lnum" 1,"tnum" 1}
+  .kpi .val small{font-size:13px;color:var(--text-soft);font-family:var(--ff-eyebrow);letter-spacing:.03em;text-transform:none}
+  .kpi.k-warn{--accent:var(--warn);--accent-soft:rgba(224,179,65,.14);--accent-line:rgba(224,179,65,.4)}
+  .kpi.k-terra{--accent:var(--terra);--accent-soft:rgba(201,123,90,.15);--accent-line:rgba(201,123,90,.42)}
+  .kpi.k-teal{--accent:var(--teal);--accent-soft:rgba(111,176,166,.16);--accent-line:rgba(111,176,166,.42)}
+  .kpi.k-calm{--accent:var(--calm);--accent-soft:rgba(127,174,107,.16);--accent-line:rgba(127,174,107,.44)}
+  .kpi.alert{--accent:var(--urgent);--accent-soft:rgba(224,106,82,.15);--accent-line:rgba(224,106,82,.42)}
   .kpi.alert .val{color:var(--urgent)}
 
   /* ---- buttons ---- */
@@ -201,9 +212,9 @@
   .toast.show{transform:translateX(-50%) translateY(0)}
 
   /* ---- copy modal ---- */
-  .modal-bg{position:fixed;inset:0;background:rgba(15,18,10,.7);backdrop-filter:blur(4px);z-index:70;display:none;align-items:center;justify-content:center;padding:18px}
+  .modal-bg{position:fixed;inset:0;background:rgba(15,18,10,.7);backdrop-filter:blur(4px);z-index:70;display:none;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .modal-bg.open{display:flex}
-  .modal{background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius);max-width:480px;width:100%;padding:20px;box-shadow:var(--elev-2)}
+  .modal{background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius);max-width:480px;width:100%;padding:20px;box-shadow:var(--elev-2);margin:auto}
   .modal h3{font-family:var(--ff-display);font-size:24px;margin-bottom:6px}
   .modal p{font-size:13px;color:var(--text-soft);margin-bottom:13px}
   .modal textarea{min-height:200px;font-size:13px;line-height:1.5}
@@ -659,6 +670,38 @@
     .g-week{gap:5px}
     .g-day-bar{height:72px}
     .daynav-label{font-size:18px}
+    /* ===== uso diário no celular: toque maior, leitura clara, menos aperto ===== */
+    textarea,input,select,.hr-row select{font-size:16px}        /* 16px evita o zoom automático do iOS ao focar */
+    .wrap{padding-left:14px;padding-right:14px}
+    .btn:not(.btn-mini){min-height:48px;font-size:14.5px;padding:12px 18px}
+    .form-actions{flex-direction:column-reverse;gap:10px;margin-top:16px}
+    .form-actions .btn{width:100%;justify-content:center}
+    .brand h1{font-size:26px}
+    .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;gap:4px}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{flex:0 0 auto;font-size:15px;padding:13px 15px;white-space:nowrap}
+    .ent-card{padding:18px 16px}
+    .ent-card .meta{font-size:14.5px;line-height:1.6}
+    .ent-card .meta .row{align-items:flex-start}
+    .ent-card .meta .row .ico{font-size:16px}
+    .ent-acts{gap:10px}
+    .ent-btn{min-height:56px;font-size:16px}
+    .ent-bb-btn{min-height:58px;font-size:16px}
+    .ent-bottombar{padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
+    .pay-opt{padding:16px;font-size:15px;min-height:54px}
+    .ctp{padding:14px;font-size:15px;min-height:50px}
+    .pay-taxa-row{padding:14px}
+    .modal{padding:18px 16px}
+    .modal-bg{padding:14px 14px calc(22px + env(safe-area-inset-bottom))}
+    .card{padding-left:0}
+    .card .meta,.card .card-badges{padding-left:0}
+  }
+  @media(max-width:400px){
+    /* telas bem pequenas: cada ação ocupa a linha toda (mais fácil de acertar o dedo) */
+    .ent-btn{flex-basis:100%}
+    .ent-card .name{font-size:21px}
+    .brand h1{font-size:23px}
+    .pay-opts{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -706,10 +749,10 @@
   </div>
 
   <div class="kpis">
-    <div class="kpi"><div class="lbl">Aguardando rota</div><div class="val" id="k-aguard">0</div></div>
-    <div class="kpi" id="k-old-box"><div class="lbl">Espera mais antiga</div><div class="val" id="k-old">—</div></div>
-    <div class="kpi"><div class="lbl">Em rota</div><div class="val" id="k-rota">0</div></div>
-    <div class="kpi"><div class="lbl" id="k-ent-lbl">Entregues no dia</div><div class="val" id="k-entregue">0</div></div>
+    <div class="kpi k-warn"><span class="kpi-ico">⏳</span><div class="lbl">Aguardando rota</div><div class="val" id="k-aguard">0</div></div>
+    <div class="kpi k-terra" id="k-old-box"><span class="kpi-ico">⌛</span><div class="lbl">Espera mais antiga</div><div class="val" id="k-old">—</div></div>
+    <div class="kpi k-teal"><span class="kpi-ico">🛵</span><div class="lbl">Em rota</div><div class="val" id="k-rota">0</div></div>
+    <div class="kpi k-calm"><span class="kpi-ico">✓</span><div class="lbl" id="k-ent-lbl">Entregues no dia</div><div class="val" id="k-entregue">0</div></div>
   </div>
 
   <div class="toolbar">
@@ -803,6 +846,16 @@
               <option value="pago">✅ Já pago</option>
             </select>
             <input id="f-valor" placeholder="Valor R$" style="flex:1">
+          </div>
+        </div>
+        <div>
+          <label>Taxa de entrega</label>
+          <div class="hr-row">
+            <select id="f-taxa-tipo" onchange="toggleTaxaCampo()">
+              <option value="gratis">🆓 Entrega grátis</option>
+              <option value="cobrar">🏷️ Cobrar taxa</option>
+            </select>
+            <input id="f-taxa-valor" placeholder="Valor R$" inputmode="decimal" style="flex:1;display:none">
           </div>
         </div>
         <div><label>Produto</label><input id="f-prod" placeholder="Modelo / tamanhos"></div>
@@ -1115,10 +1168,30 @@ const PAGAMENTOS = [
 ];
 const PAG_SEM_COBRANCA = ['japago','parceria'];   // não cobram → sem foto e sem valor
 const PAG = Object.fromEntries(PAGAMENTOS.map(p=>[p.id,p]));
-// Taxa de entrega (R$ 19,90). Cobrada: troca SEM defeito · Senador Canedo/Goianira ·
-// cliente NÃO fica com 2 pares. Sem taxa: 2+ pares OU troca por defeito.
+// Taxa de entrega (R$ 19,90). Cobrada: troca SEM defeito · Trindade/Senador Canedo/Goianira
+// (quando o cliente NÃO fica com 2 pares). Sem taxa: 2+ pares nessas cidades OU troca por defeito.
 const TAXA_ENTREGA = 19.90;
-function taxaCidade(e){ const c=normTxt(e&&e.cidade); return (c.includes('senador canedo')||c.includes('goianira')) ? TAXA_ENTREGA : 0; }
+function taxaCidade(e){ const c=normTxt(e&&e.cidade); return (c.includes('trindade')||c.includes('senador canedo')||c.includes('goianira')) ? TAXA_ENTREGA : 0; }
+// taxa efetiva da entrega: a da venda (cadastro) tem prioridade; senão, a regra de cidade
+function taxaDe(e){ return (e && e.taxaEntrega>0) ? e.taxaEntrega : taxaCidade(e); }
+function taxaBadge(e){ const t=taxaDe(e); return t>0 ? `<span class="badge-cobrar" style="background:rgba(224,179,65,.16);color:var(--warn);border-color:rgba(224,179,65,.4)">🏷️ taxa ${_brl(t)}</span>` : ''; }
+// ---- campo de taxa no formulário de cadastro ----
+function toggleTaxaCampo(){
+  const cobrar = $('f-taxa-tipo').value==='cobrar', inp=$('f-taxa-valor');
+  inp.style.display = cobrar ? '' : 'none';
+  if(cobrar && !inp.value.trim()) inp.value = TAXA_ENTREGA.toFixed(2).replace('.',',');  // sugere o padrão
+}
+function setTaxaForm(valor){
+  const v=Number(valor)||0;
+  $('f-taxa-tipo').value = v>0 ? 'cobrar' : 'gratis';
+  $('f-taxa-valor').value = v>0 ? v.toFixed(2).replace('.',',') : '';
+  toggleTaxaCampo();
+}
+function getTaxaForm(){
+  if($('f-taxa-tipo').value!=='cobrar') return null;
+  const n=_num($('f-taxa-valor').value);
+  return n>0 ? n : TAXA_ENTREGA;
+}
 function pagLabel(id){ const p=PAG[id]; return p?`${p.ico} ${p.label}`:''; }
 const URGENCIA = {atencao:20, urgente:45}; // minutos
 const KEY = 'loretto_entregas_v1';
@@ -1532,7 +1605,7 @@ function findHora(text, kw){
   return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
 }
 function parseWhatsapp(text){
-  const r = {cliente:'',contato:'',endereco:'',bairro:'',produto:'',valor:'',link:'',vendedora:'',horarioTipo:'',horarioHora:'',tipo:'',pagPrevisto:''};
+  const r = {cliente:'',contato:'',endereco:'',bairro:'',produto:'',valor:'',link:'',vendedora:'',horarioTipo:'',horarioHora:'',tipo:'',pagPrevisto:'',taxa:''};
   const contentLines = [];
   for(const line of text.split(/\r?\n/)){
     if(!line.trim()) continue;
@@ -1590,6 +1663,12 @@ function parseWhatsapp(text){
   else if(/\btroca(r|ndo)?\b|trocar\b|outro\s+(n[uú]mero|tamanho|modelo)/i.test(allText)) r.tipo='troca';
   // pagamento previsto
   if(/\bj[áa]\s+pag|\bpago\b|paguei|\bpix\s+(feito|enviad|realizad)|comprovante|quitad|cart[ãa]o\s+aprovad/i.test(allText)) r.pagPrevisto='pago';
+  // taxa de entrega / frete: com valor → cobra; "grátis"/"sem taxa" → 0; sem menção → "" (grátis)
+  const taxaGratis = /(?:entrega|frete|taxa)[^\n]{0,15}gr[áa]tis|gr[áa]tis[^\n]{0,15}(?:entrega|frete)|sem\s+(?:taxa|frete)/i.test(allText);
+  const taxaVal = /(?:taxa(?:\s+de\s+entrega)?|frete)\D{0,12}(?:r\$\s*)?(\d{1,3}(?:[.,]\d{1,2})?)/i.exec(allText);
+  if(taxaVal) r.taxa = taxaVal[1];
+  else if(taxaGratis) r.taxa = '0';
+  else if(/\btaxa(?:\s+de\s+entrega)?\b|\bfrete\b/i.test(allText)) r.taxa = String(TAXA_ENTREGA).replace('.',',');  // menciona taxa sem valor → padrão
   return r;
 }
 /* separa um colado em várias entregas pelos delimitadores ⛔/🚫 */
@@ -1619,6 +1698,7 @@ function fillForm(r){
   if(r.link) $('f-link').value=r.link;
   if(r.tipo && ['entrega','troca','coleta'].includes(r.tipo)) $('f-tipo').value=r.tipo;
   if(r.pagPrevisto && ['cobrar','pago'].includes(r.pagPrevisto)) $('f-pag-prev').value=r.pagPrevisto;
+  if(r.taxa){ const n=_num(r.taxa); setTaxaForm(n>0?n:0); }   // "" não muda (fica grátis); "0" grátis; valor → cobra
   if(r.horarioTipo){ $('f-hr-tipo').value=r.horarioTipo; if(r.horarioHora) $('f-hr-hora').value=r.horarioHora; }
 }
 function doParse(){
@@ -1638,6 +1718,7 @@ async function aiPreencher(){
     const base = parseWhatsapp(t); // vendedora (remetente) e link são mais confiáveis pelo método direto
     if(!r.vendedora && base.vendedora) r.vendedora = base.vendedora;
     if(!r.link && base.link) r.link = base.link;
+    if((r.taxa===undefined||r.taxa==='') && base.taxa) r.taxa = base.taxa;
     fillForm(r);
     toast('✨ Preenchido com IA — confira e cadastre');
     if($('f-link').value && !$('f-bairro').value.trim()) buscarBairroAuto(coordFrom($('f-link').value), false);
@@ -1661,6 +1742,7 @@ Campos do JSON:
 - horarioTipo: "ate" se a entrega tem que ser até um horário, "apos" se a partir de um horário, "pico" se por volta de um horário, senão "".
 - horarioHora: "HH:MM" ou "".
 - observacao: instrução extra útil pro entregador (ex: "casa com câmera no muro", "ligar ao chegar", "deixar na portaria", "levar maquininha"). NÃO repita aqui o que já está em pagamento/valor/endereço.
+- taxa: se a mensagem mencionar taxa de entrega ou frete COM valor (ex "taxa R$ 19,90", "frete 20"), retorne só o número (ex "19,90"). Se disser explicitamente entrega/frete grátis ou "sem taxa", retorne "0". Se NÃO mencionar nada sobre taxa/frete, retorne "".
 Ignore CPF, RG e data de nascimento. Use "" (ou "entrega"/"cobrar" nos campos com padrão) para qualquer campo ausente.`;
   let data;
   if(AI_PROXY_URL){
@@ -1692,6 +1774,7 @@ async function parseChunkSmart(ch){
     if(!r.link && base.link) r.link = base.link;
     if(!r.tipo) r.tipo = base.tipo || 'entrega';
     if(!r.pagPrevisto) r.pagPrevisto = base.pagPrevisto || 'cobrar';
+    if((r.taxa===undefined||r.taxa==='') && base.taxa) r.taxa = base.taxa;
     return {r, ia:true};
   }catch(e){ return {r:base, ia:false}; }
 }
@@ -1714,6 +1797,7 @@ async function importarLote(){
       vendedora: ehVend ? session.vendedora : (r.vendedora||''), endereco:r.endereco||'', link:r.link||'', coord:coordFrom(r.link||''),
       horarioTipo:r.horarioTipo||'', horarioHora:r.horarioHora||'', produto:r.produto||'', valor:r.valor||'', observacao:r.observacao||'',
       tipo:r.tipo||'entrega', pagPrevisto:r.pagPrevisto||'cobrar',
+      taxaEntrega: (r.taxa && _num(r.taxa)>0) ? _num(r.taxa) : null,
       status:'aguardando', entregador:null, criadoEm:Date.now(), entregueEm:null
     });
   });
@@ -1778,7 +1862,7 @@ function togglePanel(open){
     $('f-cliente').focus();
   }
 }
-function clearForm(){ ['paste','f-cliente','f-contato','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; }
+function clearForm(){ ['paste','f-cliente','f-contato','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; setTaxaForm(0); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -1812,6 +1896,7 @@ async function saveEntrega(){
     produto:$('f-prod').value.trim(),
     valor:$('f-valor').value.trim(),
     observacao:$('f-obs').value.trim(),
+    taxaEntrega:getTaxaForm(),
     status:'aguardando', entregador:null,
     criadoEm:Date.now(), entregueEm:null
   });
@@ -1904,7 +1989,7 @@ function toggleSel(id){
   if(selected.has(id)) selected.delete(id); else selected.add(id);
   render();
 }
-let payId=null, paySel=[], payFoto=null, payVal={}, payCartaoTipo=null, payTaxa=false;
+let payId=null, paySel=[], payFoto=null, payVal={}, payCartaoTipo=null, payTaxa=false, payTaxaVal=TAXA_ENTREGA;
 function _num(v){ v=String(v||'').replace(/[^\d.,]/g,''); if(v.includes(',')) v=v.replace(/\./g,'').replace(',', '.'); const n=parseFloat(v); return isNaN(n)?0:n; }
 function _brl(n){ return 'R$ '+Number(n||0).toFixed(2).replace('.',','); }
 function _extrairNum(txt){ const m=/\b([23][0-9]|4[0-6])\b/.exec(txt||''); return m?m[1]:''; }
@@ -1918,11 +2003,13 @@ function abrirPagamento(id){
     payVal = Object.assign({}, e.pagamentoValores||{});
     payCartaoTipo = e.cartaoTipo || null;
     payTaxa = e.taxaEntrega ? true : false;
+    payTaxaVal = e.taxaEntrega || taxaDe(e) || TAXA_ENTREGA;
   } else {
     paySel = (e && e.pagPrevisto==='pago') ? ['japago'] : [];
     payVal = {};
     payCartaoTipo = null;
-    payTaxa = taxaCidade(e) > 0;              // já sugere a taxa quando é Senador Canedo/Goianira
+    payTaxaVal = taxaDe(e) || TAXA_ENTREGA;    // valor definido no cadastro (ou regra de cidade)
+    payTaxa = taxaDe(e) > 0;                   // já marca a taxa quando a venda foi cadastrada com taxa
   }
   $('pay-prod').value = (e && (e.produtoEntregue||e.produto)) || '';
   $('pay-num').value  = (e && (e.numeracaoEntregue||_extrairNum(e.produto))) || '';
@@ -1949,12 +2036,11 @@ function setCartaoTipo(t){ payCartaoTipo = (payCartaoTipo===t)?null:t; renderCar
 function renderTaxa(){
   const wrap=$('pay-taxa'); if(!wrap) return;
   const e=entregas.find(x=>x.id===payId);
-  const cidade = taxaCidade(e)>0;
-  const dica = cidade ? '(Senador Canedo/Goianira)' : (e&&e.tipo==='troca' ? '(troca sem defeito)' : '(cliente não ficou com 2 pares)');
+  const dica = (e&&e.taxaEntrega) ? '(definida no cadastro)' : (taxaCidade(e)>0 ? '(Trindade/S. Canedo/Goianira — só se NÃO ficar com 2 pares)' : (e&&e.tipo==='troca' ? '(troca sem defeito)' : '(cliente não ficou com 2 pares)'));
   wrap.innerHTML = `<div class="pay-taxa-row ${payTaxa?'on':''}" onclick="toggleTaxa()">
       <span class="pay-taxa-box">${payTaxa?'✓':''}</span>
       <span class="pay-taxa-txt">Cobrar <b>taxa de entrega</b> <span style="color:var(--text-mute)">${dica}</span></span>
-      <span class="pay-taxa-val">${_brl(TAXA_ENTREGA)}</span>
+      <span class="pay-taxa-val">${_brl(payTaxaVal)}</span>
     </div>`;
 }
 function toggleTaxa(){ payTaxa=!payTaxa; renderTaxa(); }
@@ -2014,7 +2100,7 @@ function carregarComprovante(input){
     const cb=$('pay-cam-btn'); if(cb){ cb.textContent='📷 Refazer foto'; cb.classList.add('done'); cb.style.display=''; }
   }).catch(()=>toast('Não consegui ler a imagem'));
 }
-function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFoto=null; payVal={}; payCartaoTipo=null; payTaxa=false; }
+function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFoto=null; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=TAXA_ENTREGA; }
 function confirmarPagamento(){
   if(!paySel.length){ toast('Selecione a forma de pagamento'); return; }
   if(paySel.includes('cartao') && !payCartaoTipo){ toast('💳 No cartão, marque crédito ou débito'); return; }
@@ -2027,7 +2113,7 @@ function confirmarPagamento(){
   e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now();
   e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
   e.cartaoTipo = paySel.includes('cartao') ? payCartaoTipo : null;
-  e.taxaEntrega = payTaxa ? TAXA_ENTREGA : null;
+  e.taxaEntrega = payTaxa ? payTaxaVal : null;
   // valores por forma (ex: Pix 120 + Cartão 80) — formas "sem cobrança" não têm valor
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
   e.pagamentoValores = Object.keys(vals).length ? vals : null;
@@ -2168,7 +2254,7 @@ function cardAguardando(e){
       ${timerHTML}
     </div>
     ${hrBadge(e)?`<div style="padding-left:30px;margin-bottom:7px">${hrBadge(e)}</div>`:''}
-    <div class="card-badges" style="padding-left:30px">${tipoBadge(e)}${pagBadge(e)}</div>
+    <div class="card-badges" style="padding-left:30px">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}</div>
     <div class="meta">
       ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
       ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
@@ -2200,7 +2286,7 @@ function cardRota(e){
       <span class="timer ${urgClass(min)}">${fmtDur(min)}</span>
     </div>
     ${hrBadge(e)?`<div style="margin-bottom:7px">${hrBadge(e)}</div>`:''}
-    <div class="card-badges">${tipoBadge(e)}${pagBadge(e)}</div>
+    <div class="card-badges">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}</div>
     <div class="meta" style="padding-left:0">
       ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
       ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
@@ -2211,6 +2297,7 @@ function cardRota(e){
       ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
       ${podeMexer(e)?`
       <button class="btn btn-ghost btn-mini" onclick="marcarEntregue('${e.id}')">✓ Entregue</button>
+      <button class="iconbtn" onclick="editar('${e.id}')" title="Editar / acrescentar item">✎</button>
       <button class="iconbtn" onclick="abrirDesfecho('${e.id}','nao_entregue')" title="Não entregue">✕</button>
       <button class="iconbtn" onclick="voltarAguardando('${e.id}')" title="Voltar p/ aguardando">↩</button>
       `:`<span class="ro-note">👁 de ${esc(e.vendedora||'outra')} · somente leitura</span>`}
@@ -2359,6 +2446,7 @@ function editar(id){
   $('f-prod').value=e.produto; $('f-valor').value=e.valor; $('f-obs').value=e.observacao||'';
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||'';
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
+  setTaxaForm(e.taxaEntrega||0);
   editId=id; togglePanel(true);
   $('f-data').min = dataDe(e); $('f-data').value = dataDe(e); // mantém a data original (mesmo se já passou)
   const btn=$('btn-salvar'); btn.textContent='Salvar alterações'; btn.setAttribute('onclick','salvarEdicao()');
@@ -2371,6 +2459,7 @@ function salvarEdicao(){
   e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value;
   e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim();
   e.tipo=$('f-tipo').value||'entrega'; e.pagPrevisto=$('f-pag-prev').value||'cobrar';
+  e.taxaEntrega=getTaxaForm();
   e.dataEntrega=$('f-data').value||dataDe(e);
   persist(); clearForm(); togglePanel(false); editId=null;
   const btn=$('btn-salvar'); btn.textContent='Cadastrar entrega'; btn.setAttribute('onclick','saveEntrega()');
@@ -2903,6 +2992,7 @@ function vcard(e, eta){
     <div class="vcard-acts">
       ${wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>'}
       ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
+      ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
     </div>
   </div>`;
 }
@@ -3072,7 +3162,8 @@ function cardEntregadorView(p,n,fromGps){
   const e=p.e;
   const ent=ENT[e.entregador]||{cor:'#888'};
   const temHora = e.horarioTipo && e.horarioHora;
-  const taxaTxt = taxaCidade(e)>0 ? `\n\n🏷️ Taxa de entrega: ${_brl(TAXA_ENTREGA)} (referente à sua região).` : '';
+  const _tx = taxaDe(e);
+  const taxaTxt = _tx>0 ? `\n\n🏷️ Taxa de entrega: ${_brl(_tx)} (referente à sua região).` : '';
   const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgPadrao()+taxaTxt+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}` : '';
   const telV = telVend(e.vendedora);
   const waVend = telV ? `https://wa.me/${telV}?text=${encodeURIComponent('Oi'+(e.vendedora?' '+e.vendedora.split(' ')[0]:'')+'! Aqui é o entregador, sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. ')}` : '';
@@ -3095,7 +3186,7 @@ function cardEntregadorView(p,n,fromGps){
       ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
       ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span>Vendedora: <b>${esc(e.vendedora)}</b></span></div>`:''}
-      ${taxaCidade(e)>0?`<div class="row"><span class="ico">🏷️</span><span style="color:var(--warn)">Cobrar taxa de entrega: <b>${_brl(TAXA_ENTREGA)}</b> (Senador Canedo/Goianira)</span></div>`:''}
+      ${taxaDe(e)>0?`<div class="row"><span class="ico">🏷️</span><span style="color:var(--warn)">Cobrar taxa de entrega: <b>${_brl(taxaDe(e))}</b></span></div>`:''}
     </div>
     <div class="ent-acts">
       ${e.link?`<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`:''}
