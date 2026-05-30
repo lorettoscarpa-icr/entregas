@@ -137,6 +137,10 @@
   .paste-cta{width:100%;margin-bottom:10px;min-height:50px;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px}
   .fields{display:grid;grid-template-columns:1fr 1fr;gap:13px}
   .fields .full{grid-column:1/-1}
+  .chk-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;margin:2px 0}
+  .chk-row input{width:21px;height:21px;flex:0 0 21px;accent-color:var(--gold);cursor:pointer;margin:0}
+  .chk-row span{font-size:15px;font-weight:600;color:var(--text)}
+  .chk-row small{flex-basis:100%;margin-left:31px;color:var(--text-mute);font-weight:400;font-size:12px}
   .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
 
   /* ---- board ---- */
@@ -415,7 +419,8 @@
   .ent-actions{display:flex;gap:8px}
   .ent-resumo{background:rgba(59,68,48,.5);border:1px solid var(--line);border-radius:14px;padding:13px 16px;margin-bottom:16px;font-size:14px;color:var(--text-soft);display:flex;gap:20px;flex-wrap:wrap}
   .ent-resumo b{font-family:var(--ff-display);font-size:22px;color:var(--text);font-weight:600;margin-right:5px}
-  #map-ent{height:300px;border-radius:var(--radius);border:1px solid var(--line);margin-bottom:16px;background:var(--surface-2);z-index:1}
+  #map-ent,#map-aguard{height:300px;border-radius:var(--radius);border:1px solid var(--line);margin-bottom:16px;background:var(--surface-2);z-index:1}
+  .aguard-map-hint{font-size:12.5px;color:var(--text-mute);margin:-6px 2px 12px}
   .ent-fin{margin-top:20px;border-top:1px dashed var(--line);padding-top:14px}
   .ent-fin-h{font-family:var(--ff-eyebrow);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);margin-bottom:10px}
   .ent-fin-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;flex-wrap:wrap}
@@ -470,6 +475,22 @@
   .ent-btn.primary{background:linear-gradient(135deg,var(--gold),var(--gold-dk));color:var(--ink);border:none;box-shadow:0 8px 20px -8px rgba(217,164,65,.6)}
   /* barra de ação fixa embaixo (alcance do polegar) */
   .ent-bottombar{position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;gap:10px;padding:13px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 62%,transparent)}
+  .ent-tabs{display:flex;gap:8px;margin:0 0 16px}
+  .ent-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 12px;border-radius:13px;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text-soft);font-family:var(--ff-body);font-size:14.5px;font-weight:700;cursor:pointer;transition:.14s;-webkit-tap-highlight-color:transparent}
+  .ent-tab.on{background:linear-gradient(135deg,var(--gold),#c79a3b);color:#1c2114;border-color:var(--gold);box-shadow:0 8px 20px -10px rgba(212,180,90,.7)}
+  .ent-tab-c{font-size:12px;font-weight:800;opacity:.85}
+  .pegar-hint{font-size:13.5px;color:var(--text-mute);margin:0 2px 13px;line-height:1.45}
+  .pegar-card{display:flex;align-items:flex-start;gap:12px;background:linear-gradient(160deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:var(--radius);padding:14px 15px;margin-bottom:11px;cursor:pointer;transition:.14s}
+  .pegar-card.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,180,90,.35)}
+  .pegar-info{flex:1;min-width:0}
+  .pegar-name{font-family:var(--ff-display);font-size:21px;font-weight:600;color:var(--text);line-height:1.05;margin-bottom:7px}
+  .pegar-badges{display:flex;flex-wrap:wrap;gap:6px}
+  .pegar-badges span{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:rgba(138,145,122,.16);color:var(--text-soft)}
+  .pegar-bairro{background:rgba(111,176,166,.16) !important;color:var(--teal) !important}
+  .pegar-cob{background:rgba(224,179,65,.16) !important;color:var(--warn) !important}
+  .pegar-pago{background:rgba(127,174,107,.16) !important;color:var(--calm) !important}
+  .pegar-presente{background:rgba(212,180,90,.18) !important;color:var(--gold-lt) !important}
+  .pegar-hora{background:rgba(224,106,82,.16) !important;color:var(--urgent) !important}
   .ent-bb-btn{flex:1;min-height:54px;border-radius:15px;font-size:15.5px;font-weight:600;font-family:var(--ff-body);border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:var(--elev-1)}
   .ent-bb-btn:active{transform:translateY(1px)}
   .ent-bb-btn.primary{background:linear-gradient(135deg,var(--gold),var(--gold-dk));color:var(--ink);border:none;box-shadow:0 10px 24px -8px rgba(217,164,65,.6)}
@@ -514,6 +535,12 @@
   .rota-warn{background:rgba(224,106,82,.14);border:1px solid rgba(224,106,82,.4);color:var(--urgent);border-radius:10px;padding:9px 11px;margin-bottom:11px;font-size:12px;line-height:1.5}
   .rota-warn b{color:var(--urgent)}
   .card-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .card-head{display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none}
+  .card-head-main{flex:1;min-width:0}
+  .card.mini .card-badges{margin-bottom:0}
+  .card-hr{margin:0 0 7px}
+  .card-body{margin-top:11px;border-top:1px solid var(--line);padding-top:11px;animation:vfade .18s ease}
+  .card .vtoggle{margin-top:-2px}
   .card-badges:empty{display:none}
   .badge-tipo{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px}
   .badge-troca{background:rgba(143,156,214,.18);color:#8e9cd6}
@@ -580,6 +607,63 @@
   .vbadge.ok{background:rgba(127,174,107,.16);color:var(--calm)}
   .vbadge.falha{background:rgba(224,106,82,.18);color:var(--urgent)}
   .vbadge.cancel{background:rgba(138,145,122,.2);color:var(--text-mute)}
+  .vbadge.presente{background:rgba(212,180,90,.18);color:var(--gold-lt)}
+  .vtimer{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:rgba(138,145,122,.16);color:var(--text-soft)}
+  .vtimer.warn{background:rgba(224,179,65,.16);color:var(--warn)}
+  .vtimer.urgent{background:rgba(224,106,82,.18);color:var(--urgent)}
+  /* Destaques do mês */
+  #view-destaques{max-width:1000px;margin:4px auto 0}
+  .dest-wrap{border:1px solid rgba(212,180,90,.32);border-radius:20px;padding:26px 24px 30px;background:linear-gradient(160deg,rgba(255,255,255,.015),transparent)}
+  .dest-eyebrow{font-family:var(--ff-body);font-size:13px;letter-spacing:.34em;text-transform:uppercase;color:var(--text-mute);margin:0 0 22px 4px}
+  .dest-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+  .dest-card{display:flex;align-items:center;gap:18px;border:1px solid rgba(212,180,90,.16);border-radius:15px;padding:20px 22px;background:rgba(0,0,0,.1)}
+  .dest-av{width:74px;height:74px;flex:0 0 74px;border-radius:50%;border:2px solid var(--gold);overflow:hidden;box-shadow:0 0 0 4px rgba(212,180,90,.1)}
+  .dest-av img{width:100%;height:100%;object-fit:cover;display:block}
+  .dest-av.mono{display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);font-size:32px;font-weight:600;color:var(--gold-lt);background:rgba(212,180,90,.12)}
+  .dest-info{min-width:0}
+  .dest-label{font-family:var(--ff-body);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);line-height:1.35;margin-bottom:8px}
+  .dest-nome{font-family:var(--ff-display);font-size:25px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text);line-height:1;margin-bottom:5px}
+  .dest-num{font-family:var(--ff-display);font-size:42px;font-weight:600;color:var(--gold);line-height:1;font-variant-numeric:lining-nums tabular-nums}
+  .dest-un{font-family:var(--ff-body);font-size:15px;font-weight:400;color:var(--text-mute);margin-left:7px}
+  .dest-wrap.compact{padding:16px 16px 18px;margin-bottom:16px;border-radius:16px}
+  .dest-wrap.compact .dest-eyebrow{margin-bottom:13px;font-size:11.5px}
+  .dest-wrap.compact .dest-grid{gap:11px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .dest-wrap.compact .dest-card{gap:13px;padding:13px 15px;border-radius:12px}
+  .dest-wrap.compact .dest-av{width:52px;height:52px;flex-basis:52px;box-shadow:0 0 0 3px rgba(212,180,90,.1)}
+  .dest-wrap.compact .dest-av.mono{font-size:22px}
+  .dest-wrap.compact .dest-label{font-size:10.5px;margin-bottom:5px}
+  .dest-wrap.compact .dest-nome{font-size:19px;margin-bottom:2px}
+  .dest-wrap.compact .dest-num{font-size:27px}
+  .dest-wrap.compact .dest-un{font-size:12.5px;margin-left:5px}
+  /* Ranking */
+  #view-ranking{max-width:880px;margin:4px auto 0}
+  .rk-wrap{border:1px solid rgba(212,180,90,.32);border-radius:20px;padding:24px 22px 26px;background:linear-gradient(160deg,rgba(255,255,255,.015),transparent)}
+  .rk-block{margin-top:24px}
+  .rk-block:first-of-type{margin-top:8px}
+  .rk-block-head{display:flex;align-items:center;gap:10px;font-family:var(--ff-body);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-mute);margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(212,180,90,.14)}
+  .rk-ico{font-size:15px}
+  .rk-row{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.045)}
+  .rk-row:last-child{border-bottom:none}
+  .rk-pos{font-family:var(--ff-display);font-size:27px;font-weight:600;color:var(--text-mute);opacity:.5;width:26px;flex:0 0 26px;text-align:center}
+  .rk-row.leader .rk-pos{color:var(--gold);opacity:1}
+  .rk-row .dest-av{width:54px;height:54px;flex-basis:54px;box-shadow:none}
+  .rk-row .dest-av.mono{font-size:22px}
+  .rk-main{flex:1;min-width:0}
+  .rk-nome{font-family:var(--ff-display);font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text);line-height:1.1}
+  .rk-sub{font-size:12.5px;color:var(--text-mute);margin:1px 0 8px}
+  .rk-lider{color:var(--gold-lt);font-weight:600}
+  .rk-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
+  .rk-bar span{display:block;height:100%;background:linear-gradient(90deg,#c79a3b,var(--gold));border-radius:3px;transition:width .4s}
+  .rk-val{font-family:var(--ff-display);font-size:33px;font-weight:600;color:var(--gold);flex:0 0 auto;text-align:right;font-variant-numeric:lining-nums tabular-nums}
+  .rk-val.money{font-size:21px}
+  @media(max-width:540px){
+    .rk-row{gap:11px}
+    .rk-row .dest-av{width:46px;height:46px;flex-basis:46px}
+    .rk-nome{font-size:17px}
+    .rk-val{font-size:26px}
+    .rk-val.money{font-size:17px}
+    .rk-pos{font-size:22px;width:20px;flex-basis:20px}
+  }
   .vcard-name{font-family:var(--ff-display);font-size:25px;font-weight:600;line-height:1.1;margin-bottom:9px}
   .vtrack{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(111,176,166,.08);border:1px solid rgba(111,176,166,.25);border-radius:12px;padding:9px 12px;margin-bottom:11px}
   .vent{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--text)}
@@ -639,6 +723,8 @@
   .vbtn.wa:hover{filter:brightness(1.06)}
   .vbtn.ghost{background:var(--surface-2);color:var(--text-soft);flex:0 1 auto;padding:0 16px}
   .vbtn.ghost:hover{color:var(--text);border-color:var(--line-strong)}
+  .vbtn.ghost.danger{color:var(--urgent)}
+  .vbtn.ghost.danger:hover{border-color:var(--urgent);background:rgba(224,106,82,.1)}
   .vbtn.disabled{flex:1 1 150px;color:var(--text-mute);background:transparent;border-style:dashed;cursor:default;font-weight:400;font-size:12.5px}
   .vbtn.primary{flex:1 1 100%;background:linear-gradient(135deg,var(--gold),#c79a3b);color:#1c2114;border:none;font-weight:700;box-shadow:0 8px 20px -9px rgba(212,180,90,.7)}
   .vbtn.primary:hover{filter:brightness(1.06)}
@@ -709,7 +795,7 @@
     body.role-entregador .logo-emblem{width:44px;height:44px}
     body.role-entregador .wrap{padding-top:16px}
     .ent-head h2{font-size:25px}
-    #map-ent{height:250px}
+    #map-ent,#map-aguard{height:250px}
     .ent-card .name{font-size:23px}
     .g-kpis{grid-template-columns:1fr}
     .g-set-grid{grid-template-columns:1fr}
@@ -783,6 +869,8 @@
   </header>
 
   <div id="area-operacao" style="display:none">
+
+  <div id="destaques-topo" style="display:none"></div>
 
   <div class="daynav">
     <button class="daynav-btn" onclick="mudarDia(-1)" aria-label="Dia anterior">‹</button>
@@ -907,6 +995,7 @@
         </div>
         <div><label>Produto</label><input id="f-prod" placeholder="Modelo / tamanhos"></div>
         <div class="full"><label>Observação</label><input id="f-obs" placeholder="Ex: casa com câmera · ligar antes · deixar na portaria"></div>
+        <div class="full"><label class="chk-row"><input type="checkbox" id="f-presente"><span>🎁 Embalagem de presente</span><small>marcado sozinho quando a IA identifica cliente mulher — pode ajustar</small></label></div>
       </div>
       <datalist id="vend-list"></datalist>
       <div class="form-actions">
@@ -920,7 +1009,10 @@
     <button class="tab on" id="tab-painel" onclick="switchTab('painel')">Painel</button>
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
+    <button class="tab" id="tab-ranking" onclick="switchTab('ranking')">🏅 Ranking</button>
   </div>
+
+  <div id="view-ranking" style="display:none"></div>
 
   <!-- board -->
   <div id="view-painel">
@@ -972,14 +1064,26 @@
   <div id="area-entregador" style="display:none">
     <div class="ent-head">
       <h2 id="ent-title">Minha rota</h2>
-      <button class="ent-loc-btn" id="btn-minha-loc" onclick="usarMinhaLocalizacao(false)">📍 Usar minha localização</button>
     </div>
-    <div id="ent-resumo" class="ent-resumo"></div>
-    <div id="map-ent"></div>
-    <div id="ent-list"></div>
-    <div class="ent-bottombar">
+    <div class="ent-tabs">
+      <button class="ent-tab" id="ent-tab-aguard" onclick="setEntTab('aguard')">📥 Aguardando rota<span class="ent-tab-c" id="c-tab-aguard"></span></button>
+      <button class="ent-tab on" id="ent-tab-rota" onclick="setEntTab('rota')">🛵 Minha rota<span class="ent-tab-c" id="c-tab-rota"></span></button>
+    </div>
+    <div id="ent-pane-aguard" style="display:none">
+      <div id="map-aguard-box"><div id="map-aguard"></div></div>
+      <div id="ent-aguard-list"></div>
+    </div>
+    <div id="ent-pane-rota">
+      <div id="ent-resumo" class="ent-resumo"></div>
+      <div id="map-ent"></div>
+      <div id="ent-list"></div>
+    </div>
+    <div class="ent-bottombar" id="ent-bb-rota">
       <button class="ent-bb-btn" onclick="copiarMinhaRota()">⧉ Copiar lista</button>
       <button class="ent-bb-btn primary" onclick="abrirRotaMaps()">🧭 Abrir rota no Maps</button>
+    </div>
+    <div class="ent-bottombar" id="ent-bb-add" style="display:none">
+      <button class="ent-bb-btn primary" style="flex:1" id="btn-add-rota" onclick="addNaMinhaRota()">➕ Add na minha rota</button>
     </div>
   </div>
 
@@ -1752,6 +1856,7 @@ function fillForm(r){
   if(r.pagPrevisto && ['cobrar','pago'].includes(r.pagPrevisto)) $('f-pag-prev').value=r.pagPrevisto;
   if(r.taxa){ const n=_num(r.taxa); setTaxaForm(n>0?n:0); }   // "" não muda (fica grátis); "0" grátis; valor → cobra
   if(r.horarioTipo){ $('f-hr-tipo').value=r.horarioTipo; if(r.horarioHora) $('f-hr-hora').value=r.horarioHora; }
+  if($('f-presente')) $('f-presente').checked = (r.genero==='F') || !!r.presente;   // IA detectou cliente mulher → embalagem de presente
 }
 function doParse(){
   const t = $('paste').value.trim();
@@ -1815,6 +1920,7 @@ Campos do JSON:
 - horarioHora: "HH:MM" ou "".
 - observacao: instrução extra útil pro entregador (ex: "casa com câmera no muro", "ligar ao chegar", "deixar na portaria", "levar maquininha"). NÃO repita aqui o que já está em pagamento/valor/endereço.
 - taxa: se a mensagem mencionar taxa de entrega ou frete COM valor (ex "taxa R$ 19,90", "frete 20"), retorne só o número (ex "19,90"). Se disser explicitamente entrega/frete grátis ou "sem taxa", retorne "0". Se NÃO mencionar nada sobre taxa/frete, retorne "".
+- genero: "F" se o PRIMEIRO NOME do cliente for nome de mulher, "M" se for nome de homem, "" se não der pra saber pelo nome. Baseie-se só no nome.
 Ignore CPF, RG e data de nascimento. Use "" (ou "entrega"/"cobrar" nos campos com padrão) para qualquer campo ausente.`;
   let data;
   if(AI_PROXY_URL){
@@ -1869,6 +1975,7 @@ async function importarLote(){
       vendedora: ehVend ? session.vendedora : (r.vendedora||''), endereco:r.endereco||'', link:r.link||'', coord:coordFrom(r.link||''),
       horarioTipo:r.horarioTipo||'', horarioHora:r.horarioHora||'', produto:r.produto||'', valor:r.valor||'', observacao:r.observacao||'',
       tipo:r.tipo||'entrega', pagPrevisto:r.pagPrevisto||'cobrar',
+      presente: (r.genero==='F') || !!r.presente,
       taxaEntrega: (r.taxa && _num(r.taxa)>0) ? _num(r.taxa) : null,
       status:'aguardando', entregador:null, criadoEm:Date.now(), entregueEm:null
     });
@@ -1934,7 +2041,7 @@ function togglePanel(open){
     $('f-cliente').focus();
   }
 }
-function clearForm(){ ['paste','f-cliente','f-contato','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; setTaxaForm(0); }
+function clearForm(){ ['paste','f-cliente','f-contato','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -1968,6 +2075,7 @@ async function saveEntrega(){
     produto:$('f-prod').value.trim(),
     valor:$('f-valor').value.trim(),
     observacao:$('f-obs').value.trim(),
+    presente:$('f-presente') ? $('f-presente').checked : false,
     taxaEntrega:getTaxaForm(),
     status:'aguardando', entregador:null,
     criadoEm:Date.now(), entregueEm:null
@@ -2404,61 +2512,77 @@ function cardAguardando(e){
   const timerHTML = ehFuturo
     ? `<span class="badge-agendada">📅 agendada</span>`
     : `<span class="timer ${uc}">${fmtDur(min)}</span>`;
-  return `<div class="card ${selected.has(e.id)?'sel':''}" style="border-left-color:var(--${uc==='calm'?'calm':uc==='warn'?'warn':'urgent'})">
-    <div class="card-top">
-      ${podeMexer(e)?`<input type="checkbox" class="chk" ${selected.has(e.id)?'checked':''} onchange="toggleSel('${e.id}')">`:`<span class="chk-ro" title="Entrega de outra vendedora — somente leitura">🔒</span>`}
-      <div class="name">${esc(e.cliente)}</div>
-      ${timerHTML}
+  const aberto = vAberto.has(e.id);
+  return `<div class="card ${aberto?'open':'mini'} ${selected.has(e.id)?'sel':''}" style="border-left-color:var(--${uc==='calm'?'calm':uc==='warn'?'warn':'urgent'})">
+    <div class="card-head" onclick="toggleVcard('${e.id}')">
+      <div class="card-head-main">
+        <div class="card-top">
+          ${podeMexer(e)?`<input type="checkbox" class="chk" ${selected.has(e.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleSel('${e.id}')">`:`<span class="chk-ro" title="Entrega de outra vendedora — somente leitura">🔒</span>`}
+          <div class="name">${esc(e.cliente)}</div>
+          ${timerHTML}
+        </div>
+        ${hrBadge(e)?`<div class="card-hr">${hrBadge(e)}</div>`:''}
+        <div class="card-badges">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
+      </div>
+      <button class="vtoggle" onclick="event.stopPropagation();toggleVcard('${e.id}')" aria-label="${aberto?'Minimizar':'Ver mais informações'}">${aberto?'–':'+'}</button>
     </div>
-    ${hrBadge(e)?`<div style="padding-left:30px;margin-bottom:7px">${hrBadge(e)}</div>`:''}
-    <div class="card-badges" style="padding-left:30px">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}</div>
-    <div class="meta">
-      ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
-      ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
-      ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
-      ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
-      ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
-    </div>
-    <div class="card-actions">
-      ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
-      ${podeMexer(e)?`
-      ${e.contato?`<a class="lnk wa" href="https://wa.me/55${e.contato.replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>`:''}
-      <button class="iconbtn" onclick="abrirReag('${e.id}')" title="Reagendar">📅</button>
-      <button class="iconbtn" onclick="abrirDesfecho('${e.id}','cancelado')" title="Não comprou">✕</button>
-      <button class="iconbtn" onclick="editar('${e.id}')" title="Editar">✎</button>
-      <button class="iconbtn danger" onclick="excluir('${e.id}')" title="Excluir">🗑</button>
-      `:`<span class="ro-note">👁 de ${esc(e.vendedora||'outra vendedora')} · somente leitura</span>`}
-    </div>
+    ${aberto?`<div class="card-body">
+      <div class="meta">
+        ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
+        ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
+        ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
+        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
+        ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
+        ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
+      </div>
+      <div class="card-actions">
+        ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
+        ${podeMexer(e)?`
+        ${e.contato?`<a class="lnk wa" href="https://wa.me/55${e.contato.replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>`:''}
+        <button class="iconbtn" onclick="abrirReag('${e.id}')" title="Reagendar">📅</button>
+        <button class="iconbtn" onclick="abrirDesfecho('${e.id}','cancelado')" title="Não comprou">✕</button>
+        <button class="iconbtn" onclick="editar('${e.id}')" title="Editar">✎</button>
+        <button class="iconbtn danger" onclick="excluir('${e.id}')" title="Excluir">🗑</button>
+        `:`<span class="ro-note">👁 de ${esc(e.vendedora||'outra vendedora')} · somente leitura</span>`}
+      </div>
+    </div>`:''}
   </div>`;
 }
 function cardRota(e){
   const ent=ENT[e.entregador]||{nome:'?',cor:'#888'};
   const min=minutesSince(e.criadoEm);
-  return `<div class="card" style="border-left-color:${ent.cor}">
-    <span class="badge-ent" style="background:${ent.cor}22;color:${ent.cor}">
-      <span class="dot" style="width:7px;height:7px;border-radius:50%;background:${ent.cor}"></span>${ent.nome}</span>
-    <div class="card-top" style="margin-bottom:6px">
-      <div class="name">${esc(e.cliente)}</div>
-      <span class="timer ${urgClass(min)}">${fmtDur(min)}</span>
+  const aberto = vAberto.has(e.id);
+  return `<div class="card ${aberto?'open':'mini'}" style="border-left-color:${ent.cor}">
+    <div class="card-head" onclick="toggleVcard('${e.id}')">
+      <div class="card-head-main">
+        <span class="badge-ent" style="background:${ent.cor}22;color:${ent.cor}">
+          <span class="dot" style="width:7px;height:7px;border-radius:50%;background:${ent.cor}"></span>${ent.nome}</span>
+        <div class="card-top" style="margin-bottom:6px">
+          <div class="name">${esc(e.cliente)}</div>
+          <span class="timer ${urgClass(min)}">${fmtDur(min)}</span>
+        </div>
+        ${hrBadge(e)?`<div class="card-hr">${hrBadge(e)}</div>`:''}
+        <div class="card-badges">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
+      </div>
+      <button class="vtoggle" onclick="event.stopPropagation();toggleVcard('${e.id}')" aria-label="${aberto?'Minimizar':'Ver mais informações'}">${aberto?'–':'+'}</button>
     </div>
-    ${hrBadge(e)?`<div style="margin-bottom:7px">${hrBadge(e)}</div>`:''}
-    <div class="card-badges">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}</div>
-    <div class="meta" style="padding-left:0">
-      ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
-      ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-      ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
-      ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
-    </div>
-    <div class="card-actions norail">
-      ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
-      ${podeMexer(e)?`
-      <button class="btn btn-ghost btn-mini" onclick="marcarEntregue('${e.id}')">✓ Entregue</button>
-      <button class="iconbtn" onclick="editar('${e.id}')" title="Editar / acrescentar item">✎</button>
-      <button class="iconbtn" onclick="abrirDesfecho('${e.id}','nao_entregue')" title="Não entregue">✕</button>
-      <button class="iconbtn" onclick="voltarAguardando('${e.id}')" title="Voltar p/ aguardando">↩</button>
-      `:`<span class="ro-note">👁 de ${esc(e.vendedora||'outra')} · somente leitura</span>`}
-    </div>
+    ${aberto?`<div class="card-body">
+      <div class="meta" style="padding-left:0">
+        ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
+        ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
+        ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
+        ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
+      </div>
+      <div class="card-actions norail">
+        ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
+        ${podeMexer(e)?`
+        <button class="btn btn-ghost btn-mini" onclick="marcarEntregue('${e.id}')">✓ Entregue</button>
+        <button class="iconbtn" onclick="editar('${e.id}')" title="Editar / acrescentar item">✎</button>
+        <button class="iconbtn" onclick="abrirDesfecho('${e.id}','nao_entregue')" title="Não entregue">✕</button>
+        <button class="iconbtn" onclick="voltarAguardando('${e.id}')" title="Voltar p/ aguardando">↩</button>
+        `:`<span class="ro-note">👁 de ${esc(e.vendedora||'outra')} · somente leitura</span>`}
+      </div>
+    </div>`:''}
   </div>`;
 }
 function cardEntregue(e){
@@ -2509,6 +2633,7 @@ function cardEntregue(e){
 
 function render(){
   const today = todayKey();
+  const _dt=$('destaques-topo'); if(_dt && _dt.style.display!=='none') _dt.innerHTML=destaquesHTML(true);
   const matchFiltro = e => filtro==='todos' || e.entregador===filtro;
   const matchVend = e => filtroVend==='todas' || e.vendedora===filtroVend;
   const matchDia = e => dataDe(e)===diaAtivo;
@@ -2634,6 +2759,7 @@ function editar(id){
   $('f-prod').value=e.produto; $('f-valor').value=e.valor; $('f-obs').value=e.observacao||'';
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||'';
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
+  if($('f-presente'))$('f-presente').checked=!!e.presente;
   setTaxaForm(e.taxaEntrega||0);
   editId=id; togglePanel(true);
   $('f-data').min = dataDe(e); $('f-data').value = dataDe(e); // mantém a data original (mesmo se já passou)
@@ -2647,6 +2773,7 @@ function salvarEdicao(){
   e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value;
   e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim();
   e.tipo=$('f-tipo').value||'entrega'; e.pagPrevisto=$('f-pag-prev').value||'cobrar';
+  if($('f-presente'))e.presente=$('f-presente').checked;
   e.taxaEntrega=getTaxaForm();
   e.dataEntrega=$('f-data').value||dataDe(e);
   persist(); clearForm(); togglePanel(false); editId=null;
@@ -2677,15 +2804,20 @@ const ROUTE_COLORS=['#d4b45a','#6fb0a6','#c97b5a','#8e9cd6','#cf8aa8','#9bbf6f']
 
 function switchTab(name){
   tabAtiva = name;
-  const isMapa = name==='mapa', isFin = name==='fin';
-  $('view-painel').style.display = (isMapa||isFin)?'none':'';
+  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking';
+  $('view-painel').style.display = (isMapa||isFin||isRank)?'none':'';
   $('view-mapa').style.display = isMapa?'':'none';
   $('view-fin').style.display = isFin?'':'none';
-  $('tab-painel').classList.toggle('on', !isMapa && !isFin);
+  $('view-ranking').style.display = isRank?'':'none';
+  $('tab-painel').classList.toggle('on', name==='painel');
   $('tab-mapa').classList.toggle('on', isMapa);
   $('tab-fin').classList.toggle('on', isFin);
+  $('tab-ranking').classList.toggle('on', isRank);
+  const dt=$('destaques-topo');
+  if(dt){ if(name==='painel'){ dt.innerHTML=destaquesHTML(true); dt.style.display=''; } else dt.style.display='none'; }  // destaques só no Painel
   if(isMapa){ ensureMap(); renderMap(); if(!suggestion && entregas.some(e=>e.status==='aguardando' && coordOf(e))) sugerirRotas(); }
   else if(isFin){ renderFinalizadas(); }
+  else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); }
   else { animateNext(); render(); }
 }
 function ensureMap(){
@@ -3020,6 +3152,7 @@ function applyRole(){
     if(fvend){ fvend.readOnly=!ehGeral; fvend.style.opacity=ehGeral?'':'.65'; if(!ehGeral) fvend.value=session.vendedora; }
     if(vchips) vchips.style.display = ehGeral ? '' : 'none';
     $('tab-fin').style.display='';                   // aba de finalizadas (pagamento/foto) p/ vendedoras
+    $('tab-mapa').style.display = ehGeral ? '' : 'none';   // Mapa & Rotas só pra operação (vendedora não monta rota)
     $('area-operacao').style.display='';
     renderFiltersVend();
     switchTab('painel');  // sempre entra no Painel (a coluna "Minhas entregas" aparece nele)
@@ -3034,6 +3167,8 @@ function applyRole(){
     $('role-label').innerHTML=`Entregador · <b>${ent?ent.nome:''}</b>`;
     $('area-entregador').style.display='';
     entCoord=null;                 // começa sem GPS; pede a localização ao abrir
+    entTab = (minhasEntregas().length===0 && entAguardando().length>0) ? 'aguard' : 'rota';  // sem rota e tem espera → já abre em "Aguardando"
+    pegarSel.clear();
     renderEntregador();
     usarMinhaLocalizacao(true);     // tenta ordenar já a partir de onde ele está
   }
@@ -3041,7 +3176,7 @@ function applyRole(){
 }
 function logout(){
   pararRastreio();                 // encerra a transmissão de GPS, se estiver ativa
-  entSel.clear(); selVend.clear();
+  entSel.clear(); selVend.clear(); pegarSel.clear(); entTab='rota';
   entCoord=null; _prevStatus=null;
   session={role:null,entregador:null,vendedora:null,geral:false};
   document.body.classList.remove('role-entregador');
@@ -3223,11 +3358,10 @@ function vcard(e, eta){
 
   let track='';
   if(e.status==='em_rota'){
-    const ent=ENT[e.entregador]||{nome:'?',cor:'#888'};
     const info=eta[e.id];
     const liveTag = info&&info.live ? `<span class="vlive">🟢 ao vivo</span>` : '';
     const ordemTag = info&&info.manual ? `<span class="vstop manual">✋ ordem do entregador</span>` : '';
-    const pos = info ? `<span class="vstop">entrega ${info.pos} de ${info.total}</span>${ordemTag}${liveTag}` : '';
+    const pos = info ? `<span class="vstop">📍 ${info.pos}ª de ${info.total} na rota</span>${ordemTag}${liveTag}` : '';
     let prev;
     if(info && info.etaMin!=null){
       const min=Math.max(1,Math.round(info.etaMin));
@@ -3237,17 +3371,19 @@ function vcard(e, eta){
     } else {
       prev = `<div class="vtrack-eta muted">sem previsão — endereço sem localização</div>`;
     }
-    track = `<div class="vtrack"><span class="vent"><span class="vdot" style="background:${ent.cor}"></span>${esc(ent.nome)}</span>${pos}${prev}</div>`;
+    track = (pos||prev) ? `<div class="vtrack">${pos}${prev}</div>` : '';   // entregador já aparece no cabeçalho do grupo
   }
   const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgVend(e,eta))}` : '';
   const temHora = e.horarioTipo && e.horarioHora;
   const _selv = e.status==='aguardando' && selVend.has(e.id);
   const _podeSel = podeMexer(e) && e.status==='aguardando';
   const aberto = vAberto.has(e.id);
+  const _min = minutesSince(e.criadoEm);
+  const timerTag = (e.status==='aguardando'||e.status==='em_rota') ? `<span class="vtimer ${urgClass(_min)}" title="Tempo desde que a entrega foi lançada">⏱ há ${fmtDur(_min)}</span>` : '';
   return `<div class="vcard ${aberto?'open':'mini'} ${_selv?'sel':''}" style="border-left-color:${accent}">
     <div class="vhead" onclick="toggleVcard('${e.id}')">
       <div class="vhead-content">
-        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}</div>
+        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${timerTag}</div>
         <div class="vhead-name">${esc(e.cliente)}</div>
         ${track}
       </div>
@@ -3267,6 +3403,10 @@ function vcard(e, eta){
         ${wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>'}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
+        ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
+        ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="voltarAguardando('${e.id}')">↩ Voltar p/ aguardando</button>`:''}
+        ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='nao_entregue'||e.status==='cancelado'))?`<button class="vbtn ghost" onclick="abrirReag('${e.id}')">📅 Reagendar</button>`:''}
+        ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn ghost danger" onclick="excluir('${e.id}')">🗑 Excluir</button>`:''}
       </div>
     </div>`:''}
   </div>`;
@@ -3380,10 +3520,69 @@ function usarMinhaLocalizacao(auto){
     {enableHighAccuracy:true, timeout:9000, maximumAge:15000}
   );
 }
+let entTab='rota';                 // aba ativa do entregador
+const pegarSel=new Set();          // entregas aguardando marcadas pra pegar
+function setEntTab(t){ entTab=t; pegarSel.clear(); renderEntregador(); }
+function entAguardando(){ return entregas.filter(e=>e.status==='aguardando' && dataDe(e)===todayKey()).sort((a,b)=>a.criadoEm-b.criadoEm); }
+function togglePegar(id){ if(pegarSel.has(id)) pegarSel.delete(id); else pegarSel.add(id); renderEntregador(); }
+function addNaMinhaRota(){
+  if(!pegarSel.size) return;
+  let n=0;
+  entregas.forEach(e=>{ if(pegarSel.has(e.id) && e.status==='aguardando'){ e.status='em_rota'; e.entregador=session.entregador; e.roteadoEm=Date.now(); delete e.ordemManual; n++; } });
+  pegarSel.clear(); persist();
+  const aindaTem = entAguardando().length;
+  if(!aindaTem) entTab='rota';     // pegou tudo → já mostra a rota
+  renderEntregador();
+  toast(`${n} entrega${n>1?'s':''} adicionada${n>1?'s':''} na sua rota 🛵`);
+}
+function cardPegar(e){
+  const sel=pegarSel.has(e.id);
+  const cob = e.pagPrevisto!=='pago';
+  const min=minutesSince(e.criadoEm);
+  return `<div class="pegar-card ${sel?'sel':''}" onclick="togglePegar('${e.id}')">
+    <button class="ent-check ${sel?'on':''}" onclick="event.stopPropagation();togglePegar('${e.id}')" aria-label="Marcar para pegar">${sel?'✓':''}</button>
+    <div class="pegar-info">
+      <div class="pegar-name">${esc(e.cliente)}</div>
+      <div class="pegar-badges">
+        ${(e.bairro||e.cidade)?`<span class="pegar-bairro">📍 ${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span>`:''}
+        ${cob?`<span class="pegar-cob">💵 A cobrar${e.valor?' R$ '+esc(e.valor):''}</span>`:`<span class="pegar-pago">✅ Pago</span>`}
+        ${e.presente?`<span class="pegar-presente">🎁 Presente</span>`:''}
+        ${(e.horarioTipo&&e.horarioHora)?`<span class="pegar-hora">⏰ ${hrLabel(e.horarioTipo)} ${esc(e.horarioHora)}</span>`:''}
+        <span class="pegar-vend">👤 ${esc(e.vendedora||'—')} · há ${fmtDur(min)}</span>
+      </div>
+    </div>
+  </div>`;
+}
 function renderEntregador(){
   const ent=ENT[session.entregador]; if(!ent) return;
-  $('ent-title').innerHTML=`Minha rota — <span style="color:${ent.cor}">${ent.nome}</span>`;
   const items=minhasEntregas();
+  const aguard=entAguardando();
+  // abas: rótulos, contadores e aba ativa
+  const cR=$('c-tab-rota'), cA=$('c-tab-aguard');
+  if(cR) cR.textContent = items.length ? ` ${items.length}` : '';
+  if(cA) cA.textContent = aguard.length ? ` ${aguard.length}` : '';
+  $('ent-tab-rota').classList.toggle('on', entTab==='rota');
+  $('ent-tab-aguard').classList.toggle('on', entTab==='aguard');
+  $('ent-pane-rota').style.display = entTab==='rota' ? '' : 'none';
+  $('ent-pane-aguard').style.display = entTab==='aguard' ? '' : 'none';
+  if(entTab==='aguard'){
+    $('ent-title').innerHTML=`Aguardando rota — <span style="color:${ent.cor}">${ent.nome}</span>`;
+    [...pegarSel].forEach(id=>{ if(!aguard.some(e=>e.id===id)) pegarSel.delete(id); });
+    $('ent-aguard-list').innerHTML = aguard.length
+      ? `<div class="pegar-hint">Confira os pacotes separados na bancada, marque os que são seus e toque em <b>Add na minha rota</b>.</div>` + aguard.map(cardPegar).join('')
+      : `<div class="empty">Nenhuma entrega aguardando rota agora. 👍</div>`;
+    // barras de baixo: esconde a da rota, mostra a de adicionar quando há seleção
+    $('ent-bb-rota').style.display='none';
+    const addBar=$('ent-bb-add'); addBar.style.display = pegarSel.size ? '' : 'none';
+    if(pegarSel.size){ $('btn-add-rota').textContent = `➕ Add na minha rota (${pegarSel.size})`; }
+    const mAg=$('map-aguard-box');
+    if(mAg){ if(aguard.length){ mAg.style.display=''; ensureMapAguard(); renderMapAguard(); } else { mAg.style.display='none'; } }
+    return;   // não renderiza mapa/rota nesta aba
+  }
+  // ---- aba "Minha rota" ----
+  $('ent-bb-add').style.display='none';
+  $('ent-bb-rota').style.display='';
+  $('ent-title').innerHTML=`Minha rota — <span style="color:${ent.cor}">${ent.nome}</span>`;
   const loja=lojaCoords()||{lat:-16.6869,lng:-49.2648};
   const fromGps = !!entCoord;
   const origem = entCoord || loja;                 // ordena de onde ele está, se tiver GPS
@@ -3425,7 +3624,6 @@ function renderEntregador(){
       </div>
     </div>` : '';
   $('ent-list').innerHTML=alerta + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
-  const lb=$('btn-minha-loc'); if(lb){ lb.textContent = fromGps?'📍 Atualizar localização':'📍 Usar minha localização'; lb.disabled=false; lb.classList.toggle('on', fromGps); }
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
 }
@@ -3464,6 +3662,7 @@ function cardEntregadorView(p,n,fromGps,total){
     ${temHora?`<div class="hr-alert">⏰ ENTREGAR ${hrLabel(e.horarioTipo).toUpperCase()} ${e.horarioHora}</div>`:''}
     ${e.tipo==='troca'?`<div class="hr-alert" style="background:rgba(143,156,214,.16);color:#8e9cd6">🔁 TROCA — leve o novo e TRAGA o par antigo</div>`:''}
     ${e.tipo==='coleta'?`<div class="hr-alert" style="background:rgba(207,138,168,.16);color:#cf8aa8">↩️ COLETA — retire a devolução com o cliente</div>`:''}
+    ${e.presente?`<div class="hr-alert" style="background:rgba(212,180,90,.16);color:var(--gold-lt)">🎁 LEVAR COM EMBALAGEM DE PRESENTE</div>`:''}
     <div class="card-badges" style="margin-bottom:4px">${pagBadge(e)}</div>
     ${leg}
     <div class="meta" style="padding-left:0">
@@ -3518,6 +3717,45 @@ function renderMapEnt(){
   });
   if(path.length>1) L.polyline(path,{color:ent.cor,weight:3,opacity:.65,dashArray:'6 8'}).addTo(layerEnt);
   if(bounds.length) mapEnt.fitBounds(bounds,{padding:[45,45],maxZoom:14});
+}
+/* mapa das entregas DISPONÍVEIS (aba Aguardando rota) */
+function _nnOrder(items, start){
+  const rest=items.slice(), out=[]; let cur=start;
+  while(rest.length){
+    let bi=0, bd=Infinity;
+    rest.forEach((it,i)=>{ const c=coordOf(it); const d=c?((c.lat-cur.lat)**2+(c.lng-cur.lng)**2):Infinity; if(d<bd){bd=d;bi=i;} });
+    const c=coordOf(rest[bi]); if(c) cur=c; out.push(rest.splice(bi,1)[0]);
+  }
+  return out;
+}
+let mapAguard=null, layerAguard=null, mapAguardInited=false;
+function ensureMapAguard(){
+  if(mapAguardInited){ if(mapAguard) setTimeout(()=>mapAguard.invalidateSize(),50); return; }
+  const el=$('map-aguard'); if(!el) return;
+  if(typeof L==='undefined'){ el.outerHTML='<div class="map-fallback">Mapa indisponível na pré-visualização — funciona ao abrir no navegador. A lista abaixo funciona normalmente.</div>'; mapAguardInited=true; return; }
+  const loja=lojaCoords()||{lat:-16.6869,lng:-49.2648};
+  mapAguard=L.map('map-aguard',{zoomControl:true}).setView([loja.lat,loja.lng],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(mapAguard);
+  layerAguard=L.layerGroup().addTo(mapAguard); mapAguardInited=true;
+  setTimeout(()=>mapAguard.invalidateSize(),60);
+}
+function renderMapAguard(){
+  if(!mapAguard||!layerAguard) return;
+  layerAguard.clearLayers();
+  const loja=lojaCoords()||{lat:-16.68,lng:-49.26};
+  const comCoord=entAguardando().filter(e=>coordOf(e));
+  const ordered=_nnOrder(comCoord, loja);
+  const bounds=[], path=[];
+  L.circleMarker([loja.lat,loja.lng],{radius:11,color:'#23311a',weight:3,fillColor:'#eef0e3',fillOpacity:1}).addTo(layerAguard).bindPopup('🏪 Loja'); bounds.push([loja.lat,loja.lng]); path.push([loja.lat,loja.lng]);
+  ordered.forEach((e,i)=>{
+    const c=coordOf(e), sel=pegarSel.has(e.id);
+    L.circleMarker([c.lat,c.lng],{radius:11,color:'#23311a',weight:2,fillColor: sel?'#7fae6b':'#e0b341',fillOpacity:.95}).addTo(layerAguard)
+      .bindTooltip(String(i+1),{permanent:true,direction:'center',className:'mk-num'})
+      .bindPopup(`<b>${i+1}) ${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${(e.pagPrevisto!=='pago')?'<br>💵 A cobrar':''}`);
+    bounds.push([c.lat,c.lng]); path.push([c.lat,c.lng]);
+  });
+  if(path.length>1) L.polyline(path,{color:'#d4b45a',weight:3,opacity:.5,dashArray:'6 8'}).addTo(layerAguard);
+  if(bounds.length) mapAguard.fitBounds(bounds,{padding:[45,45],maxZoom:14});
 }
 function copiarMinhaRota(){
   const items=ordemAtual();
@@ -3584,6 +3822,101 @@ function mudarMes(delta){
   mesAtivo=monthKey(dt); renderGestor();
 }
 function brl(n){ return 'R$ ' + Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+/* ===== Destaques do mês (vendedoras) ===== */
+const FOTOS_VEND = {};  // nome da vendedora -> URL da foto (opcional; sem URL mostra a inicial)
+function avatarDest(nome){
+  const url = nome ? FOTOS_VEND[nome] : null;
+  return url
+    ? `<div class="dest-av"><img src="${esc(url)}" alt="${esc(nome)}"></div>`
+    : `<div class="dest-av mono">${esc((nome||'—').trim().charAt(0).toUpperCase())}</div>`;
+}
+function destaquesDados(){
+  const mes = todayKey().slice(0,7), hoje = todayKey();
+  const cMes={}, cDia={}, tk={};
+  entregas.forEach(e=>{
+    if(e.status==='cancelado' || !e.vendedora) return;   // "não comprou" não conta
+    const v=canonVend(e.vendedora), d=dataDe(e);
+    if(d.slice(0,7)===mes){
+      cMes[v]=(cMes[v]||0)+1;
+      const val=_num(e.valor);
+      if(val>0){ (tk[v]||(tk[v]={s:0,n:0})); tk[v].s+=val; tk[v].n++; }
+    }
+    if(d===hoje) cDia[v]=(cDia[v]||0)+1;
+  });
+  const top=o=>{let bv=null,b=-1;for(const k in o){if(o[k]>b){b=o[k];bv=k;}}return bv?{v:bv,n:b}:null;};
+  let tv=null,tb=-1; for(const k in tk){const a=tk[k].s/tk[k].n; if(a>tb){tb=a;tv=k;}}
+  return { mes:top(cMes), dia:top(cDia), tick: tv?{v:tv,avg:tb}:null };
+}
+function destaqueCard(label, nome, bignum, unidade){
+  return `<div class="dest-card">
+    ${avatarDest(nome)}
+    <div class="dest-info">
+      <div class="dest-label">${label}</div>
+      <div class="dest-nome">${nome?esc(nome):'sem dados ainda'}</div>
+      <div class="dest-num">${nome?bignum:'—'}${nome&&unidade?`<span class="dest-un">${unidade}</span>`:''}</div>
+    </div>
+  </div>`;
+}
+function destaquesHTML(compact){
+  const d=destaquesDados();
+  return `<div class="dest-wrap${compact?' compact':''}">
+    <div class="dest-eyebrow">Destaques do mês</div>
+    <div class="dest-grid">
+      ${destaqueCard('Maior nº de entregas do mês', d.mes&&d.mes.v, d.mes?d.mes.n:'', 'entregas')}
+      ${destaqueCard('Maior nº de entregas do dia (hoje)', d.dia&&d.dia.v, d.dia?d.dia.n:'', 'hoje')}
+      ${destaqueCard('Maior ticket médio', d.tick&&d.tick.v, d.tick?brl(d.tick.avg):'', 'por entrega')}
+    </div>
+  </div>`;
+}
+/* ===== Ranking completo (competição entre as vendedoras) ===== */
+function rankingDados(){
+  const mes=todayKey().slice(0,7), hoje=todayKey();
+  const cMes={}, cDia={}, tk={};
+  VENDEDORAS.forEach(v=>{ cMes[v]=0; cDia[v]=0; tk[v]={s:0,n:0}; });
+  entregas.forEach(e=>{
+    if(e.status==='cancelado' || !e.vendedora) return;
+    const v=canonVend(e.vendedora); if(!(v in cMes)) return;   // só o time de vendas
+    const d=dataDe(e);
+    if(d.slice(0,7)===mes){ cMes[v]++; const val=_num(e.valor); if(val>0){ tk[v].s+=val; tk[v].n++; } }
+    if(d===hoje) cDia[v]++;
+  });
+  const arr=o=>VENDEDORAS.map(v=>({vend:v,val:o[v]||0})).sort((a,b)=>b.val-a.val);
+  const arrTick=VENDEDORAS.map(v=>({vend:v,val: tk[v].n? tk[v].s/tk[v].n : 0})).sort((a,b)=>b.val-a.val);
+  return { mes:arr(cMes), dia:arr(cDia), tick:arrTick };
+}
+function rankBlock(titulo, ico, arr, isMoney){
+  const leader = arr[0] ? arr[0].val : 0;
+  const fmt = isMoney ? (n=>brl(n)) : (n=>String(Math.round(n)));
+  const rows = arr.map((r,i)=>{
+    const isLeader = i===0 && r.val>0;
+    const falta = Math.max(0, leader - r.val);
+    let sub;
+    if(isLeader) sub = `<span class="rk-lider">🏆 Líder</span>`;
+    else if(leader>0) sub = `faltam ${fmt(falta)} p/ líder`;
+    else sub = 'sem registros ainda';
+    const pct = leader>0 ? Math.max(3, Math.round(r.val/leader*100)) : 3;
+    return `<div class="rk-row${isLeader?' leader':''}">
+      <div class="rk-pos">${i+1}</div>
+      ${avatarDest(r.vend)}
+      <div class="rk-main">
+        <div class="rk-nome">${esc(r.vend)}</div>
+        <div class="rk-sub">${sub}</div>
+        <div class="rk-bar"><span style="width:${pct}%"></span></div>
+      </div>
+      <div class="rk-val${isMoney?' money':''}">${fmt(r.val)}</div>
+    </div>`;
+  }).join('');
+  return `<div class="rk-block"><div class="rk-block-head"><span class="rk-ico">${ico}</span>${titulo}</div>${rows}</div>`;
+}
+function rankingHTML(){
+  const d=rankingDados();
+  return `<div class="rk-wrap">
+    <div class="dest-eyebrow">Ranking do mês · competição</div>
+    ${rankBlock('Entregas no mês','📦', d.mes, false)}
+    ${rankBlock('Entregas hoje','☀️', d.dia, false)}
+    ${rankBlock('Ticket médio','💰', d.tick, true)}
+  </div>`;
+}
 function renderGestor(){
   $('mes-label').textContent = rotuloMes(mesAtivo);
   const doMes = entregas.filter(e=>dataDe(e).startsWith(mesAtivo));
@@ -3617,7 +3950,7 @@ function renderGestor(){
   const porReg = {}; feitas.forEach(e=>{ const r=regiaoEntrega(e); porReg[r]=(porReg[r]||0)+1; });
 
   const c=config.custos;
-  let html = `
+  let html = destaquesHTML() + rankingHTML() + `
   <div class="g-kpis">
     <div class="g-kpi"><div class="lbl">Entregas no mês</div><div class="val">${feitas.length}</div>${pendentes?`<div class="sub">+${pendentes} aguardando</div>`:''}</div>
     <div class="g-kpi"><div class="lbl">Custo total</div><div class="val">${brl(custoTotal)}</div><div class="sub">${brl(custoPorEntrega)} por entrega</div></div>
