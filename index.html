@@ -511,6 +511,11 @@
   .pay-taxa-txt{flex:1;font-size:13px;color:var(--text-soft);line-height:1.3}
   .pay-taxa-txt b{color:var(--text)}
   .pay-taxa-val{flex:0 0 auto;font-family:var(--ff-eyebrow);font-weight:600;color:var(--warn)}
+  .pay-taxa-edit{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(224,179,65,.08);border:1px solid rgba(224,179,65,.3);border-radius:var(--radius-sm);padding:11px 13px}
+  .pay-taxa-edit label{font-size:13px;color:var(--text-soft)}
+  .pay-taxa-inwrap{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line-strong);border-radius:9px;padding:7px 11px}
+  .pay-taxa-inwrap .cur{font-size:13px;color:var(--text-mute)}
+  .pay-taxa-inwrap input{width:90px;border:none;background:transparent;color:var(--text);font-family:var(--ff-eyebrow);font-weight:600;font-size:16px;text-align:right;outline:none}
   #pay-vals:not(:empty){margin-top:12px}
   .pay-val-lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin-bottom:8px}
   .pay-val-row{display:flex;align-items:center;gap:10px;margin-top:8px}
@@ -557,6 +562,7 @@
   .alerta-card .al-txt span{font-size:12px;color:var(--text-soft)}
   .alerta-card.pend{background:rgba(143,156,214,.13);border:1px solid rgba(143,156,214,.4)}
   .alerta-card.espera{background:rgba(224,179,65,.12);border:1px solid rgba(224,179,65,.38)}
+  .alerta-card.horario{background:rgba(224,106,82,.13);border:1px solid rgba(224,106,82,.42)}
   .desf-quick{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 14px}
   .desf-chip{font-family:var(--ff-body);font-size:12.5px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-soft);cursor:pointer;transition:.15s}
   .desf-chip:hover{border-color:var(--line-strong);color:var(--text)}
@@ -637,7 +643,7 @@
   .dest-wrap.compact .dest-un{font-size:12.5px;margin-left:5px}
   /* Ranking */
   #view-ranking{max-width:880px;margin:4px auto 0}
-  .rk-wrap{border:1px solid rgba(212,180,90,.32);border-radius:20px;padding:24px 22px 26px;background:linear-gradient(160deg,rgba(255,255,255,.015),transparent)}
+  .rk-wrap{border:1px solid rgba(212,180,90,.32);border-radius:20px;padding:24px 22px 26px;margin-bottom:18px;background:linear-gradient(160deg,rgba(255,255,255,.015),transparent)}
   .rk-block{margin-top:24px}
   .rk-block:first-of-type{margin-top:8px}
   .rk-block-head{display:flex;align-items:center;gap:10px;font-family:var(--ff-body);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-mute);margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(212,180,90,.14)}
@@ -1065,6 +1071,7 @@
     <div class="ent-head">
       <h2 id="ent-title">Minha rota</h2>
     </div>
+    <div id="ent-alertas"></div>
     <div class="ent-tabs">
       <button class="ent-tab" id="ent-tab-aguard" onclick="setEntTab('aguard')">📥 Aguardando rota<span class="ent-tab-c" id="c-tab-aguard"></span></button>
       <button class="ent-tab on" id="ent-tab-rota" onclick="setEntTab('rota')">🛵 Minha rota<span class="ent-tab-c" id="c-tab-rota"></span></button>
@@ -2132,8 +2139,8 @@ function persist(){
 
 /* ============ desfechos: não entregue / não comprou / reagendar ============ */
 const DESF_MOTIVOS = {
-  nao_entregue: ['Cliente ausente','Endereço não encontrado','Cliente remarcou','Cliente recusou','Não atendeu o telefone'],
-  cancelado:    ['Desistiu da compra','Achou caro','Vai pensar melhor','Comprou em outro lugar','Cliente sumiu']
+  nao_entregue: ['Cliente sumiu','Cliente ausente','Endereço não encontrado','Cliente remarcou','Não atendeu o telefone'],
+  cancelado:    ['Não gostou','Problema de numeração','Desistiu da compra','Achou caro','Vai pensar melhor','Comprou em outro lugar']
 };
 let desfId=null, desfStatus=null, desfMotivo='';
 function abrirDesfecho(id, status){
@@ -2199,7 +2206,7 @@ function toggleSel(id){
   if(selected.has(id)) selected.delete(id); else selected.add(id);
   render();
 }
-let payId=null, paySel=[], payFoto=null, payVal={}, payCartaoTipo=null, payTaxa=false, payTaxaVal=TAXA_ENTREGA;
+let payId=null, paySel=[], payFoto=null, payVal={}, payCartaoTipo=null, payTaxa=false, payTaxaVal=0;
 function _num(v){ v=String(v||'').replace(/[^\d.,]/g,''); if(v.includes(',')) v=v.replace(/\./g,'').replace(',', '.'); const n=parseFloat(v); return isNaN(n)?0:n; }
 function _brl(n){ return 'R$ '+Number(n||0).toFixed(2).replace('.',','); }
 function _extrairNum(txt){ const m=/\b([23][0-9]|4[0-6])\b/.exec(txt||''); return m?m[1]:''; }
@@ -2213,13 +2220,13 @@ function abrirPagamento(id){
     payVal = Object.assign({}, e.pagamentoValores||{});
     payCartaoTipo = e.cartaoTipo || null;
     payTaxa = e.taxaEntrega ? true : false;
-    payTaxaVal = e.taxaEntrega || taxaDe(e) || TAXA_ENTREGA;
+    payTaxaVal = e.taxaEntrega || taxaDe(e) || 0;
   } else {
     paySel = (e && e.pagPrevisto==='pago') ? ['japago'] : [];
     payVal = {};
     payCartaoTipo = null;
-    payTaxaVal = taxaDe(e) || TAXA_ENTREGA;    // valor definido no cadastro (ou regra de cidade)
-    payTaxa = taxaDe(e) > 0;                   // já marca a taxa quando a venda foi cadastrada com taxa
+    payTaxaVal = taxaDe(e) || 0;               // sugere o do cadastro/cidade; senão, fica em branco p/ digitar
+    payTaxa = taxaDe(e) > 0;                    // já marca a taxa quando a venda foi cadastrada com taxa
   }
   $('pay-prod').value = (e && (e.produtoEntregue||e.produto)) || '';
   $('pay-num').value  = (e && (e.numeracaoEntregue||_extrairNum(e.produto))) || '';
@@ -2245,15 +2252,18 @@ function renderCartaoTipo(){
 function setCartaoTipo(t){ payCartaoTipo = (payCartaoTipo===t)?null:t; renderCartaoTipo(); }
 function renderTaxa(){
   const wrap=$('pay-taxa'); if(!wrap) return;
-  const e=entregas.find(x=>x.id===payId);
-  const dica = (e&&e.taxaEntrega) ? '(definida no cadastro)' : (taxaCidade(e)>0 ? '(Trindade/S. Canedo/Goianira — só se NÃO ficar com 2 pares)' : (e&&e.tipo==='troca' ? '(troca sem defeito)' : '(cliente não ficou com 2 pares)'));
   wrap.innerHTML = `<div class="pay-taxa-row ${payTaxa?'on':''}" onclick="toggleTaxa()">
       <span class="pay-taxa-box">${payTaxa?'✓':''}</span>
-      <span class="pay-taxa-txt">Cobrar <b>taxa de entrega</b> <span style="color:var(--text-mute)">${dica}</span></span>
-      <span class="pay-taxa-val">${_brl(payTaxaVal)}</span>
-    </div>`;
+      <span class="pay-taxa-txt">Cobrar <b>taxa de entrega</b></span>
+      ${payTaxa?'':`<span class="pay-taxa-val">${payTaxaVal>0?_brl(payTaxaVal):'definir'}</span>`}
+    </div>
+    ${payTaxa?`<div class="pay-taxa-edit">
+      <label>Valor da taxa</label>
+      <div class="pay-taxa-inwrap"><span class="cur">R$</span><input id="pay-taxa-val" inputmode="decimal" value="${payTaxaVal>0?payTaxaVal.toFixed(2).replace('.',','):''}" oninput="setPayTaxaVal(this.value)" placeholder="0,00"></div>
+    </div>`:''}`;
 }
 function toggleTaxa(){ payTaxa=!payTaxa; renderTaxa(); }
+function setPayTaxaVal(v){ payTaxaVal = _num(v); }   // edição livre do valor, sem re-render (não perde o foco)
 function escolherPag(m){
   if(PAG_SEM_COBRANCA.includes(m)){ paySel = paySel.includes(m) ? [] : [m]; }   // exclusiva
   else {
@@ -2310,7 +2320,7 @@ function carregarComprovante(input){
     const cb=$('pay-cam-btn'); if(cb){ cb.textContent='📷 Refazer'; cb.classList.add('done'); cb.style.display=''; }
   }).catch(()=>toast('Não consegui ler a imagem'));
 }
-function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFoto=null; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=TAXA_ENTREGA; }
+function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFoto=null; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; }
 function confirmarPagamento(){
   if(!paySel.length){ toast('Selecione a forma de pagamento'); return; }
   if(paySel.includes('cartao') && !payCartaoTipo){ toast('💳 No cartão, marque crédito ou débito'); return; }
@@ -2358,9 +2368,20 @@ function desfazerFinal(id){
   persist(); render(); if(session.role==='entregador') renderEntregador();
   toast(e.status==='em_rota' ? 'Voltou para a rota — refaça a finalização' : 'Voltou para aguardando');
 }
+function trazerPendenciasEnt(){
+  const hoje=todayKey();
+  const pend = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < hoje);
+  if(!pend.length) return;
+  if(!confirm(`Trazer ${pend.length} entrega(s) de dias anteriores para a sua rota de hoje?`)) return;
+  pend.forEach(e=>{ e.dataEntrega=hoje; e.roteadoEm=Date.now(); delete e.ordemManual; });
+  persist(); entTab='rota'; renderEntregador();
+  toast(`${pend.length} entrega(s) trazida(s) para hoje`);
+}
 function trazerPendencias(){
   const hoje=todayKey();
-  const pend = entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e) < hoje);
+  const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
+  const alvo = ehVendPessoal ? norm(session.vendedora) : null;
+  const pend = entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e) < hoje && (!ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo)));
   if(!pend.length) return;
   if(!confirm(`Trazer ${pend.length} entrega(s) pendente(s) para hoje?`)) return;
   pend.forEach(e=>{ e.dataEntrega=hoje; e.status='aguardando'; e.entregador=null; e.roteadoEm=null; });
@@ -2387,6 +2408,15 @@ function hrLabel(tipo){ return {ate:'até', apos:'a partir de', pico:'por volta 
 function hrBadge(e){
   if(!e.horarioTipo || !e.horarioHora) return '';
   return `<span class="badge-hr">⏰ ${hrLabel(e.horarioTipo)} ${e.horarioHora}</span>`;
+}
+// entrega com horário marcado faltando 30 min ou menos (ou já passou), de hoje e ainda pendente
+function horarioUrgente(e){
+  if(e.status!=='aguardando' && e.status!=='em_rota') return false;
+  if(!e.horarioTipo || !e.horarioHora) return false;
+  if(dataDe(e)!==todayKey()) return false;
+  const m=String(e.horarioHora).match(/(\d{1,2}):(\d{2})/); if(!m) return false;
+  const alvo=new Date(); alvo.setHours(+m[1], +m[2], 0, 0);
+  return (alvo - Date.now())/60000 <= 30;
 }
 function buildRouteText(items, ent){
   const estM = routeEstMin(items);
@@ -2722,21 +2752,22 @@ function render(){
   $('sel-est').textContent = selected.size ? `≈ ${fmtDur(routeEstMin(entregas.filter(e=>selected.has(e.id))))} de rota` : 'monte a rota e copie';
   $('routebar').classList.toggle('show', selected.size>0);
 
-  // avisos: pendências de dias anteriores + espera longa
-  const pend = entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e) < today);
-  const esperaLonga = (diaAtivo===today) ? aguard.filter(e=>minutesSince(e.criadoEm)>=URGENCIA.urgente).length : 0;
+  // aviso: pendências de dias anteriores (respeitando o escopo da vendedora).
+  // O alerta de "espera há +45 min" saiu daqui e foi para a tela do entregador.
+  const pend = entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e) < today && matchEscopo(e));
+  const horUrg = entregas.filter(e=>matchEscopo(e) && horarioUrgente(e));
   let alertasHTML='';
+  if(horUrg.length){
+    alertasHTML += `<div class="alerta-card horario">
+      <div class="al-ico">⏰</div>
+      <div class="al-txt"><b>${horUrg.length} ${horUrg.length===1?'entrega com horário urgente':'entregas com horário urgente'}</b><span>Faltam 30 min ou menos para o horário marcado. Priorize.</span></div>
+    </div>`;
+  }
   if(pend.length){
     alertasHTML += `<div class="alerta-card pend">
       <div class="al-ico">⚠️</div>
       <div class="al-txt"><b>${pend.length} ${pend.length===1?'entrega de dia anterior':'entregas de dias anteriores'} sem resolver</b><span>Não foram entregues nem colocadas em rota. Traga para hoje ou reagende.</span></div>
       <button class="btn btn-primary btn-mini" onclick="trazerPendencias()">Trazer p/ hoje</button>
-    </div>`;
-  }
-  if(esperaLonga){
-    alertasHTML += `<div class="alerta-card espera">
-      <div class="al-ico">⏰</div>
-      <div class="al-txt"><b>${esperaLonga} ${esperaLonga===1?'entrega esperando':'entregas esperando'} há mais de ${URGENCIA.urgente} min</b><span>Monte a rota o quanto antes para não atrasar o cliente.</span></div>
     </div>`;
   }
   $('alertas').innerHTML = alertasHTML;
@@ -3139,6 +3170,7 @@ function applyRole(){
   document.body.classList.remove('role-entregador');
   $('area-operacao').style.display='none'; $('area-entregador').style.display='none'; $('area-gestor').style.display='none';
   $('tab-fin').style.display='none';
+  const _rb=$('routebar'); if(_rb){ _rb.classList.remove('show'); _rb.style.display='none'; }   // barra Montar rota: só operação
   if(session.role==='vendedora'){
     // todos os perfis (vendedoras e Edson) veem o quadro completo, com acesso a TODAS as entregas
     const ehGeral = !!session.geral;
@@ -3154,6 +3186,7 @@ function applyRole(){
     $('tab-fin').style.display='';                   // aba de finalizadas (pagamento/foto) p/ vendedoras
     $('tab-mapa').style.display = ehGeral ? '' : 'none';   // Mapa & Rotas só pra operação (vendedora não monta rota)
     $('area-operacao').style.display='';
+    if(_rb) _rb.style.display='';                     // operação pode montar rota
     renderFiltersVend();
     switchTab('painel');  // sempre entra no Painel (a coluna "Minhas entregas" aparece nele)
     if(mapInited && map) setTimeout(()=>map.invalidateSize(),80);
@@ -3557,6 +3590,36 @@ function renderEntregador(){
   const ent=ENT[session.entregador]; if(!ent) return;
   const items=minhasEntregas();
   const aguard=entAguardando();
+  // alertas do entregador: pendências dele de dias anteriores + entregas esperando há muito tempo
+  const _hoje=todayKey();
+  const pendEnt = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje);
+  const esperaEnt = entregas.filter(e=>e.status==='aguardando' && dataDe(e)===_hoje && minutesSince(e.criadoEm)>=URGENCIA.urgente);
+  const eaEl=$('ent-alertas');
+  if(eaEl){
+    let ah='';
+    const horUrgEnt = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && horarioUrgente(e));
+    if(horUrgEnt.length) ah += `<div class="alerta-card horario">
+      <div class="al-ico">⏰</div>
+      <div class="al-txt"><b>${horUrgEnt.length} ${horUrgEnt.length===1?'entrega com horário urgente':'entregas com horário urgente'} na sua rota</b><span>Faltam 30 min ou menos para o horário marcado. Priorize.</span></div>
+    </div>`;
+    const horUrgPool = aguard.filter(e=>horarioUrgente(e));
+    if(horUrgPool.length) ah += `<div class="alerta-card horario">
+      <div class="al-ico">⏰</div>
+      <div class="al-txt"><b>${horUrgPool.length} ${horUrgPool.length===1?'entrega com horário urgente':'entregas com horário urgente'} aguardando rota</b><span>Falta pouco para o horário. Pegue na aba “Aguardando rota” agora.</span></div>
+      ${entTab!=='aguard'?`<button class="btn btn-primary btn-mini" onclick="setEntTab('aguard')">Ver disponíveis</button>`:''}
+    </div>`;
+    if(pendEnt.length) ah += `<div class="alerta-card pend">
+      <div class="al-ico">⚠️</div>
+      <div class="al-txt"><b>${pendEnt.length} ${pendEnt.length===1?'entrega de dia anterior':'entregas de dias anteriores'} não ${pendEnt.length===1?'finalizada':'finalizadas'}</b><span>Ficaram na sua rota e não foram entregues. Traga para hoje ou finalize.</span></div>
+      <button class="btn btn-primary btn-mini" onclick="trazerPendenciasEnt()">Trazer p/ hoje</button>
+    </div>`;
+    if(esperaEnt.length) ah += `<div class="alerta-card espera">
+      <div class="al-ico">⏰</div>
+      <div class="al-txt"><b>${esperaEnt.length} ${esperaEnt.length===1?'entrega esperando':'entregas esperando'} há mais de ${URGENCIA.urgente} min</b><span>Pegue na aba “Aguardando rota” pra não atrasar o cliente.</span></div>
+      ${entTab!=='aguard'?`<button class="btn btn-primary btn-mini" onclick="setEntTab('aguard')">Ver disponíveis</button>`:''}
+    </div>`;
+    eaEl.innerHTML=ah;
+  }
   // abas: rótulos, contadores e aba ativa
   const cR=$('c-tab-rota'), cA=$('c-tab-aguard');
   if(cR) cR.textContent = items.length ? ` ${items.length}` : '';
@@ -3825,7 +3888,7 @@ function brl(n){ return 'R$ ' + Number(n||0).toLocaleString('pt-BR',{minimumFrac
 /* ===== Destaques do mês (vendedoras) ===== */
 const FOTOS_VEND = {};  // nome da vendedora -> URL da foto (opcional; sem URL mostra a inicial)
 function avatarDest(nome){
-  const url = nome ? FOTOS_VEND[nome] : null;
+  const url = nome ? (FOTOS_VEND[nome] || FOTOS[nome]) : null;
   return url
     ? `<div class="dest-av"><img src="${esc(url)}" alt="${esc(nome)}"></div>`
     : `<div class="dest-av mono">${esc((nome||'—').trim().charAt(0).toUpperCase())}</div>`;
@@ -3950,7 +4013,7 @@ function renderGestor(){
   const porReg = {}; feitas.forEach(e=>{ const r=regiaoEntrega(e); porReg[r]=(porReg[r]||0)+1; });
 
   const c=config.custos;
-  let html = destaquesHTML() + rankingHTML() + `
+  let html = destaquesHTML(true) + rankingHTML() + `
   <div class="g-kpis">
     <div class="g-kpi"><div class="lbl">Entregas no mês</div><div class="val">${feitas.length}</div>${pendentes?`<div class="sub">+${pendentes} aguardando</div>`:''}</div>
     <div class="g-kpi"><div class="lbl">Custo total</div><div class="val">${brl(custoTotal)}</div><div class="sub">${brl(custoPorEntrega)} por entrega</div></div>
