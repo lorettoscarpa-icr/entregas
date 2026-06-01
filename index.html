@@ -561,6 +561,15 @@
   .prod-num-lbl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);margin:12px 0 6px}
   #prod-foto-prev img{width:92px;height:92px;object-fit:cover;border-radius:10px;border:1px solid var(--line);margin-top:8px}
   .prod-hint{font-size:12px;color:var(--text-mute);margin:10px 0 2px;line-height:1.35}
+  .prod-modo{display:flex;gap:6px;margin-bottom:10px}
+  .prod-modo-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;border:1px solid var(--line-strong);border-radius:11px;background:var(--surface-3);color:var(--text-soft);font-family:var(--ff-body);font-size:16px;line-height:1.15;text-align:center;cursor:pointer;transition:.15s}
+  .prod-modo-btn span{font-size:10.5px;letter-spacing:.02em}
+  .prod-modo-btn.on{border-color:var(--gold);background:rgba(201,169,80,.16);color:var(--text)}
+  .prod-auto-card{border:1px solid var(--line-strong);border-radius:12px;padding:13px 14px;background:var(--surface-3);margin-bottom:4px}
+  .prod-auto-card.gift{border-color:rgba(201,169,80,.5);background:rgba(201,169,80,.1)}
+  .prod-auto-card.warn{border-color:rgba(224,179,65,.45);background:rgba(224,179,65,.08)}
+  .prod-auto-h{font-family:var(--ff-display);font-size:16px;color:var(--gold-lt);margin-bottom:3px}
+  .prod-auto-sub{font-size:13px;color:var(--text-soft);line-height:1.45}
   .prod-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
   .prod-item-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
   .prod-item-top img{width:62px;height:62px;object-fit:cover;border-radius:9px;border:1px solid var(--line);cursor:pointer}
@@ -1277,11 +1286,15 @@
     </div>
     <div class="fin-bloco">
       <div class="fin-bloco-h">👟 Produto que o cliente ficou *</div>
-      <div class="prod-hint">Em cada produto: foto <b>ou</b> legenda (pelo menos um) + a numeração. Adicione quantos o cliente ficou.</div>
-      <input type="file" id="prod-cam-input" accept="image/*" capture="environment" onchange="carregarProdFoto(this)" style="display:none">
-      <input type="file" id="prod-arq-input" accept="image/*" onchange="carregarProdFoto(this)" style="display:none">
-      <div id="prod-itens"></div>
-      <button type="button" class="btn pay-cam-btn" id="prod-add-btn" onclick="addProdItem()" style="width:100%;margin-top:10px">➕ Adicionar produto</button>
+      <div class="prod-modo" id="prod-modo"></div>
+      <div id="prod-auto"></div>
+      <div id="prod-manual">
+        <div class="prod-hint">Em cada produto: foto <b>ou</b> legenda (pelo menos um) + a numeração. Adicione quantos o cliente ficou.</div>
+        <input type="file" id="prod-cam-input" accept="image/*" capture="environment" onchange="carregarProdFoto(this)" style="display:none">
+        <input type="file" id="prod-arq-input" accept="image/*" onchange="carregarProdFoto(this)" style="display:none">
+        <div id="prod-itens"></div>
+        <button type="button" class="btn pay-cam-btn" id="prod-add-btn" onclick="addProdItem()" style="width:100%;margin-top:10px">➕ Adicionar produto</button>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closePay()">Cancelar</button>
@@ -2267,6 +2280,25 @@ function fmtNumEnt(n){
 }
 /* estado do bloco "produto que ficou": lista de itens {foto, legenda, num} */
 let prodItens=[{foto:'',legenda:'',num:''}], prodFotoAlvo=0;
+let prodModo='manual', prodCadastro='';   // manual | unico | presente ; prodCadastro = produto que a vendedora cadastrou
+function setProdModo(m){ prodModo=m; renderProdModo(); }
+function renderProdModo(){
+  const m=$('prod-modo'); if(!m) return;
+  const opt=(id,ic,lbl)=>`<button type="button" class="prod-modo-btn ${prodModo===id?'on':''}" onclick="setProdModo('${id}')">${ic}<span>${lbl}</span></button>`;
+  m.innerHTML = opt('unico','👟','Produto único') + opt('presente','🎁','Presente') + opt('manual','✍️','Conferir / vários');
+  const man=$('prod-manual'), auto=$('prod-auto');
+  if(man) man.style.display = (prodModo==='manual') ? '' : 'none';
+  if(!auto) return;
+  if(prodModo==='manual'){ auto.innerHTML=''; return; }
+  const prod=(prodCadastro||'').trim();
+  if(prodModo==='presente'){
+    auto.innerHTML = `<div class="prod-auto-card gift"><div class="prod-auto-h">🎁 Presente — não precisa conferir</div><div class="prod-auto-sub">A vendedora vai ver o produto que ela cadastrou${prod?`: <b>${esc(prod)}</b>`:' (ela sabe o que enviou)'}.</div></div>`;
+  } else { // unico
+    auto.innerHTML = prod
+      ? `<div class="prod-auto-card"><div class="prod-auto-h">👟 Igual ao cadastro</div><div class="prod-auto-sub">O cliente ficou com: <b>${esc(prod)}</b></div></div>`
+      : `<div class="prod-auto-card warn"><div class="prod-auto-h">Sem produto no cadastro</div><div class="prod-auto-sub">A vendedora não preencheu o produto — use "Conferir / vários" pra informar o que ficou.</div></div>`;
+  }
+}
 function renderProdItens(){
   const wrap=$('prod-itens'); if(!wrap) return;
   wrap.innerHTML = prodItens.map((it,i)=>{
@@ -2459,6 +2491,8 @@ function abrirPagamento(id){
   }
   // bloco "produto que ficou": começa vazio (o entregador escreve; não puxa da vendedora)
   prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0;
+  prodCadastro = (e && e.produto) || '';
+  prodModo = jaFin ? (e.entregueModo || (e.entreguePresente ? 'presente' : 'manual')) : ((e && e.presente) ? 'presente' : 'manual');
   if(jaFin){
     const lc=fotoProdLocalGetArr(e.id);
     if(lc.length){ prodItens=lc.map(it=>({foto:it.foto||'',legenda:it.legenda||'',num:it.num||''})); }
@@ -2466,8 +2500,14 @@ function abrirPagamento(id){
     else { fotoProdCloudGet(e.id).then(arr=>{ if(payId===id && arr && arr.length){ prodItens=arr.map(it=>({foto:it.foto||'',legenda:it.legenda||'',num:it.num||''})); renderProdItens(); } }); }
   }
   renderProdItens();
+  renderProdModo();
   $('pay-note').value = (e && e.pagamentoObs) || '';
-  $('pay-foto').value=''; if($('pay-foto-arq')) $('pay-foto-arq').value=''; $('pay-foto-prev').innerHTML=''; if(jaFin && e.temComprovante) previewComprovante(e.id);
+  $('pay-foto').value=''; if($('pay-foto-arq')) $('pay-foto-arq').value=''; $('pay-foto-prev').innerHTML='';
+  if(jaFin && e.temComprovante){
+    const loc=fotoLocalGet(e.id);
+    if(loc.length){ payFotos=loc.slice(); renderPayFotos(); }   // recarrega na lista (reenviar ao confirmar)
+    else { $('pay-foto-prev').innerHTML='<div class="foto-load">carregando comprovante…</div>'; fotoCloudGet(e.id).then(arr=>{ if(payId!==id) return; if(arr.length){ fotoLocalSet(e.id,arr); payFotos=arr.slice(); } renderPayFotos(); }); }
+  }
   const cb=$('pay-cam-btn'); if(cb){ cb.textContent=(jaFin&&e.temComprovante)?'📷 Refazer':'📷 Tirar foto'; cb.classList.toggle('done', !!(jaFin&&e.temComprovante)); }
   const h=document.querySelector('#pay-modal h3'); if(h) h.textContent = jaFin ? 'Corrigir entrega' : 'Finalizar entrega';
   const okBtn=document.querySelector('#pay-modal .form-actions .btn-primary'); if(okBtn) okBtn.textContent = jaFin ? '✓ Salvar correção' : '✓ Confirmar entrega';
@@ -2597,15 +2637,19 @@ function renderPayFotos(){
   else { if(cb){ cb.textContent='📷 Tirar foto'; cb.classList.remove('done'); } if(ab) ab.textContent='📎 Anexar'; atualizarFotoReq(); }
 }
 function removerPayFoto(i){ payFotos.splice(i,1); renderPayFotos(); }
-function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; }
+function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; prodModo='manual'; prodCadastro=''; }
 function confirmarPagamento(){
   if(!paySel.length){ toast('Selecione a forma de pagamento'); return; }
   if(paySel.includes('cartao') && !payCartaoTipo){ toast('💳 No cartão, marque crédito ou débito'); return; }
-  // produto que o cliente ficou: foto OU legenda (pelo menos um) + numeração obrigatória, em cada produto
-  if(!prodItens.length){ toast('👟 Adicione o produto que o cliente ficou'); return; }
-  for(const it of prodItens){
-    if(!it.foto && !(it.legenda||'').trim()){ toast('👟 Em cada produto, coloque a foto ou a legenda'); return; }
-    if(!it.num){ toast('👟 Escolha a numeração de cada produto'); return; }
+  // produto que o cliente ficou — só valida no modo "Conferir / vários"
+  if(prodModo==='manual'){
+    if(!prodItens.length){ toast('👟 Adicione o produto que o cliente ficou'); return; }
+    for(const it of prodItens){
+      if(!it.foto && !(it.legenda||'').trim()){ toast('👟 Em cada produto, coloque a foto ou a legenda'); return; }
+      if(!it.num){ toast('👟 Escolha a numeração de cada produto'); return; }
+    }
+  } else if(prodModo==='unico' && !(prodCadastro||'').trim()){
+    toast('👟 Sem produto no cadastro — use "Conferir / vários"'); return;
   }
   const e=entregas.find(x=>x.id===payId); if(!e){ closePay(); return; }
   const corrigindo = e.status==='entregue';
@@ -2618,12 +2662,23 @@ function confirmarPagamento(){
   // valores por forma (ex: Pix 120 + Cartão 80) — formas "sem cobrança" não têm valor
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
   e.pagamentoValores = Object.keys(vals).length ? vals : null;
-  const itensSalvar = prodItens.map(it=>({foto:it.foto||'',legenda:(it.legenda||'').trim(),num:it.num}));
-  e.produtoEntregue = resumoProdutos(prodItens);
-  e.numeracaoEntregue = '';                       // já incluído no resumo
-  e.qtdFotosProduto = itensSalvar.filter(it=>it.foto).length;
-  e.temFotoProduto = e.qtdFotosProduto>0;
-  salvarFotoProduto(e.id, itensSalvar);
+  e.entregueModo = prodModo;
+  e.entreguePresente = (prodModo==='presente');
+  if(prodModo==='manual'){
+    const itensSalvar = prodItens.map(it=>({foto:it.foto||'',legenda:(it.legenda||'').trim(),num:it.num}));
+    e.produtoEntregue = resumoProdutos(prodItens);
+    e.numeracaoEntregue = '';                       // já incluído no resumo
+    e.qtdFotosProduto = itensSalvar.filter(it=>it.foto).length;
+    e.temFotoProduto = e.qtdFotosProduto>0;
+    salvarFotoProduto(e.id, itensSalvar);
+  } else {
+    // único / presente: repete o produto que a vendedora cadastrou (sem foto/numeração do entregador)
+    e.produtoEntregue = (prodCadastro||'').trim();
+    e.numeracaoEntregue = '';
+    e.qtdFotosProduto = 0;
+    e.temFotoProduto = false;
+    salvarFotoProduto(e.id, []);                    // limpa fotos de produto antigas
+  }
   delete e.comprovante;                         // a foto NUNCA fica dentro do array (pesa demais)
   if(payFotos.length){ const ok=salvarComprovante(e.id, payFotos); e.temComprovante=true; if(!ok && !(FIREBASE_ON&&fdb)) toast('Sem espaço local p/ a(s) foto(s) — entrega salva mesmo assim'); }
   if(semCob){ removerComprovante(e.id); e.temComprovante=false; }   // parceria/já pago: sem comprovante
@@ -3834,7 +3889,9 @@ function fcard(e){
     <div class="fcard-sec-h">👟 Produto</div>
     <div class="fcard-body">
       <div class="fcard-info">
-        ${(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
+        ${e.entreguePresente
+          ? `<div class="frow"><span class="ico">🎁</span><span><b>Presente</b>${e.produtoEntregue?` — ${esc(e.produtoEntregue)}`:''}</span></div>`
+          : (e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
         ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
         ${e.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(e.observacao)}</span></div>`:''}
         ${(e.bairro||e.cidade)?`<div class="frow"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
