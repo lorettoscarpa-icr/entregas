@@ -1451,6 +1451,8 @@ function custoEntrega(e){
 }
 
 /* extrai coordenadas de um link do Google Maps */
+function coordValida(c){ return !!c && isFinite(c.lat) && isFinite(c.lng) && c.lat>=-34 && c.lat<=6 && c.lng>=-74 && c.lng<=-34; }
+function sanitizeCoords(arr){ if(Array.isArray(arr)) arr.forEach(e=>{ if(e && e.coord && !coordValida(e.coord)) delete e.coord; }); return arr; }
 function coordFrom(url){
   if(!url) return null;
   let s; try{ s=decodeURIComponent(url); }catch(e){ s=url; }
@@ -1462,7 +1464,7 @@ function coordFrom(url){
     /!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/,
     /(-?\d{1,2}\.\d{4,}),\s*(-?\d{1,3}\.\d{4,})/
   ];
-  for(const p of pats){ const m=s.match(p); if(m) return {lat:parseFloat(m[1]), lng:parseFloat(m[2])}; }
+  for(const p of pats){ const m=s.match(p); if(m){ const r={lat:parseFloat(m[1]), lng:parseFloat(m[2])}; if(coordValida(r)) return r; } }
   return null;
 }
 function lojaCoords(){ const l=config.loja; return (l && l.lat && l.lng)?{lat:l.lat,lng:l.lng}:null; }
@@ -1545,7 +1547,7 @@ const store = {
   load(){ try{ const r=localStorage.getItem(KEY); return r?JSON.parse(r):[] }catch(e){ return this.mem } },
   save(arr){ this.mem=arr; try{ localStorage.setItem(KEY, JSON.stringify(arr)); return true; }catch(e){ return false; } }
 };
-let entregas = store.load();
+let entregas = sanitizeCoords(store.load());
 let filtro = 'todos';
 
 /* ============ Firebase (Firestore) — dados compartilhados em tempo real ============ */
@@ -1561,14 +1563,14 @@ let fdb=null, FIREBASE_ON=false, _fbAssinado=false, _fbMigrou=false, _clienteMod
 /* COLE AQUI a URL da Cloud Function da IA (passo 3). Vazio = usa a IA só dentro do Claude. */
 const AI_PROXY_URL = "https://lorettoia.lorettoscarpa.workers.dev/";
 // links encurtados de mapa (pin do WhatsApp) não trazem a coordenada — precisam ser expandidos no servidor (worker)
-function ehLinkCurto(url){ return /(?:maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs|app\.goo\.gl)/i.test(url||''); }
+function ehLinkCurto(url){ return /(?:maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs|app\.goo\.gl|share\.google)/i.test(url||''); }
 async function resolverLinkCurto(url){
   if(!url || !AI_PROXY_URL) return null;
   try{
     const r = await fetch(AI_PROXY_URL+'?resolve='+encodeURIComponent(url), {headers:{'Accept':'application/json'}});
     if(!r.ok) return null;
     const j = await r.json();
-    if(j && isFinite(j.lat) && isFinite(j.lng)) return {lat:+j.lat, lng:+j.lng};
+    if(j && isFinite(j.lat) && isFinite(j.lng) && coordValida({lat:+j.lat,lng:+j.lng})) return {lat:+j.lat, lng:+j.lng};
     if(j && j.endereco) return {endereco:String(j.endereco)};
   }catch(e){}
   return null;
@@ -1592,6 +1594,7 @@ function assinarEntregas(){
     if(arr.length===0 && entregas.length>0 && !_fbMigrou){ _fbMigrou=true; _subirTudo(entregas.slice()); return; }
     _fbMigrou=true;
     entregas = arr.map(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.vendedora) e.vendedora=c; } return e; });
+    sanitizeCoords(entregas);            // joga fora coordenadas impossíveis (lixo antigo)
     migrarComprovantes(entregas);       // tira fotos pesadas de dentro do array (memória)
     _snapShadow();
     store.save(entregas);               // mantém cache local
@@ -2467,6 +2470,15 @@ function voltarAguardando(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e)return;
   e.status='aguardando'; e.entregador=null; persist(); render();
+}
+// entregador devolve uma entrega da rota dele de volta pra fila de "Aguardando rota"
+function devolverEnt(id){
+  if(_bloqueado(id)) return;
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  if(!confirm('Devolver esta entrega para "Aguardando rota"? Ela sai da sua rota e volta a ficar disponível.')) return;
+  e.status='aguardando'; e.entregador=null;
+  persist(); render(); renderEntregador();
+  toast('Entrega devolvida para a fila ↩');
 }
 function desfazerFinal(id){
   if(_bloqueado(id)) return;
@@ -3357,7 +3369,7 @@ function logout(){
   $('login-step2').style.display='none'; $('login-step-vend').style.display='none'; $('login-step1').style.display=''; $('login').style.display='flex';
 }
 function minhasEntregas(){ return entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e)===todayKey()); }
-function coordOf(e){ return e.coord||coordFrom(e.link); }
+function coordOf(e){ return coordValida(e.coord)?e.coord:coordFrom(e.link); }
 function orderEntregas(items, loja){
   const withC=items.filter(coordOf), noC=items.filter(e=>!coordOf(e));
   let cur=loja, rem=withC.slice(), out=[];
@@ -3894,6 +3906,7 @@ function cardEntregadorView(p,n,fromGps,total){
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
       ${wa?`<a class="ent-btn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:''}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
+      <button class="ent-btn" onclick="devolverEnt('${e.id}')" style="background:rgba(201,169,80,.12);color:var(--gold);border-color:rgba(201,169,80,.4)">↩ Devolver pra fila</button>
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
       <button class="ent-btn full" style="background:rgba(224,106,82,.12);color:var(--urgent);border-color:rgba(224,106,82,.35)" onclick="abrirDesfecho('${e.id}','nao_entregue')">✕ Não consegui entregar</button>
       <button class="ent-btn full" style="background:rgba(138,145,122,.16);color:var(--text-soft);border-color:rgba(138,145,122,.42)" onclick="abrirDesfecho('${e.id}','cancelado')">✕ Não deu certo</button>
