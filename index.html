@@ -528,6 +528,7 @@
   .pay-taxa-inwrap input{width:90px;border:none;background:transparent;color:var(--text);font-family:var(--ff-eyebrow);font-weight:600;font-size:16px;text-align:right;outline:none}
   #pay-vals:not(:empty){margin-top:12px}
   .pay-val-lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin-bottom:8px}
+  .pay-val-hint{text-transform:none;letter-spacing:0;color:var(--text-mute);opacity:.8;font-size:10.5px}
   .pay-val-row{display:flex;align-items:center;gap:10px;margin-top:8px}
   .pay-val-row label{flex:0 0 auto;min-width:96px;font-family:var(--ff-eyebrow);font-size:12px;letter-spacing:.04em;color:var(--text-soft);display:flex;align-items:center;gap:6px}
   .pay-val-row input{flex:1;text-align:right}
@@ -544,8 +545,31 @@
   #pay-foto-prev{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
   .pay-foto-item{position:relative;display:inline-flex}
   .pay-foto-x{position:absolute;top:1px;right:-6px;width:22px;height:22px;border-radius:50%;border:none;background:var(--urgent);color:#fff;font-size:12px;line-height:1;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  .prod-modo{display:flex;gap:8px;margin-bottom:10px}
+  .prod-tab{flex:1;padding:11px;border-radius:11px;border:1px solid var(--line-strong);background:var(--surface-3);color:var(--text-soft);font-family:var(--ff-body);font-size:14px;font-weight:600;cursor:pointer}
+  .prod-tab.on{background:linear-gradient(135deg,var(--gold),var(--gold-dk));color:var(--ink);border:none}
+  .num-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .num-btn{padding:13px 0;border-radius:10px;border:1px solid var(--line-strong);background:var(--surface-3);color:var(--text);font-family:var(--ff-body);font-size:16px;font-weight:600;cursor:pointer}
+  .num-btn.on{background:linear-gradient(135deg,var(--gold),var(--gold-dk));color:var(--ink);border:none;box-shadow:0 6px 14px -6px rgba(217,164,65,.6)}
+  .num-btn-sn{font-size:13px;letter-spacing:.06em;margin-top:2px}
+  .prod-item-top2{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+  .prod-foto-thumb{position:relative;display:inline-block;margin-bottom:10px}
+  .prod-foto-thumb img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:pointer}
+  .prod-legenda{width:100%;margin-top:2px}
+  .prod-num-lbl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);margin:12px 0 6px}
+  #prod-foto-prev img{width:92px;height:92px;object-fit:cover;border-radius:10px;border:1px solid var(--line);margin-top:8px}
+  .prod-hint{font-size:12px;color:var(--text-mute);margin:10px 0 2px;line-height:1.35}
+  .prod-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
+  .prod-item-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .prod-item-top img{width:62px;height:62px;object-fit:cover;border-radius:9px;border:1px solid var(--line);cursor:pointer}
+  .prod-item-lbl{flex:1;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute)}
+  .prod-item-lbl b{color:var(--gold)}
+  .prod-item-x{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:none;background:var(--urgent);color:#fff;font-size:13px;cursor:pointer}
+  .fin-bloco{border:1px solid var(--line);border-radius:14px;padding:13px 13px 15px;margin-top:14px}
+  .fin-bloco-h{font-family:var(--ff-display);font-size:19px;font-weight:600;color:var(--gold);margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .fin-bloco-sub{font-size:13px;color:var(--text-soft);margin:0 0 10px}
   .pay-cam-btn{width:100%;background:var(--surface-3);color:var(--text);border:1px solid var(--line-strong);font-weight:600;justify-content:center}
-  .pay-foto-btns{display:flex;gap:8px}
+  .pay-foto-btns{display:flex;gap:8px;flex-wrap:wrap}
   .pay-foto-btns .pay-cam-btn{width:auto;flex:1}
   .pay-cam-btn:hover{border-color:var(--gold)}
   .pay-cam-btn.done{background:rgba(127,174,107,.16);border-color:rgba(127,174,107,.5);color:var(--calm)}
@@ -1228,24 +1252,33 @@
 <div class="modal-bg" id="pay-modal">
   <div class="modal">
     <h3>Finalizar entrega</h3>
-    <p>Como o cliente pagou? <span style="color:var(--text-mute);font-weight:400;font-size:12px">— pode marcar até 2 formas</span></p>
-    <div class="pay-opts" id="pay-opts"></div>
-    <div id="pay-cartao"></div>
-    <div id="pay-vals"></div>
-    <div id="pay-taxa"></div>
-    <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);display:block;margin:16px 0 6px">Produto que o cliente ficou *</label>
-    <input id="pay-prod" placeholder="Modelo do sapato (ex: Tênis Oxford couro)">
-    <input id="pay-num" inputmode="numeric" placeholder="Numeração (ex: 40)" style="margin-top:8px">
-    <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:16px 0 6px">Observação do pagamento (opcional)</label>
-    <input id="pay-note" placeholder="Ex: R$ 120 no pix + R$ 80 no cartão">
-    <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:14px 0 6px" id="pay-foto-lbl">Foto do pagamento</label>
-    <input type="file" id="pay-foto" accept="image/*" capture="environment" onchange="carregarComprovante(this)" style="display:none">
-    <input type="file" id="pay-foto-arq" accept="image/*" onchange="carregarComprovante(this)" style="display:none">
-    <div class="pay-foto-btns">
-      <button type="button" class="btn pay-cam-btn" id="pay-cam-btn" onclick="document.getElementById('pay-foto').click()">📷 Tirar foto</button>
-      <button type="button" class="btn pay-cam-btn" id="pay-arq-btn" onclick="document.getElementById('pay-foto-arq').click()">📎 Anexar do celular</button>
+    <div class="fin-bloco">
+      <div class="fin-bloco-h">💳 Pagamento</div>
+      <p class="fin-bloco-sub">Como o cliente pagou? <span style="color:var(--text-mute);font-size:12px">— pode marcar até 2 formas</span></p>
+      <div class="pay-opts" id="pay-opts"></div>
+      <div id="pay-cartao"></div>
+      <div id="pay-vals"></div>
+      <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:14px 0 6px" id="pay-foto-lbl">Foto do pagamento</label>
+      <input type="file" id="pay-foto" accept="image/*" capture="environment" onchange="carregarComprovante(this)" style="display:none">
+      <input type="file" id="pay-foto-arq" accept="image/*" onchange="carregarComprovante(this)" style="display:none">
+      <div class="pay-foto-btns">
+        <button type="button" class="btn pay-cam-btn" id="pay-cam-btn" onclick="document.getElementById('pay-foto').click()">📷 Tirar foto</button>
+        <button type="button" class="btn pay-cam-btn" id="pay-arq-btn" onclick="document.getElementById('pay-foto-arq').click()">📎 Anexar</button>
+        <button type="button" class="btn pay-cam-btn" id="pay-colar-btn" onclick="colarComprovante()">📋 Colar</button>
+      </div>
+      <div id="pay-foto-prev"></div>
+      <div id="pay-taxa"></div>
+      <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:16px 0 6px">Observação do pagamento (opcional)</label>
+      <input id="pay-note" placeholder="Ex: R$ 120 no pix + R$ 80 no cartão">
     </div>
-    <div id="pay-foto-prev"></div>
+    <div class="fin-bloco">
+      <div class="fin-bloco-h">👟 Produto que o cliente ficou *</div>
+      <div class="prod-hint">Em cada produto: foto <b>ou</b> legenda (pelo menos um) + a numeração. Adicione quantos o cliente ficou.</div>
+      <input type="file" id="prod-cam-input" accept="image/*" capture="environment" onchange="carregarProdFoto(this)" style="display:none">
+      <input type="file" id="prod-arq-input" accept="image/*" onchange="carregarProdFoto(this)" style="display:none">
+      <div id="prod-itens"></div>
+      <button type="button" class="btn pay-cam-btn" id="prod-add-btn" onclick="addProdItem()" style="width:100%;margin-top:10px">➕ Adicionar produto</button>
+    </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closePay()">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarPagamento()">✓ Confirmar entrega</button>
@@ -2202,13 +2235,91 @@ function renderFotoLocPreview(){
 }
 function removerFotoLocPendente(){ fotoLocPendente=null; renderFotoLocPreview(); }
 function verPreviewFotoLoc(){ if(!fotoLocPendente) return; mostrarImagens('Foto da localização',[fotoLocPendente]); }
+/* ===== fotos do PRODUTO que o cliente ficou (várias, cada uma com sua numeração) — storage paralelo ===== */
+const FOTO_PROD_KEY = id => 'loretto_fotoprod_'+id;
+// guarda um array [{foto:b64, num:'40'}, ...] em JSON (aceita formatos antigos)
+function fotoProdLocalGetArr(id){ try{ const v=localStorage.getItem(FOTO_PROD_KEY(id)); if(!v) return []; if(v.charAt(0)==='['){ const a=JSON.parse(v)||[]; return a.map(it=> typeof it==='string'?{foto:it,num:''}:it); } return [{foto:v,num:''}]; }catch(_){ return []; } }
+function fotoProdLocalSetArr(id,arr){ try{ localStorage.setItem(FOTO_PROD_KEY(id), JSON.stringify(arr)); return true; }catch(_){ return false; } }
+function fotoProdLocalDel(id){ try{ localStorage.removeItem(FOTO_PROD_KEY(id)); }catch(_){} }
+function fotoProdCloudSet(id,arr){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('fotos_produto').doc(String(id)).set({itens:arr,ts:Date.now()}).catch(()=>{}); }catch(_){} } }
+function fotoProdCloudDel(id){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('fotos_produto').doc(String(id)).delete().catch(()=>{}); }catch(_){} } }
+function fotoProdCloudGet(id){ if(!(FIREBASE_ON&&fdb)) return Promise.resolve([]); try{ return fdb.collection('fotos_produto').doc(String(id)).get().then(d=>{ if(!d.exists) return []; const dt=d.data()||{}; if(Array.isArray(dt.itens)) return dt.itens; if(dt.foto) return [{foto:dt.foto,num:''}]; return []; }).catch(()=>[]); }catch(_){ return Promise.resolve([]); } }
+function salvarFotoProduto(id,arr){ const ok=fotoProdLocalSetArr(id,arr); fotoProdCloudSet(id,arr); return ok; }
+function removerFotoProduto(id){ fotoProdLocalDel(id); fotoProdCloudDel(id); }
+function verFotoProduto(id){
+  const local=fotoProdLocalGetArr(id).map(it=>it.foto).filter(Boolean);
+  if(local.length){ mostrarImagens('Fotos do produto', local); return; }
+  fotoProdCloudGet(id).then(arr=>{ const fotos=(arr||[]).map(it=>it.foto).filter(Boolean); if(fotos.length){ mostrarImagens('Fotos do produto', fotos); } else toast('Fotos do produto não encontradas'); });
+}
+// formata a numeração pra exibição (trata o "S/N" como "sem numeração")
+function fmtNumEnt(n){
+  if(!n) return '';
+  const parts=String(n).split(' · ');
+  const nums=parts.filter(x=>x && x!=='S/N');
+  const temSN=parts.some(x=>x==='S/N');
+  let out=nums.length ? 'Nº '+nums.join(' · ') : '';
+  if(temSN) out += (out?' · ':'')+'sem numeração';
+  return out;
+}
+/* estado do bloco "produto que ficou": lista de itens {foto, legenda, num} */
+let prodItens=[{foto:'',legenda:'',num:''}], prodFotoAlvo=0;
+function renderProdItens(){
+  const wrap=$('prod-itens'); if(!wrap) return;
+  wrap.innerHTML = prodItens.map((it,i)=>{
+    let g=''; for(let n=37;n<=46;n++) g+=`<button type="button" class="num-btn ${String(it.num)===String(n)?'on':''}" onclick="selProdNum(${i},${n})">${n}</button>`;
+    g+=`<button type="button" class="num-btn num-btn-sn ${it.num==='S/N'?'on':''}" style="grid-column:1/-1" onclick="selProdNum(${i},'S/N')">S/ NUMERAÇÃO</button>`;
+    const fotoArea = it.foto
+      ? `<div class="prod-foto-thumb"><img src="${it.foto}" onclick="verProdImg(${i})"><button type="button" class="pay-foto-x" onclick="removerProdFoto(${i})">✕</button></div>`
+      : `<div class="pay-foto-btns"><button type="button" class="btn pay-cam-btn" onclick="prodFotoAlvo=${i};document.getElementById('prod-cam-input').click()">📷 Foto</button><button type="button" class="btn pay-cam-btn" onclick="prodFotoAlvo=${i};document.getElementById('prod-arq-input').click()">📎 Anexar</button></div>`;
+    return `<div class="prod-item">
+      <div class="prod-item-top2">
+        <span class="prod-item-lbl">Produto ${i+1}</span>
+        ${prodItens.length>1?`<button type="button" class="prod-item-x" onclick="removerProdItem(${i})" title="Remover">✕</button>`:''}
+      </div>
+      ${fotoArea}
+      <input class="prod-legenda" placeholder="Legenda (ex: Tênis Oxford preto)" value="${esc(it.legenda||'')}" oninput="setProdLegenda(${i},this.value)">
+      <label class="prod-num-lbl">Numeração *</label>
+      <div class="num-grid">${g}</div>
+    </div>`;
+  }).join('');
+}
+function addProdItem(){ prodItens.push({foto:'',legenda:'',num:''}); renderProdItens(); }
+function removerProdItem(i){ prodItens.splice(i,1); if(!prodItens.length) prodItens.push({foto:'',legenda:'',num:''}); renderProdItens(); }
+function setProdLegenda(i,v){ if(prodItens[i]) prodItens[i].legenda=v; }   // não re-renderiza (mantém o foco)
+function selProdNum(i,n){ if(prodItens[i]){ prodItens[i].num=String(n); renderProdItens(); } }
+function removerProdFoto(i){ if(prodItens[i]){ prodItens[i].foto=''; renderProdItens(); } }
+function verProdImg(i){ if(prodItens[i]&&prodItens[i].foto) mostrarImagens('Foto do produto',[prodItens[i].foto]); }
+function carregarProdFoto(input){
+  const f=input.files && input.files[0]; if(!f) return;
+  comprimirImagem(f, 1000, 0.6).then(b64=>{ if(prodItens[prodFotoAlvo]){ prodItens[prodFotoAlvo].foto=b64; renderProdItens(); } }).catch(()=>toast('Não consegui ler a imagem'));
+  input.value='';
+}
+// monta o texto "Ficou com" a partir dos itens (legenda + numeração de cada)
+function resumoProdutos(itens){
+  return itens.map(it=>{
+    const num = it.num==='S/N' ? 'sem nº' : ('Nº '+it.num);
+    const txt = (it.legenda||'').trim();
+    return txt ? `${txt} (${num})` : num;
+  }).join(' · ');
+}
 function fotoLocalGet(id){ try{ const v=localStorage.getItem(FOTO_KEY(id)); if(!v) return []; if(v.charAt(0)==='['){ try{ return JSON.parse(v)||[]; }catch(_){ return []; } } return [v]; }catch(_){ return []; } }
 function fotoLocalSet(id,fotos){ try{ localStorage.setItem(FOTO_KEY(id), JSON.stringify([].concat(fotos).filter(Boolean))); return true; }catch(_){ return false; } }
 function fotoLocalDel(id){ try{ localStorage.removeItem(FOTO_KEY(id)); }catch(_){} }
-function fotoCloudSet(id,fotos){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('comprovantes').doc(String(id)).set({fotos:[].concat(fotos).filter(Boolean),ts:Date.now()}).catch(()=>{}); }catch(_){} } }
+function fotoCloudSet(id,fotos){
+  if(!(FIREBASE_ON&&fdb)) return Promise.resolve(true);   // sem nuvem = modo local, não conta como falha
+  try{ return fdb.collection('comprovantes').doc(String(id)).set({fotos:[].concat(fotos).filter(Boolean),ts:Date.now()}).then(()=>true).catch(e=>{ console.warn('comprovante: gravação na nuvem falhou', e); return false; }); }
+  catch(_){ return Promise.resolve(false); }
+}
 function fotoCloudDel(id){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('comprovantes').doc(String(id)).delete().catch(()=>{}); }catch(_){} } }
 function fotoCloudGet(id){ if(!(FIREBASE_ON&&fdb)) return Promise.resolve([]); try{ return fdb.collection('comprovantes').doc(String(id)).get().then(d=>{ if(!d.exists) return []; const x=d.data()||{}; return x.fotos||(x.foto?[x.foto]:[]); }).catch(()=>[]); }catch(_){ return Promise.resolve([]); } }
-function salvarComprovante(id,fotos){ const arr=[].concat(fotos).filter(Boolean); const ok=fotoLocalSet(id,arr); fotoCloudSet(id,arr); return ok; }
+function salvarComprovante(id,fotos){
+  const arr=[].concat(fotos).filter(Boolean);
+  const okLocal=fotoLocalSet(id,arr);
+  fotoCloudSet(id,arr).then(okCloud=>{
+    if(!okCloud && FIREBASE_ON && fdb) toast('⚠️ O comprovante salvou no aparelho, mas NÃO subiu pra nuvem — a vendedora pode não ver. Cheque a internet/regras e finalize de novo.');
+  });
+  return okLocal;
+}
 function removerComprovante(id){ fotoLocalDel(id); fotoCloudDel(id); }
 function previewComprovante(id){
   const wrap=$('pay-foto-prev'); if(!wrap) return;
@@ -2313,6 +2424,15 @@ function toggleSel(id){
 }
 let payId=null, paySel=[], payFotos=[], payVal={}, payCartaoTipo=null, payTaxa=false, payTaxaVal=0;
 function _num(v){ v=String(v||'').replace(/[^\d.,]/g,''); if(v.includes(',')) v=v.replace(/\./g,'').replace(',', '.'); const n=parseFloat(v); return isNaN(n)?0:n; }
+// máscara de dinheiro: os 2 últimos dígitos viram centavos automaticamente (digita 28990 -> 289,90)
+function maskMoeda(el){
+  let d=(el.value||'').replace(/\D/g,'');     // só dígitos
+  d=d.replace(/^0+(?=\d)/,'');                  // tira zeros à esquerda
+  if(!d){ el.value=''; return; }
+  while(d.length<3) d='0'+d;                    // garante os centavos
+  const cents=d.slice(-2), reais=d.slice(0,-2);
+  el.value=Number(reais).toLocaleString('pt-BR')+','+cents;
+}
 function _brl(n){ return 'R$ '+Number(n||0).toFixed(2).replace('.',','); }
 function _extrairNum(txt){ const m=/\b([23][0-9]|4[0-6])\b/.exec(txt||''); return m?m[1]:''; }
 function abrirPagamento(id){
@@ -2333,8 +2453,15 @@ function abrirPagamento(id){
     payTaxaVal = taxaDe(e) || 0;               // sugere o do cadastro/cidade; senão, fica em branco p/ digitar
     payTaxa = taxaDe(e) > 0;                    // já marca a taxa quando a venda foi cadastrada com taxa
   }
-  $('pay-prod').value = (e && (e.produtoEntregue||e.produto)) || '';
-  $('pay-num').value  = (e && (e.numeracaoEntregue||_extrairNum(e.produto))) || '';
+  // bloco "produto que ficou": começa vazio (o entregador escreve; não puxa da vendedora)
+  prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0;
+  if(jaFin){
+    const lc=fotoProdLocalGetArr(e.id);
+    if(lc.length){ prodItens=lc.map(it=>({foto:it.foto||'',legenda:it.legenda||'',num:it.num||''})); }
+    else if(e.produtoEntregue||e.numeracaoEntregue){ prodItens=[{foto:'',legenda:(e.produtoEntregue||''),num:(e.numeracaoEntregue||'')}]; }
+    else { fotoProdCloudGet(e.id).then(arr=>{ if(payId===id && arr && arr.length){ prodItens=arr.map(it=>({foto:it.foto||'',legenda:it.legenda||'',num:it.num||''})); renderProdItens(); } }); }
+  }
+  renderProdItens();
   $('pay-note').value = (e && e.pagamentoObs) || '';
   $('pay-foto').value=''; if($('pay-foto-arq')) $('pay-foto-arq').value=''; $('pay-foto-prev').innerHTML=''; if(jaFin && e.temComprovante) previewComprovante(e.id);
   const cb=$('pay-cam-btn'); if(cb){ cb.textContent=(jaFin&&e.temComprovante)?'📷 Refazer':'📷 Tirar foto'; cb.classList.toggle('done', !!(jaFin&&e.temComprovante)); }
@@ -2364,7 +2491,7 @@ function renderTaxa(){
     </div>
     ${payTaxa?`<div class="pay-taxa-edit">
       <label>Valor da taxa</label>
-      <div class="pay-taxa-inwrap"><span class="cur">R$</span><input id="pay-taxa-val" inputmode="decimal" value="${payTaxaVal>0?payTaxaVal.toFixed(2).replace('.',','):''}" oninput="setPayTaxaVal(this.value)" placeholder="0,00"></div>
+      <div class="pay-taxa-inwrap"><span class="cur">R$</span><input id="pay-taxa-val" inputmode="numeric" value="${payTaxaVal>0?payTaxaVal.toFixed(2).replace('.',','):''}" oninput="maskMoeda(this);setPayTaxaVal(this.value)" placeholder="0,00"></div>
     </div>`:''}`;
 }
 function toggleTaxa(){ payTaxa=!payTaxa; renderTaxa(); }
@@ -2385,11 +2512,11 @@ function renderPayVals(){
   const sel = paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m));
   if(!sel.length){ wrap.innerHTML=''; return; }
   const linhas = sel.map(m=>{ const p=PAG_MAP[m];
-    return `<div class="pay-val-row"><label>${p.ico} ${p.label}</label><input inputmode="decimal" id="pv-${m}" placeholder="R$ 0,00" value="${payVal[m]||''}" oninput="setPayVal('${m}',this.value)"></div>`;
+    return `<div class="pay-val-row"><label>${p.ico} ${p.label}</label><input inputmode="numeric" id="pv-${m}" placeholder="R$ 0,00" value="${payVal[m]||''}" oninput="maskMoeda(this);setPayVal('${m}',this.value)"></div>`;
   }).join('');
   const total = sel.reduce((s,m)=>s+_num(payVal[m]),0);
   const titulo = sel.length>1 ? 'Quanto em cada forma' : 'Valor recebido';
-  wrap.innerHTML = `<label class="pay-val-lbl">${titulo}</label>${linhas}<div class="pay-val-total"><span>Total recebido</span><b>${_brl(total)}</b></div>`;
+  wrap.innerHTML = `<label class="pay-val-lbl">${titulo} <span class="pay-val-hint">— digite só os números (a vírgula entra sozinha)</span></label>${linhas}<div class="pay-val-total"><span>Total recebido</span><b>${_brl(total)}</b></div>`;
 }
 function setPayVal(m,v){
   payVal[m]=v;
@@ -2398,10 +2525,10 @@ function setPayVal(m,v){
   const t=document.querySelector('#pay-vals .pay-val-total b'); if(t) t.textContent=_brl(total);
 }
 function atualizarFotoReq(){
-  const semCob = paySel.length===1 && PAG_SEM_COBRANCA.includes(paySel[0]);
-  const parc = paySel.length===1 && paySel[0]==='parceria';
+  const semCob = paySel.length>0 && paySel.every(m=>PAG_SEM_COBRANCA.includes(m));
+  const parc = semCob && paySel.includes('parceria');
   const lbl=$('pay-foto-lbl'), cb=$('pay-cam-btn');
-  if(lbl) lbl.textContent = semCob ? (parc?'Foto (opcional — entrega de parceria)':'Foto (opcional — já estava pago)') : 'Foto do pagamento (PIX, dinheiro ou cartão)';
+  if(lbl) lbl.textContent = semCob ? (parc?'Foto (opcional — entrega de parceria)':'Foto (opcional — já estava pago)') : 'Foto do pagamento — obrigatória (PIX, dinheiro ou cartão)';
   if(cb) cb.style.display = semCob && !payFotos.length ? 'none' : '';
 }
 function comprimirImagem(file, maxW, quality){
@@ -2417,31 +2544,59 @@ function comprimirImagem(file, maxW, quality){
     img.onerror=rej; img.src=url;
   });
 }
+// comprime o comprovante mirando um tamanho seguro pra nuvem (Firestore ~1MB), mantendo legível
+async function comprimirComprovante(file){
+  const passos=[[1000,0.5],[820,0.45],[680,0.4],[560,0.38]];
+  let ultimo=null;
+  for(const [w,q] of passos){
+    ultimo=await comprimirImagem(file, w, q);
+    if(ultimo && ultimo.length < 460000) return ultimo;   // ~345KB — 2 a 3 fotos ainda cabem em 1MB
+  }
+  return ultimo;
+}
 function carregarComprovante(input){
   const f=input.files && input.files[0]; if(!f) return;
-  comprimirImagem(f, 720, 0.45).then(b64=>{
-    payFotos.push(b64);
-    renderPayFotos();
-  }).catch(()=>toast('Não consegui ler a imagem'));
+  comprimirComprovante(f).then(b64=>{ payFotos.push(b64); renderPayFotos(); }).catch(()=>toast('Não consegui ler a imagem'));
   input.value='';   // permite escolher/tirar outra em seguida
+}
+// colar o comprovante direto da área de transferência (ex: print do WhatsApp copiado)
+async function colarComprovante(){
+  if(!(navigator.clipboard && navigator.clipboard.read)){ toast('Seu aparelho não deixa colar aqui — use 📷 ou 📎'); return; }
+  try{
+    const items = await navigator.clipboard.read();
+    for(const it of items){
+      const tipo = (it.types||[]).find(t=>t.indexOf('image')===0);
+      if(tipo){
+        const blob = await it.getType(tipo);
+        const b64 = await comprimirComprovante(blob);
+        payFotos.push(b64); renderPayFotos(); toast('Comprovante colado 📋');
+        return;
+      }
+    }
+    toast('Copie a foto do comprovante primeiro, depois toque em Colar');
+  }catch(e){ toast('Não consegui colar — copie a imagem e tente de novo, ou use 📷/📎'); }
 }
 function renderPayFotos(){
   const wrap=$('pay-foto-prev'); if(!wrap) return;
   wrap.innerHTML = payFotos.map((b,i)=>`<span class="pay-foto-item"><img src="${b}"><button type="button" class="pay-foto-x" onclick="removerPayFoto(${i})">✕</button></span>`).join('');
   const cb=$('pay-cam-btn'), ab=$('pay-arq-btn');
   if(payFotos.length){ if(cb){ cb.textContent='📷 Tirar outra'; cb.classList.add('done'); cb.style.display=''; } if(ab) ab.textContent='📎 Anexar outra'; }
-  else { if(cb){ cb.textContent='📷 Tirar foto'; cb.classList.remove('done'); } if(ab) ab.textContent='📎 Anexar do celular'; atualizarFotoReq(); }
+  else { if(cb){ cb.textContent='📷 Tirar foto'; cb.classList.remove('done'); } if(ab) ab.textContent='📎 Anexar'; atualizarFotoReq(); }
 }
 function removerPayFoto(i){ payFotos.splice(i,1); renderPayFotos(); }
-function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; }
+function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; }
 function confirmarPagamento(){
   if(!paySel.length){ toast('Selecione a forma de pagamento'); return; }
   if(paySel.includes('cartao') && !payCartaoTipo){ toast('💳 No cartão, marque crédito ou débito'); return; }
-  const prod=$('pay-prod').value.trim(), num=$('pay-num').value.trim();
-  if(!prod || !num){ toast('👟 Informe o modelo e a numeração que o cliente ficou'); return; }
+  // produto que o cliente ficou: foto OU legenda (pelo menos um) + numeração obrigatória, em cada produto
+  if(!prodItens.length){ toast('👟 Adicione o produto que o cliente ficou'); return; }
+  for(const it of prodItens){
+    if(!it.foto && !(it.legenda||'').trim()){ toast('👟 Em cada produto, coloque a foto ou a legenda'); return; }
+    if(!it.num){ toast('👟 Escolha a numeração de cada produto'); return; }
+  }
   const e=entregas.find(x=>x.id===payId); if(!e){ closePay(); return; }
   const corrigindo = e.status==='entregue';
-  const semCob = paySel.length===1 && PAG_SEM_COBRANCA.includes(paySel[0]);
+  const semCob = paySel.length>0 && paySel.every(m=>PAG_SEM_COBRANCA.includes(m));
   if(!semCob && !payFotos.length && !e.temComprovante){ toast('📷 Tire a foto do pagamento antes de finalizar'); return; }
   e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now();
   e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
@@ -2450,7 +2605,12 @@ function confirmarPagamento(){
   // valores por forma (ex: Pix 120 + Cartão 80) — formas "sem cobrança" não têm valor
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
   e.pagamentoValores = Object.keys(vals).length ? vals : null;
-  e.produtoEntregue=prod; e.numeracaoEntregue=num;
+  const itensSalvar = prodItens.map(it=>({foto:it.foto||'',legenda:(it.legenda||'').trim(),num:it.num}));
+  e.produtoEntregue = resumoProdutos(prodItens);
+  e.numeracaoEntregue = '';                       // já incluído no resumo
+  e.qtdFotosProduto = itensSalvar.filter(it=>it.foto).length;
+  e.temFotoProduto = e.qtdFotosProduto>0;
+  salvarFotoProduto(e.id, itensSalvar);
   delete e.comprovante;                         // a foto NUNCA fica dentro do array (pesa demais)
   if(payFotos.length){ const ok=salvarComprovante(e.id, payFotos); e.temComprovante=true; if(!ok && !(FIREBASE_ON&&fdb)) toast('Sem espaço local p/ a(s) foto(s) — entrega salva mesmo assim'); }
   if(semCob){ removerComprovante(e.id); e.temComprovante=false; }   // parceria/já pago: sem comprovante
@@ -2779,7 +2939,7 @@ function cardEntregue(e){
       ${e.pagamento?`<span class="badge-pag">${esc(pagamentoLabel(e))}</span>`:''}
     </div>
     <div class="meta" style="padding-left:0;font-size:12px">
-      ${(e.produtoEntregue||e.numeracaoEntregue)?`<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,e.numeracaoEntregue?'Nº '+e.numeracaoEntregue:''].filter(Boolean).join(' · '))}</span></div>`:''}
+      ${(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
       ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
       ${e.pagamentoObs?`<div class="row"><span class="ico">💬</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
       <div class="row"><span class="ico">🛵</span><span>${ent.nome}${dur?` · entregue em ${dur}`:''}</span></div>
@@ -3526,6 +3686,32 @@ function msgVend(e, eta){
   }
   return `${ola}Sobre o seu pedido da Loretto Scarpa — posso te ajudar com alguma coisa?${ass}`;
 }
+// links dos grupos VIP por vendedora (chave: nome sem acento/minúsculo)
+const POSVENDA_GRUPOS = {
+  'ialey':     'https://chat.whatsapp.com/CHn5PJ4xkJQBocxCjA5GNE',
+  'natalia':   'https://chat.whatsapp.com/BP54s0fYYjX2LU4pCnLGHG',
+  'michelly':  'https://chat.whatsapp.com/CUjS3YTB0PuH2zMBLxlRqg',
+  'jhennifer': 'https://chat.whatsapp.com/F1dpCoBzIgZ3GBzniK8St7',
+};
+// mensagem de pós-venda (aba Finalizadas), muda conforme o desfecho e usa o nome/link da vendedora da venda
+function msgPosVenda(e){
+  const nomeV = (canonVend(e.vendedora) || e.vendedora || '').trim();
+  const assin = nomeV ? `Aqui é a ${nomeV}, da Loretto Scarpa.` : `Aqui é da Loretto Scarpa.`;
+  if(e.status==='nao_entregue'){
+    return `Oi, tudo bem? 😊\n${assin}\nSobre o seu pedido: o entregador passou hoje mas não conseguiu concluir a entrega. Como posso te ajudar a resolver? Se quiser, já remarco um novo horário pra você. 🙏`;
+  }
+  if(e.status==='cancelado'){
+    return `Oi, tudo bem? 😊\n${assin}\nSobre o seu pedido: não deu certo desta vez, mas quero te ajudar! Quer que eu veja outra numeração, outro modelo ou um novo horário? Fico à disposição. 🙏`;
+  }
+  // entregue (deu certo) -> pós-venda + convite pro grupo VIP
+  const link = POSVENDA_GRUPOS[norm(nomeV)] || '';
+  let m = `Oi, tudo bem? 😊\n${assin}\n\nMuito obrigada pela sua compra! Qualquer dúvida pode falar comigo por este número, tá?`;
+  if(link){
+    m += `\n\nQuero aproveitar pra te convidar para nossa Comunidade VIP, onde compartilho novidades em primeira mão e oportunidades especiais somente para quem está no grupo!\n\n👉 Para participar, é só clicar neste link:\n${link}`;
+  }
+  m += `\n\nConte comigo sempre que você precisar ✨`;
+  return m;
+}
 function vcard(e, eta){
   let badge, accent;
   if(e.status==='aguardando'){ badge='<span class="vbadge aguard">⏳ Aguardando rota</span>'; accent='var(--warn)'; }
@@ -3578,7 +3764,9 @@ function vcard(e, eta){
       </div>
       <div class="vcard-acts">
         ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
-        ${wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>'}
+        ${['entregue','nao_entregue','cancelado'].includes(e.status)
+          ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">💬 Pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
+          : (wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
         ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
@@ -3630,14 +3818,14 @@ function fcard(e){
     <div class="fcard-body">
       <div class="fcard-info">
         <div class="fcard-name">${esc(e.cliente)}</div>
-        ${(e.produtoEntregue||e.numeracaoEntregue)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,e.numeracaoEntregue?'Nº '+e.numeracaoEntregue:''].filter(Boolean).join(' · '))}</b></span></div>`:''}
+        ${(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
         ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
         ${e.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(e.observacao)}</span></div>`:''}
         ${(e.bairro||e.cidade)?`<div class="frow"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
       </div>
       ${e.temComprovante
         ? `<button class="fcard-foto fcard-foto-btn" onclick="verComprovante('${e.id}')" title="Toque para ver">📷<br>ver comprovante</button>`
-        : `<div class="fcard-nofoto">📷<br>sem foto</div>`}
+        : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
   </div>`;
 }
@@ -4353,6 +4541,19 @@ $('paste').addEventListener('paste', async (e)=>{
       const f=it.getAsFile(); if(!f) continue;
       e.preventDefault();
       try{ fotoLocPendente=await comprimirImagem(f); renderFotoLocPreview(); toast('Foto da localização anexada 📍'); }catch(_){}
+      break;
+    }
+  }
+});
+// colar uma imagem (Ctrl/⌘+V) como comprovante quando o modal de finalizar está aberto
+document.addEventListener('paste', async (e)=>{
+  const modal=$('pay-modal'); if(!modal || !modal.classList.contains('open')) return;
+  const items = e.clipboardData && e.clipboardData.items; if(!items) return;
+  for(const it of items){
+    if(it.type && it.type.indexOf('image')===0){
+      const f=it.getAsFile(); if(!f) continue;
+      e.preventDefault();
+      try{ const b64=await comprimirComprovante(f); payFotos.push(b64); renderPayFotos(); toast('Comprovante colado 📋'); }catch(_){}
       break;
     }
   }
