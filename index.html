@@ -1569,6 +1569,7 @@ async function resolverLinkCurto(url){
     if(!r.ok) return null;
     const j = await r.json();
     if(j && isFinite(j.lat) && isFinite(j.lng)) return {lat:+j.lat, lng:+j.lng};
+    if(j && j.endereco) return {endereco:String(j.endereco)};
   }catch(e){}
   return null;
 }
@@ -2039,7 +2040,8 @@ async function importarLote(){
     const e=curtas[i];
     if(btn) btn.textContent=`Lendo localização ${i+1}/${curtas.length}...`;
     const rc = await resolverLinkCurto(e.link);
-    if(rc) e.coord=rc;
+    if(rc && isFinite(rc.lat) && isFinite(rc.lng)) e.coord={lat:rc.lat,lng:rc.lng};
+    else if(rc && rc.endereco && !e.endereco) e.endereco=rc.endereco;   // o link aponta pra um lugar: usa o endereço
   }
   const semGeo = novas.filter(e=>!e.coord && (e.endereco||e.bairro));
   if(btn){ btn.disabled=true; }
@@ -2110,12 +2112,14 @@ async function saveEntrega(){
   if(dataEntrega < todayKey()){ toast('Não dá pra cadastrar entrega em dia que já passou'); $('f-data').focus(); return; }
   let link = $('f-link').value.trim();
   let coord = coordFrom(link);
-  const end=$('f-end').value.trim(), bairro=$('f-bairro').value.trim(), cidade=$('f-cidade').value.trim();
-  // link encurtado (pin do WhatsApp)? expande no worker pra pegar a coordenada
+  let end=$('f-end').value.trim();
+  const bairro=$('f-bairro').value.trim(), cidade=$('f-cidade').value.trim();
+  // link encurtado (pin do WhatsApp)? expande no worker pra pegar coordenada OU endereço
   if(!coord && ehLinkCurto(link)){
     const btn=$('btn-salvar'), old=btn.textContent; btn.textContent='Localizando...'; btn.disabled=true;
     const rc = await resolverLinkCurto(link);
-    if(rc) coord=rc;
+    if(rc && isFinite(rc.lat) && isFinite(rc.lng)) coord={lat:rc.lat,lng:rc.lng};
+    else if(rc && rc.endereco && !end){ end = rc.endereco; }   // o link aponta pra um lugar: usa o endereço
     btn.textContent=old; btn.disabled=false;
   }
   // ainda sem localização? busca automaticamente pelo endereço
@@ -2927,7 +2931,7 @@ async function salvarEdicao(){
   e.cliente=$('f-cliente').value.trim(); e.contato=$('f-contato').value.trim(); e.bairro=$('f-bairro').value.trim();
   e.cidade=$('f-cidade').value.trim(); e.vendedora=$('f-vend').value.trim(); e.endereco=$('f-end').value.trim(); e.link=$('f-link').value.trim();
   e.coord=coordFrom(e.link);
-  if(!e.coord && ehLinkCurto(e.link)){ const rc=await resolverLinkCurto(e.link); if(rc) e.coord=rc; }
+  if(!e.coord && ehLinkCurto(e.link)){ const rc=await resolverLinkCurto(e.link); if(rc && isFinite(rc.lat)&&isFinite(rc.lng)) e.coord={lat:rc.lat,lng:rc.lng}; else if(rc && rc.endereco && !e.endereco){ e.endereco=rc.endereco; } }
   e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value;
   e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim();
   e.tipo=$('f-tipo').value||'entrega'; e.pagPrevisto=$('f-pag-prev').value||'cobrar';
