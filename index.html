@@ -220,6 +220,13 @@
   /* ---- copy modal ---- */
   .modal-bg{position:fixed;inset:0;background:rgba(15,18,10,.7);backdrop-filter:blur(4px);z-index:70;display:none;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .modal-bg.open{display:flex}
+  .falar-modal{background:var(--surface);border:1px solid var(--line-strong);border-radius:18px;padding:22px;width:min(380px,92vw);box-shadow:var(--elev-2);text-align:center;margin:auto}
+  .falar-titulo{font-family:var(--ff-display);font-size:21px;color:var(--text);margin-bottom:3px}
+  .falar-sub{font-size:13px;color:var(--text-mute);margin-bottom:18px}
+  .falar-opt{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:54px;border-radius:13px;font-family:var(--ff-body);font-size:16px;font-weight:700;margin-bottom:10px;text-decoration:none;border:1px solid;cursor:pointer}
+  .falar-opt.wa{background:rgba(127,174,107,.16);color:var(--calm);border-color:rgba(127,174,107,.45)}
+  .falar-opt.tel{background:rgba(111,176,166,.16);color:var(--teal);border-color:rgba(111,176,166,.45)}
+  .falar-cancel{margin-top:2px;background:none;border:none;color:var(--text-mute);font-size:14px;cursor:pointer;padding:8px}
   .modal{background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius);max-width:480px;width:100%;padding:20px;box-shadow:var(--elev-2);margin:auto}
   .modal h3{font-family:var(--ff-display);font-size:24px;margin-bottom:6px}
   .modal p{font-size:13px;color:var(--text-soft);margin-bottom:13px}
@@ -1721,6 +1728,16 @@ function formatPhone(d){
   if(d.length===10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
   return d;
 }
+// monta o número p/ link do WhatsApp: tira o 55, insere o 9 do celular se faltar (detecta pela qtd de dígitos)
+function waNumero(raw){
+  let d=(raw||'').replace(/\D/g,'');
+  if(!d) return '';
+  if(d.length>11 && d.startsWith('55')) d=d.slice(2);   // remove o 55 do país, se já vier
+  d=d.replace(/^0+/,'');                                  // remove zeros à esquerda (ex: 062)
+  if(d.length===8 || d.length===9) d='62'+d;             // veio sem DDD → assume Goiânia (62)
+  if(d.length===10) d=d.slice(0,2)+'9'+d.slice(2);        // DDD + 8 dígitos → falta o 9 do celular, insere
+  return d.length===11 ? '55'+d : '';                     // só gera link quando o número está completo
+}
 function looksPhone(raw){
   let d=(raw||'').replace(/\D/g,'');
   if(d.length>=12 && d.startsWith('55')) d=d.slice(2);
@@ -1895,6 +1912,8 @@ async function colarEpreencher(){
 async function aiPreencher(){
   const t = $('paste').value.trim();
   if(!t){ toast('Cole a mensagem primeiro'); return; }
+  const _chunks = splitDeliveries(t).filter(c=>c.trim());
+  if(_chunks.length > 1){ return importarLote(); }   // várias mensagens (separadas por ⛔) → importa todas
   const btn=$('btn-ai'), old=btn.textContent;
   btn.textContent='✨ Lendo...'; btn.disabled=true;
   try{
@@ -2568,7 +2587,7 @@ function cardAguardando(e){
       <div class="card-actions">
         ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
         ${podeMexer(e)?`
-        ${e.contato?`<a class="lnk wa" href="https://wa.me/55${e.contato.replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>`:''}
+        ${waNumero(e.contato)?`<a class="lnk wa" href="https://wa.me/${waNumero(e.contato)}" target="_blank">💬 WhatsApp</a>`:''}
         <button class="iconbtn" onclick="abrirReag('${e.id}')" title="Reagendar">📅</button>
         <button class="iconbtn" onclick="abrirDesfecho('${e.id}','cancelado')" title="Não comprou">✕</button>
         <button class="iconbtn" onclick="editar('${e.id}')" title="Editar">✎</button>
@@ -3406,7 +3425,7 @@ function vcard(e, eta){
     }
     track = (pos||prev) ? `<div class="vtrack">${pos}${prev}</div>` : '';   // entregador já aparece no cabeçalho do grupo
   }
-  const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgVend(e,eta))}` : '';
+  const wa = waNumero(e.contato) ? `https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgVend(e,eta))}` : '';
   const temHora = e.horarioTipo && e.horarioHora;
   const _selv = e.status==='aguardando' && selVend.has(e.id);
   const _podeSel = podeMexer(e) && e.status==='aguardando';
@@ -3694,15 +3713,33 @@ function msgPadrao(){
   const ent=ENT[session.entregador]; const nome=ent?ent.nome:'';
   return `Olá, meu nome é ${nome}, sou o entregador da Loretto Scarpa.\nA sua entrega já está em rota. Estou enviando a minha localização para você acompanhar.\n\nQualquer dúvida, estou à disposição. 🤝`;
 }
+// abre o seletor "Falar com a vendedora": WhatsApp ou Ligar
+function falarVendedora(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  const telV=telVend(e.vendedora); if(!telV) return;
+  const nomeV = e.vendedora ? e.vendedora.split(' ')[0] : '';
+  const wa = `https://wa.me/${telV}?text=${encodeURIComponent('Oi'+(nomeV?' '+nomeV:'')+'! Aqui é o entregador, sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. ')}`;
+  fecharFalar();
+  const bg=document.createElement('div'); bg.id='falar-bg'; bg.className='modal-bg open';
+  bg.innerHTML = `<div class="falar-modal">
+    <div class="falar-titulo">Falar com ${esc(e.vendedora||'a vendedora')}</div>
+    <div class="falar-sub">Como você quer falar?</div>
+    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">💬 WhatsApp</a>
+    <a class="falar-opt tel" href="tel:+${telV}" onclick="fecharFalar()">📞 Ligar</a>
+    <button class="falar-cancel" onclick="fecharFalar()">Cancelar</button>
+  </div>`;
+  bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharFalar(); });
+  document.body.appendChild(bg);
+}
+function fecharFalar(){ const el=$('falar-bg'); if(el) el.remove(); }
 function cardEntregadorView(p,n,fromGps,total){
   const e=p.e;
   const ent=ENT[e.entregador]||{cor:'#888'};
   const temHora = e.horarioTipo && e.horarioHora;
   const _tx = taxaDe(e);
   const taxaTxt = _tx>0 ? `\n\n🏷️ Taxa de entrega: ${_brl(_tx)} (referente à sua região).` : '';
-  const wa = e.contato ? `https://wa.me/55${e.contato.replace(/\D/g,'')}?text=${encodeURIComponent(msgPadrao()+taxaTxt+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}` : '';
+  const wa = waNumero(e.contato) ? `https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPadrao()+taxaTxt+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}` : '';
   const telV = telVend(e.vendedora);
-  const waVend = telV ? `https://wa.me/${telV}?text=${encodeURIComponent('Oi'+(e.vendedora?' '+e.vendedora.split(' ')[0]:'')+'! Aqui é o entregador, sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. ')}` : '';
   const origemLbl = n===1 ? (fromGps?'📍 da sua localização':'🏬 saindo da loja') : '↳ da entrega anterior';
   const leg = p.leg!=null
     ? `<div class="ent-leg">${origemLbl} · ~${fmtDur(Math.max(1,Math.round(p.leg)))}${p.arr?` · chegada prevista <b>${fmtClock(p.arr)}</b>`:''}</div>`
@@ -3740,7 +3777,7 @@ function cardEntregadorView(p,n,fromGps,total){
     <div class="ent-acts">
       ${e.link?`<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`:''}
       ${wa?`<a class="ent-btn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:''}
-      ${waVend?`<a class="ent-btn" href="${waVend}" target="_blank" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</a>`:''}
+      ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
       <button class="ent-btn full" style="background:rgba(224,106,82,.12);color:var(--urgent);border-color:rgba(224,106,82,.35)" onclick="abrirDesfecho('${e.id}','nao_entregue')">✕ Não consegui entregar</button>
       <button class="ent-btn full" style="background:rgba(138,145,122,.16);color:var(--text-soft);border-color:rgba(138,145,122,.42)" onclick="abrirDesfecho('${e.id}','cancelado')">✕ Não deu certo</button>
