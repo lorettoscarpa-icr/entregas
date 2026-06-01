@@ -227,6 +227,9 @@
   .falar-opt.wa{background:rgba(127,174,107,.16);color:var(--calm);border-color:rgba(127,174,107,.45)}
   .falar-opt.tel{background:rgba(111,176,166,.16);color:var(--teal);border-color:rgba(111,176,166,.45)}
   .falar-cancel{margin-top:2px;background:none;border:none;color:var(--text-mute);font-size:14px;cursor:pointer;padding:8px}
+  .foto-loc-preview{margin-top:10px;display:flex;align-items:center;gap:12px}
+  .foto-loc-preview img{width:92px;height:92px;object-fit:cover;border-radius:12px;border:1px solid var(--line-strong);cursor:pointer}
+  .foto-loc-x{background:none;border:none;color:var(--urgent);font-size:13px;cursor:pointer;padding:6px}
   .modal{background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius);max-width:480px;width:100%;padding:20px;box-shadow:var(--elev-2);margin:auto}
   .modal h3{font-family:var(--ff-display);font-size:24px;margin-bottom:6px}
   .modal p{font-size:13px;color:var(--text-soft);margin-bottom:13px}
@@ -966,6 +969,12 @@
         <div><label>Cidade</label><input id="f-cidade" placeholder="Goiânia / Aparecida..."></div>
         <div class="full"><label>Endereço escrito</label><input id="f-end" placeholder="Rua, número, referência"></div>
         <div class="full"><label>Link do endereço (mapa) <button type="button" class="link-btn" id="btn-geo" onclick="localizarPorEndereco()">🔍 localizar pelo endereço</button></label><input id="f-link" placeholder="https://maps... (cole o pin do WhatsApp)"></div>
+        <div class="full">
+          <label>Foto da localização <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(opcional — o print que o cliente mandou)</span></label>
+          <input id="f-foto-loc" type="file" accept="image/*" style="display:none" onchange="onFotoLocFile(this)">
+          <button type="button" class="btn btn-ghost" style="width:100%" onclick="document.getElementById('f-foto-loc').click()">📷 Anexar foto da localização</button>
+          <div id="foto-loc-preview" class="foto-loc-preview" style="display:none"></div>
+        </div>
         <div>
           <label>Horário combinado</label>
           <div class="hr-row">
@@ -1177,7 +1186,7 @@
 <!-- image viewer -->
 <div class="modal-bg" id="img-modal" onclick="closeImg()">
   <div class="modal" style="max-width:520px;text-align:center" onclick="event.stopPropagation()">
-    <h3 style="margin-bottom:12px">Comprovante</h3>
+    <h3 id="img-modal-title" style="margin-bottom:12px">Comprovante</h3>
     <img id="img-full" style="max-width:100%;border-radius:12px;border:1px solid var(--line)">
     <div class="form-actions"><button class="btn btn-ghost" onclick="closeImg()">Fechar</button></div>
   </div>
@@ -1546,6 +1555,18 @@ const FIREBASE_CONFIG = {
 let fdb=null, FIREBASE_ON=false, _fbAssinado=false, _fbMigrou=false, _clienteMode=false;
 /* COLE AQUI a URL da Cloud Function da IA (passo 3). Vazio = usa a IA só dentro do Claude. */
 const AI_PROXY_URL = "https://lorettoia.lorettoscarpa.workers.dev/";
+// links encurtados de mapa (pin do WhatsApp) não trazem a coordenada — precisam ser expandidos no servidor (worker)
+function ehLinkCurto(url){ return /(?:maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs|app\.goo\.gl)/i.test(url||''); }
+async function resolverLinkCurto(url){
+  if(!url || !AI_PROXY_URL) return null;
+  try{
+    const r = await fetch(AI_PROXY_URL+'?resolve='+encodeURIComponent(url), {headers:{'Accept':'application/json'}});
+    if(!r.ok) return null;
+    const j = await r.json();
+    if(j && isFinite(j.lat) && isFinite(j.lng)) return {lat:+j.lat, lng:+j.lng};
+  }catch(e){}
+  return null;
+}
 let _shadow={};                         // último estado salvo (p/ enviar só o que mudou)
 function _snapShadow(){ _shadow={}; entregas.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }
 function initFirebase(){
@@ -2007,7 +2028,14 @@ async function importarLote(){
     });
   });
   if(!novas.length){ if(btn){ btn.textContent=bo; btn.disabled=false; } toast('Não encontrei entregas válidas no texto'); return; }
-  // geocodifica automaticamente as que vieram sem localização (com respiro entre buscas)
+  // expande links curtos (pin do WhatsApp) e geocodifica as sem localização (com respiro entre buscas)
+  const curtas = novas.filter(e=>!e.coord && ehLinkCurto(e.link));
+  for(let i=0;i<curtas.length;i++){
+    const e=curtas[i];
+    if(btn) btn.textContent=`Lendo localização ${i+1}/${curtas.length}...`;
+    const rc = await resolverLinkCurto(e.link);
+    if(rc) e.coord=rc;
+  }
   const semGeo = novas.filter(e=>!e.coord && (e.endereco||e.bairro));
   if(btn){ btn.disabled=true; }
   for(let i=0;i<semGeo.length;i++){
@@ -2067,7 +2095,7 @@ function togglePanel(open){
     $('f-cliente').focus();
   }
 }
-function clearForm(){ ['paste','f-cliente','f-contato','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); }
+function clearForm(){ ['paste','f-cliente','f-contato','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); fotoLocPendente=null; renderFotoLocPreview(); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -2078,7 +2106,14 @@ async function saveEntrega(){
   let link = $('f-link').value.trim();
   let coord = coordFrom(link);
   const end=$('f-end').value.trim(), bairro=$('f-bairro').value.trim(), cidade=$('f-cidade').value.trim();
-  // sem localização? busca automaticamente pelo endereço
+  // link encurtado (pin do WhatsApp)? expande no worker pra pegar a coordenada
+  if(!coord && ehLinkCurto(link)){
+    const btn=$('btn-salvar'), old=btn.textContent; btn.textContent='Localizando...'; btn.disabled=true;
+    const rc = await resolverLinkCurto(link);
+    if(rc) coord=rc;
+    btn.textContent=old; btn.disabled=false;
+  }
+  // ainda sem localização? busca automaticamente pelo endereço
   if(!coord && (end || bairro)){
     const btn=$('btn-salvar'), old=btn.textContent; btn.textContent='Localizando...'; btn.disabled=true;
     try{
@@ -2087,8 +2122,9 @@ async function saveEntrega(){
     }catch(e){}
     btn.textContent=old; btn.disabled=false;
   }
+  const novoId=uid();
   entregas.push({
-    id:uid(), cliente,
+    id:novoId, cliente,
     contato:$('f-contato').value.trim(),
     bairro, cidade, vendedora,
     endereco:end,
@@ -2103,9 +2139,11 @@ async function saveEntrega(){
     observacao:$('f-obs').value.trim(),
     presente:$('f-presente') ? $('f-presente').checked : false,
     taxaEntrega:getTaxaForm(),
+    temFotoLocal: !!fotoLocPendente,
     status:'aguardando', entregador:null,
     criadoEm:Date.now(), entregueEm:null
   });
+  if(fotoLocPendente){ salvarFotoLocal(novoId, fotoLocPendente); }
   if(dataEntrega!==diaAtivo) diaAtivo=dataEntrega; // mostra o dia onde a entrega entrou
   persist(); refreshVendChips(); clearForm(); togglePanel(false); animateNext(); render();
   toast(coord?'Entrega cadastrada ✓':'Entrega cadastrada (sem localização no mapa)');
@@ -2116,6 +2154,53 @@ async function saveEntrega(){
    fica na sua própria chave (local) + coleção 'comprovantes' (nuvem) e é carregada só
    quando alguém abre o comprovante. O array guarda só o flag e.temComprovante. */
 const FOTO_KEY = id => 'loretto_foto_'+id;
+/* ===== foto da LOCALIZAÇÃO (print que o cliente manda) — storage paralelo ao comprovante ===== */
+const FOTO_LOC_KEY = id => 'loretto_fotoloc_'+id;
+function fotoLocLocalGet(id){ try{ return localStorage.getItem(FOTO_LOC_KEY(id))||''; }catch(_){ return ''; } }
+function fotoLocLocalSet(id,b64){ try{ localStorage.setItem(FOTO_LOC_KEY(id),b64); return true; }catch(_){ return false; } }
+function fotoLocLocalDel(id){ try{ localStorage.removeItem(FOTO_LOC_KEY(id)); }catch(_){} }
+function fotoLocCloudSet(id,b64){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('fotos_local').doc(String(id)).set({foto:b64,ts:Date.now()}).catch(()=>{}); }catch(_){} } }
+function fotoLocCloudDel(id){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('fotos_local').doc(String(id)).delete().catch(()=>{}); }catch(_){} } }
+function fotoLocCloudGet(id){ if(!(FIREBASE_ON&&fdb)) return Promise.resolve(''); try{ return fdb.collection('fotos_local').doc(String(id)).get().then(d=>d.exists?(d.data().foto||''):'').catch(()=>''); }catch(_){ return Promise.resolve(''); } }
+function salvarFotoLocal(id,b64){ const ok=fotoLocLocalSet(id,b64); fotoLocCloudSet(id,b64); return ok; }
+function removerFotoLocal(id){ fotoLocLocalDel(id); fotoLocCloudDel(id); }
+function verFotoLocal(id){
+  const t=$('img-modal-title'); if(t) t.textContent='Foto da localização';
+  $('img-modal').classList.add('open');
+  const img=$('img-full'); img.removeAttribute('src');
+  const local=fotoLocLocalGet(id);
+  if(local){ img.src=local; return; }
+  fotoLocCloudGet(id).then(b64=>{ if(b64){ fotoLocLocalSet(id,b64); img.src=b64; } else { closeImg(); toast('Foto da localização não encontrada'); } });
+}
+/* comprime a imagem (reduz tamanho) antes de guardar, p/ caber no storage */
+function comprimirImagem(file, max=1280, q=0.72){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onerror=reject;
+    fr.onload=()=>{ const img=new Image(); img.onerror=reject; img.onload=()=>{
+      let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+      const sc=Math.min(1, max/Math.max(w,h)); w=Math.round(w*sc); h=Math.round(h*sc);
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      try{ resolve(cv.toDataURL('image/jpeg',q)); }catch(e){ reject(e); }
+    }; img.src=fr.result; };
+    fr.readAsDataURL(file);
+  });
+}
+let fotoLocPendente=null;   // foto anexada no form, aguardando salvar
+async function onFotoLocFile(input){
+  const f=input&&input.files&&input.files[0]; if(!f) return;
+  try{ fotoLocPendente=await comprimirImagem(f); renderFotoLocPreview(); toast('Foto da localização anexada 📍'); }
+  catch(e){ toast('Não consegui ler essa imagem'); }
+  input.value='';
+}
+function renderFotoLocPreview(){
+  const w=$('foto-loc-preview'); if(!w) return;
+  if(fotoLocPendente){ w.style.display=''; w.innerHTML=`<img src="${fotoLocPendente}" onclick="verPreviewFotoLoc()" alt="foto"><button type="button" class="foto-loc-x" onclick="removerFotoLocPendente()">✕ remover</button>`; }
+  else { w.style.display='none'; w.innerHTML=''; }
+}
+function removerFotoLocPendente(){ fotoLocPendente=null; renderFotoLocPreview(); }
+function verPreviewFotoLoc(){ if(!fotoLocPendente) return; const t=$('img-modal-title'); if(t) t.textContent='Foto da localização'; $('img-modal').classList.add('open'); $('img-full').src=fotoLocPendente; }
 function fotoLocalGet(id){ try{ return localStorage.getItem(FOTO_KEY(id))||''; }catch(_){ return ''; } }
 function fotoLocalSet(id,b64){ try{ localStorage.setItem(FOTO_KEY(id),b64); return true; }catch(_){ return false; } }
 function fotoLocalDel(id){ try{ localStorage.removeItem(FOTO_KEY(id)); }catch(_){} }
@@ -2366,6 +2451,7 @@ function confirmarPagamento(){
   toast(corrigindo ? 'Correção salva ✓' : 'Entrega finalizada ✓');
 }
 function verComprovante(id){
+  const t=$('img-modal-title'); if(t) t.textContent='Comprovante';
   $('img-modal').classList.add('open');
   const img=$('img-full'); img.removeAttribute('src');
   const local=fotoLocalGet(id);
@@ -2811,21 +2897,30 @@ function editar(id){
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
   if($('f-presente'))$('f-presente').checked=!!e.presente;
   setTaxaForm(e.taxaEntrega||0);
+  fotoLocPendente=null; renderFotoLocPreview();
+  if(e.temFotoLocal){
+    const lc=fotoLocLocalGet(e.id);
+    if(lc){ fotoLocPendente=lc; renderFotoLocPreview(); }
+    else fotoLocCloudGet(e.id).then(b64=>{ if(b64){ fotoLocLocalSet(e.id,b64); if(editId===id){ fotoLocPendente=b64; renderFotoLocPreview(); } } });
+  }
   editId=id; togglePanel(true);
   $('f-data').min = dataDe(e); $('f-data').value = dataDe(e); // mantém a data original (mesmo se já passou)
   const btn=$('btn-salvar'); btn.textContent='Salvar alterações'; btn.setAttribute('onclick','salvarEdicao()');
 }
-function salvarEdicao(){
+async function salvarEdicao(){
   const e=entregas.find(x=>x.id===editId); if(!e)return;
   e.cliente=$('f-cliente').value.trim(); e.contato=$('f-contato').value.trim(); e.bairro=$('f-bairro').value.trim();
   e.cidade=$('f-cidade').value.trim(); e.vendedora=$('f-vend').value.trim(); e.endereco=$('f-end').value.trim(); e.link=$('f-link').value.trim();
   e.coord=coordFrom(e.link);
+  if(!e.coord && ehLinkCurto(e.link)){ const rc=await resolverLinkCurto(e.link); if(rc) e.coord=rc; }
   e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value;
   e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim();
   e.tipo=$('f-tipo').value||'entrega'; e.pagPrevisto=$('f-pag-prev').value||'cobrar';
   if($('f-presente'))e.presente=$('f-presente').checked;
   e.taxaEntrega=getTaxaForm();
   e.dataEntrega=$('f-data').value||dataDe(e);
+  if(fotoLocPendente){ salvarFotoLocal(e.id, fotoLocPendente); e.temFotoLocal=true; }
+  else if(e.temFotoLocal){ removerFotoLocal(e.id); e.temFotoLocal=false; }
   persist(); clearForm(); togglePanel(false); editId=null;
   const btn=$('btn-salvar'); btn.textContent='Cadastrar entrega'; btn.setAttribute('onclick','saveEntrega()');
   render(); toast('Entrega atualizada');
@@ -3776,6 +3871,7 @@ function cardEntregadorView(p,n,fromGps,total){
     </div>
     <div class="ent-acts">
       ${e.link?`<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`:''}
+      ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
       ${wa?`<a class="ent-btn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:''}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
@@ -3863,17 +3959,27 @@ function copiarMinhaRota(){
   const txt=buildRouteText(items, ENT[session.entregador]);
   copyText(txt, ()=>toast('Lista copiada'), txt);
 }
+function segMaps(e){
+  const c=coordOf(e);
+  if(c) return `${c.lat},${c.lng}`;                        // coordenada (vírgula é válida no caminho)
+  const temEnd = (e.endereco && e.endereco.trim()) || (e.bairro && e.bairro.trim());
+  if(!temEnd) return null;                                  // sem coordenada e sem rua/bairro → não dá pra mapear
+  const end=[e.endereco, e.bairro, e.cidade||'Goiânia', 'GO'].filter(Boolean).join(', ');
+  return encodeURIComponent(end);
+}
 function abrirRotaMaps(){
   const items=ordemAtual();
-  const pts=items.map(coordOf).filter(Boolean);
-  if(!pts.length){ toast('Nenhuma entrega com localização'); return; }
+  const segs=[], faltando=[];
+  items.forEach(e=>{ const s=segMaps(e); if(s) segs.push(s); else faltando.push(e); });
+  if(!segs.length){ toast('Nenhuma entrega com endereço ou localização'); return; }
   const origem = entCoord || lojaCoords();        // sai de onde o entregador está (ou da loja)
-  const dest=`${pts[pts.length-1].lat},${pts[pts.length-1].lng}`;
-  const way=pts.slice(0,-1).map(p=>`${p.lat},${p.lng}`).join('|');
-  let url=`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
-  if(origem) url+=`&origin=${origem.lat},${origem.lng}`;
-  if(way) url+=`&waypoints=${encodeURIComponent(way)}`;
+  const partes=[];
+  if(origem) partes.push(`${origem.lat},${origem.lng}`);
+  segs.forEach(s=>partes.push(s));
+  // formato de caminho: /dir/origem/parada1/parada2/.../destino — o app do Maps respeita todas as paradas
+  const url = `https://www.google.com/maps/dir/${partes.join('/')}`;
   window.open(url,'_blank');
+  if(faltando.length) setTimeout(()=>toast(`${faltando.length} parada(s) sem endereço ficaram de fora do Maps`), 500);
 }
 
 /* ============ toast ============ */
@@ -4206,6 +4312,18 @@ if(_trackId){
 }
 setInterval(()=>{ render(); if(session.role==='entregador') renderEntregador(); }, 30000); // atualiza cronômetros
 $('paste').addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.ctrlKey) doParse(); });
+// colar uma imagem (print da localização) no campo de mensagem → anexa como foto da localização
+$('paste').addEventListener('paste', async (e)=>{
+  const items = e.clipboardData && e.clipboardData.items; if(!items) return;
+  for(const it of items){
+    if(it.type && it.type.indexOf('image')===0){
+      const f=it.getAsFile(); if(!f) continue;
+      e.preventDefault();
+      try{ fotoLocPendente=await comprimirImagem(f); renderFotoLocPreview(); toast('Foto da localização anexada 📍'); }catch(_){}
+      break;
+    }
+  }
+});
 </script>
 </body>
 </html>
