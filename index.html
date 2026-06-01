@@ -527,6 +527,8 @@
   .pay-taxa-inwrap .cur{font-size:13px;color:var(--text-mute)}
   .pay-taxa-inwrap input{width:90px;border:none;background:transparent;color:var(--text);font-family:var(--ff-eyebrow);font-weight:600;font-size:16px;text-align:right;outline:none}
   #pay-vals:not(:empty){margin-top:12px}
+  #pay-total:not(:empty){margin-top:12px}
+  .pay-total-break{font-size:12px;color:var(--text-mute);text-align:right;margin-bottom:5px}
   .pay-val-lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin-bottom:8px}
   .pay-val-hint{text-transform:none;letter-spacing:0;color:var(--text-mute);opacity:.8;font-size:10.5px}
   .pay-val-row{display:flex;align-items:center;gap:10px;margin-top:8px}
@@ -612,6 +614,7 @@
   .fcard{background:linear-gradient(160deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-left:4px solid var(--calm);border-radius:var(--radius);padding:14px 15px;margin-bottom:12px;box-shadow:var(--elev-1)}
   .fcard-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
   .fcard-pag{font-family:var(--ff-body);font-size:14px;font-weight:600;color:var(--gold-lt)}
+  .fcard-sec-h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:11px 0 6px;padding-top:10px;border-top:1px solid var(--line)}
   .fcard-body{display:flex;gap:14px;align-items:flex-start}
   .fcard-info{flex:1;min-width:0}
   .fcard-name{font-family:var(--ff-display);font-size:22px;font-weight:600;line-height:1.1;margin-bottom:7px}
@@ -1258,6 +1261,8 @@
       <div class="pay-opts" id="pay-opts"></div>
       <div id="pay-cartao"></div>
       <div id="pay-vals"></div>
+      <div id="pay-taxa"></div>
+      <div id="pay-total"></div>
       <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:14px 0 6px" id="pay-foto-lbl">Foto do pagamento</label>
       <input type="file" id="pay-foto" accept="image/*" capture="environment" onchange="carregarComprovante(this)" style="display:none">
       <input type="file" id="pay-foto-arq" accept="image/*" onchange="carregarComprovante(this)" style="display:none">
@@ -1267,7 +1272,6 @@
         <button type="button" class="btn pay-cam-btn" id="pay-colar-btn" onclick="colarComprovante()">📋 Colar</button>
       </div>
       <div id="pay-foto-prev"></div>
-      <div id="pay-taxa"></div>
       <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:16px 0 6px">Observação do pagamento (opcional)</label>
       <input id="pay-note" placeholder="Ex: R$ 120 no pix + R$ 80 no cartão">
     </div>
@@ -2494,8 +2498,8 @@ function renderTaxa(){
       <div class="pay-taxa-inwrap"><span class="cur">R$</span><input id="pay-taxa-val" inputmode="numeric" value="${payTaxaVal>0?payTaxaVal.toFixed(2).replace('.',','):''}" oninput="maskMoeda(this);setPayTaxaVal(this.value)" placeholder="0,00"></div>
     </div>`:''}`;
 }
-function toggleTaxa(){ payTaxa=!payTaxa; renderTaxa(); }
-function setPayTaxaVal(v){ payTaxaVal = _num(v); }   // edição livre do valor, sem re-render (não perde o foco)
+function toggleTaxa(){ payTaxa=!payTaxa; renderTaxa(); renderTotal(); }
+function setPayTaxaVal(v){ payTaxaVal = _num(v); renderTotal(); }   // edição livre do valor, sem re-render do campo (não perde o foco)
 function escolherPag(m){
   if(PAG_SEM_COBRANCA.includes(m)){ paySel = paySel.includes(m) ? [] : [m]; }   // exclusiva
   else {
@@ -2510,19 +2514,28 @@ function escolherPag(m){
 function renderPayVals(){
   const wrap=$('pay-vals'); if(!wrap) return;
   const sel = paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m));
-  if(!sel.length){ wrap.innerHTML=''; return; }
+  if(!sel.length){ wrap.innerHTML=''; renderTotal(); return; }
   const linhas = sel.map(m=>{ const p=PAG_MAP[m];
     return `<div class="pay-val-row"><label>${p.ico} ${p.label}</label><input inputmode="numeric" id="pv-${m}" placeholder="R$ 0,00" value="${payVal[m]||''}" oninput="maskMoeda(this);setPayVal('${m}',this.value)"></div>`;
   }).join('');
-  const total = sel.reduce((s,m)=>s+_num(payVal[m]),0);
   const titulo = sel.length>1 ? 'Quanto em cada forma' : 'Valor recebido';
-  wrap.innerHTML = `<label class="pay-val-lbl">${titulo} <span class="pay-val-hint">— digite só os números (a vírgula entra sozinha)</span></label>${linhas}<div class="pay-val-total"><span>Total recebido</span><b>${_brl(total)}</b></div>`;
+  wrap.innerHTML = `<label class="pay-val-lbl">${titulo} <span class="pay-val-hint">— digite só os números (a vírgula entra sozinha)</span></label>${linhas}`;
+  renderTotal();
+}
+// Total recebido = soma das formas + taxa de entrega (renderizado abaixo da taxa)
+function renderTotal(){
+  const el=$('pay-total'); if(!el) return;
+  const sel = paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m));
+  const valor = sel.reduce((s,m)=>s+_num(payVal[m]),0);
+  const taxa = payTaxa ? _num(payTaxaVal) : 0;
+  if(!sel.length && !taxa){ el.innerHTML=''; return; }
+  const total = valor + taxa;
+  const quebra = taxa>0 ? `<div class="pay-total-break">Valor recebido ${_brl(valor)} + taxa ${_brl(taxa)}</div>` : '';
+  el.innerHTML = `${quebra}<div class="pay-val-total"><span>Total recebido</span><b>${_brl(total)}</b></div>`;
 }
 function setPayVal(m,v){
   payVal[m]=v;
-  const sel=paySel.filter(x=>!PAG_SEM_COBRANCA.includes(x));
-  const total=sel.reduce((s,x)=>s+_num(payVal[x]),0);
-  const t=document.querySelector('#pay-vals .pay-val-total b'); if(t) t.textContent=_brl(total);
+  renderTotal();
 }
 function atualizarFotoReq(){
   const semCob = paySel.length>0 && paySel.every(m=>PAG_SEM_COBRANCA.includes(m));
@@ -3809,19 +3822,30 @@ function renderFinalizadas(){
 }
 function fcard(e){
   const hora = e.entregueEm?fmtClock(e.entregueEm):'';
-  const obsPag = e.pagamentoObs?` · ${esc(e.pagamentoObs)}`:'';
+  const obsPag = e.pagamentoObs?`<div class="frow"><span class="ico">📝</span><span>${esc(e.pagamentoObs)}</span></div>`:'';
+  const somaVals = Object.values(e.pagamentoValores||{}).reduce((s,v)=>s+_num(v),0);
+  const totalReceb = somaVals + _num(e.taxaEntrega);
+  const totalLine = totalReceb>0 ? `<div class="frow"><span class="ico">💰</span><span>Total recebido: <b>${_brl(totalReceb)}</b></span></div>` : '';
   return `<div class="fcard">
     <div class="fcard-top">
       <span class="vbadge ok">✓ Entregue${hora?' · '+hora:''}</span>
-      <span class="fcard-pag">${pagamentoLabel(e)}${obsPag}</span>
     </div>
+    <div class="fcard-name">${esc(e.cliente)}</div>
+    <div class="fcard-sec-h">👟 Produto</div>
     <div class="fcard-body">
       <div class="fcard-info">
-        <div class="fcard-name">${esc(e.cliente)}</div>
         ${(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
         ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
         ${e.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(e.observacao)}</span></div>`:''}
         ${(e.bairro||e.cidade)?`<div class="frow"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
+      </div>
+    </div>
+    <div class="fcard-sec-h">💳 Pagamento</div>
+    <div class="fcard-body">
+      <div class="fcard-info">
+        <div class="fcard-pag">${esc(pagamentoLabel(e))}</div>
+        ${totalLine}
+        ${obsPag}
       </div>
       ${e.temComprovante
         ? `<button class="fcard-foto fcard-foto-btn" onclick="verComprovante('${e.id}')" title="Toque para ver">📷<br>ver comprovante</button>`
