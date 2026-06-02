@@ -2053,15 +2053,36 @@ function doParse(){
   toast('Conferir os campos e cadastrar ✓');
   if($('f-link').value && !$('f-bairro').value.trim()) buscarBairroAuto(coordFrom($('f-link').value), false);
 }
+/* iOS: ao copiar VÁRIAS mensagens, o WhatsApp põe cada uma como um item separado
+   na área de transferência. readText() pega só o 1º item → vinha só a 1ª mensagem.
+   read() devolve todos os itens; juntamos o texto de todos. */
+async function lerClipboardCompleto(){
+  // tenta o modo completo (todos os itens)
+  if(navigator.clipboard && navigator.clipboard.read){
+    try{
+      const itens = await navigator.clipboard.read();
+      const partes = [];
+      for(const item of itens){
+        const tipo = (item.types||[]).find(t=>t==='text/plain') || (item.types||[]).find(t=>t.indexOf('text')===0);
+        if(tipo){ try{ const blob = await item.getType(tipo); partes.push((await blob.text())); }catch(_){} }
+      }
+      const todo = partes.join('\n').trim();
+      if(todo) return todo;
+    }catch(_){ /* cai pro readText abaixo */ }
+  }
+  if(navigator.clipboard && navigator.clipboard.readText){
+    return (await navigator.clipboard.readText()).trim();
+  }
+  return '';
+}
 async function colarEpreencher(){
   const btn=$('btn-colar'), old=btn?btn.textContent:'';
-  // sem suporte à leitura da área de transferência → cai pro modo manual
-  if(!(navigator.clipboard && navigator.clipboard.readText)){
+  if(!(navigator.clipboard && (navigator.clipboard.read || navigator.clipboard.readText))){
     $('paste').focus(); toast('Cole a mensagem no campo abaixo e toque em ✨ Preencher com IA'); return;
   }
   if(btn){ btn.textContent='📋 Lendo...'; btn.disabled=true; }
   let txt='';
-  try{ txt = await navigator.clipboard.readText(); }
+  try{ txt = await lerClipboardCompleto(); }
   catch(e){
     if(btn){ btn.textContent=old; btn.disabled=false; }
     $('paste').focus();
@@ -2086,9 +2107,17 @@ async function toggleDiag(){
   const box=$('diag-box');
   if(box.style.display!=='none'){ box.style.display='none'; return; }
   box.style.display='block';
+  let cb='';
+  try{
+    if(navigator.clipboard && navigator.clipboard.read){
+      const itens = await navigator.clipboard.read();
+      const tipos = itens.map(i=>(i.types||[]).join(','));
+      cb='Área de transferência agora: '+itens.length+' item(ns) → ['+tipos.join(' | ')+']\n(se aparecer mais de 1 item de texto, é o iPhone separando as mensagens)\n\n';
+    }
+  }catch(_){ cb='(não consegui ler a área de transferência diretamente — normal em alguns navegadores)\n\n'; }
   const t=$('paste').value;
   if(!t.trim()){ box.textContent='Cole a mensagem no campo acima e toque de novo em 🔧 diagnóstico.'; return; }
-  let out='';
+  let out=cb;
   out+='1) TEXTO CRU QUE O APARELHO COLOU ('+t.length+' caracteres):\n';
   out+='(· = espaço, ⏎ = quebra de linha, ⟨LRM⟩/⟨NBSP⟩ = caractere invisível)\n';
   out+='────────────────────\n'+_revelar(t)+'\n────────────────────\n\n';
@@ -4904,14 +4933,25 @@ setInterval(()=>{ render(); if(session.role==='entregador') renderEntregador(); 
 $('paste').addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.ctrlKey) doParse(); });
 // colar uma imagem (print da localização) no campo de mensagem → anexa como foto da localização
 $('paste').addEventListener('paste', async (e)=>{
-  const items = e.clipboardData && e.clipboardData.items; if(!items) return;
+  const cd = e.clipboardData; const items = cd && cd.items; if(!items) return;
+  // 1) imagem (print da localização) → anexa como foto
   for(const it of items){
     if(it.type && it.type.indexOf('image')===0){
       const f=it.getAsFile(); if(!f) continue;
       e.preventDefault();
       try{ fotoLocPendente=await comprimirImagem(f); renderFotoLocPreview(); toast('Foto da localização anexada 📍'); }catch(_){}
-      break;
+      return;
     }
+  }
+  // 2) iPhone: várias mensagens viram vários itens de texto → junta TODOS (senão cola só o 1º)
+  const textItems = Array.from(items).filter(it=>it.kind==='string' && it.type==='text/plain');
+  if(textItems.length>1){
+    e.preventDefault();
+    const partes = await Promise.all(textItems.map(it=>new Promise(res=>it.getAsString(res))));
+    const todo = partes.join('\n');
+    const el=$('paste'); const a=el.selectionStart||0, b=el.selectionEnd||0;
+    el.value = el.value.slice(0,a) + todo + el.value.slice(b);
+    el.dispatchEvent(new Event('input',{bubbles:true}));
   }
 });
 // colar uma imagem (Ctrl/⌘+V) como comprovante quando o modal de finalizar está aberto
