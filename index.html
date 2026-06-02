@@ -1919,7 +1919,19 @@ function findHora(text, kw){
   if(hh>23 || mm>59) return null;
   return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
 }
+/* WhatsApp: quando copiam VÁRIAS mensagens juntas, os carimbos de horário
+   ([15:19, 02/06/2026] Fulano:  ou  02/06/2026 15:19 - Fulano:) vêm no meio do
+   texto grudados numa linha só. Quebra a linha antes de CADA carimbo para que o
+   colado em bloco fique igual ao "colar um por um" (que lê tudo certinho). */
+function normWhats(text){
+  if(!text) return text;
+  return text
+    .replace(/\s*(\[\d{1,2}:\d{2}(?::\d{2})?[^\]]*\]\s*[^:\n]{1,40}?:)/g, '\n$1')
+    .replace(/\s*(\d{1,2}\/\d{1,2}\/\d{2,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*[-–]\s*[^:\n]{1,40}?:)/g, '\n$1')
+    .replace(/^\n+/, '');
+}
 function parseWhatsapp(text){
+  text = normWhats(text);
   const r = {cliente:'',contato:'',cpf:'',nascimento:'',endereco:'',bairro:'',produto:'',valor:'',link:'',vendedora:'',horarioTipo:'',horarioHora:'',tipo:'',pagPrevisto:'',taxa:''};
   const contentLines = [];
   for(const line of text.split(/\r?\n/)){
@@ -1989,6 +2001,7 @@ function parseWhatsapp(text){
 /* separa um colado em várias entregas pelos delimitadores ⛔/🚫 */
 function isStopLine(c){ return /[⛔🚫]/.test(c) && c.replace(/[⛔🚫\uFE0F\s]/g,'')===''; }
 function splitDeliveries(raw){
+  raw = normWhats(raw);
   const out=[]; let buf=[];
   for(const line of raw.split(/\r?\n/)){
     const {content}=stripPrefix(line);
@@ -2068,6 +2081,7 @@ async function aiPreencher(){
   }finally{ btn.textContent=old; btn.disabled=false; }
 }
 async function aiParse(text){
+  text = normWhats(text);
   const sys=`Você extrai dados de mensagens de venda do WhatsApp de uma loja de calçados masculinos em Goiânia, para um sistema de entregas locais. As mensagens são informais e os dados vêm fora de ordem. Preencha o MÁXIMO de campos possível a partir da mensagem. Responda SOMENTE com um objeto JSON válido, sem markdown, sem nenhum texto antes ou depois.
 Campos do JSON:
 - cliente: nome da PESSOA que vai receber a entrega. NÃO use empresa, ponto de referência ou cidade como nome. Se só houver o nome de uma empresa, use a empresa.
