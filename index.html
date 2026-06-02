@@ -613,6 +613,27 @@
   .alerta-card.pend{background:rgba(143,156,214,.13);border:1px solid rgba(143,156,214,.4)}
   .alerta-card.espera{background:rgba(224,179,65,.12);border:1px solid rgba(224,179,65,.38)}
   .alerta-card.horario{background:rgba(224,106,82,.13);border:1px solid rgba(224,106,82,.42)}
+  .alerta-card.resolver{background:rgba(207,138,168,.13);border:1px solid rgba(207,138,168,.45);align-items:flex-start}
+  .resolver-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+  .resolver-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(0,0,0,.10);border-radius:9px;padding:7px 10px}
+  .rr-cli{font-size:13px;color:var(--text);min-width:0}
+  .rr-cli small{color:var(--text-soft);font-size:11.5px}
+  .rr-acts{display:flex;align-items:center;gap:7px;flex-shrink:0}
+  .rr-wa{text-decoration:none;font-size:17px;line-height:1}
+  .rr-ok{background:rgba(127,174,107,.16);color:var(--calm);border:1px solid rgba(127,174,107,.4);border-radius:8px;padding:3px 9px;font-size:12px;cursor:pointer;font-family:var(--ff-body)}
+  .pend-sub{font-size:13px;color:var(--text-mute);margin:-4px 0 14px}
+  #pend-modal-body{max-height:56vh;overflow-y:auto}
+  .pend-grupo{margin-bottom:14px}
+  .pend-grupo-h{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:8px}
+  .pend-grupo-h span{color:var(--text-mute);font-weight:600}
+  .pend-row{background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px}
+  .pend-info b{font-size:14.5px}
+  .pend-info small{display:block;color:var(--text-soft);font-size:12px;margin-top:1px}
+  .pend-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+  .pend-b{flex:1;min-width:96px;border-radius:9px;padding:7px 8px;font-size:12.5px;font-family:var(--ff-body);cursor:pointer;border:1px solid var(--line-strong);background:var(--surface-3);color:var(--text-soft);transition:.15s}
+  .pend-b.reag{background:rgba(142,156,214,.14);color:#aab4e8;border-color:rgba(142,156,214,.42)}
+  .pend-b.ok{background:rgba(127,174,107,.16);color:var(--calm);border-color:rgba(127,174,107,.42)}
+  .pend-b.desc{background:rgba(138,145,122,.14);color:var(--text-soft);border-color:rgba(138,145,122,.42)}
   .desf-quick{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 14px}
   .desf-chip{font-family:var(--ff-body);font-size:12.5px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-soft);cursor:pointer;transition:.15s}
   .desf-chip:hover{border-color:var(--line-strong);color:var(--text)}
@@ -1189,12 +1210,10 @@
       </div>
     </div>
     <div id="login-step-vend" style="display:none">
-      <p class="login-q">Quem é você?</p>
       <div class="sel-grid" id="login-vends"></div>
       <button class="login-back" onclick="loginBack()">‹ Voltar</button>
     </div>
     <div id="login-step2" style="display:none">
-      <p class="login-q">Qual entregador?</p>
       <div class="sel-grid" id="login-ents"></div>
       <button class="login-back" onclick="loginBack()">‹ Voltar</button>
     </div>
@@ -1256,6 +1275,18 @@
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeReag()">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarReag()">Reagendar</button>
+    </div>
+  </div>
+</div>
+
+<!-- verificar pendências -->
+<div class="modal-bg" id="pend-modal">
+  <div class="modal">
+    <h3>Pendências de dias anteriores</h3>
+    <p class="pend-sub">Resolva uma a uma: reagende, marque como resolvida ou descarte.</p>
+    <div id="pend-modal-body"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closePend()">Fechar</button>
     </div>
   </div>
 </div>
@@ -1365,6 +1396,7 @@ const ENTREGADORES = [
   {id:'gustavo', nome:'Gustavo', tag:'Fixo (CLT)',      cor:'#d4b45a', tipo:'fixo'},
   {id:'joao',    nome:'João',    tag:'Por entrega',     cor:'#6fb0a6', tipo:'freelance'},
   {id:'ewald',   nome:'Ewald',   tag:'Não remunerado',  cor:'#c97b5a', tipo:'gratis'},
+  {id:'gregory', nome:'Gregory', tag:'Não remunerado',  cor:'#d99a5a', tipo:'gratis'},
   {id:'hugo',    nome:'Hugo',    tag:'Por entrega',     cor:'#8e9cd6', tipo:'freelance'},
   {id:'flavio',  nome:'Flavio',  tag:'Por entrega',     cor:'#cf8aa8', tipo:'freelance'},
 ];
@@ -2712,11 +2744,51 @@ function desfazerFinal(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e) return;
   e.status = e.entregador ? 'em_rota' : 'aguardando';
-  delete e.entregueEm; delete e.desfechoEm; delete e.motivo;
+  delete e.entregueEm; delete e.desfechoEm; delete e.motivo; delete e.alertaResolverVisto;
   persist(); render(); if(session.role==='entregador') renderEntregador();
   toast(e.status==='em_rota' ? 'Voltou para a rota — refaça a finalização' : 'Voltou para aguardando');
 }
 let pendDismissed = new Set();   // avisos de pendências que o usuário descartou (X) nesta sessão
+function marcarResolvido(id){ const e=entregas.find(x=>x.id===id); if(e){ e.alertaResolverVisto=true; persist(); render(); toast('Marcada como resolvida ✓'); } }
+// ---- Verificar pendências (lista por tipo + ações por item) ----
+function _diasAtras(dk){ try{ const d=new Date(dk+'T00:00:00'), h=new Date(todayKey()+'T00:00:00'); return Math.max(1,Math.round((h-d)/864e5)); }catch(_){ return 1; } }
+function pendList(){
+  const today=todayKey();
+  const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
+  const alvo = ehVendPessoal ? norm(session.vendedora) : null;
+  const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
+  return entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e) < today && inEsc(e) && !e.pendResolvido && !e.pendDescartado);
+}
+function abrirPendencias(){ renderPendModal(); $('pend-modal').classList.add('open'); }
+function closePend(){ $('pend-modal').classList.remove('open'); }
+function renderPendModal(){
+  const body=$('pend-modal-body'); if(!body) return;
+  const pend=pendList();
+  if(!pend.length){ body.innerHTML='<div class="empty">Tudo resolvido por aqui. 👍</div>'; return; }
+  const grupos=[
+    {tit:'📥 Aguardando — não saíram da loja', itens:pend.filter(e=>e.status==='aguardando')},
+    {tit:'🛵 Em rota — com o entregador', itens:pend.filter(e=>e.status==='em_rota')}
+  ];
+  body.innerHTML = grupos.filter(g=>g.itens.length).map(g=>`
+    <div class="pend-grupo">
+      <div class="pend-grupo-h">${g.tit} <span>(${g.itens.length})</span></div>
+      ${g.itens.map(e=>{
+        const dias=_diasAtras(dataDe(e));
+        const ent = (e.status==='em_rota' && e.entregador) ? ` · ${esc((ENT[e.entregador]||{}).nome||e.entregador)}` : '';
+        return `<div class="pend-row">
+          <div class="pend-info"><b>${esc(e.cliente)}</b><small>há ${dias} dia${dias>1?'s':''}${ent}${e.bairro?` · ${esc(e.bairro)}`:''}</small></div>
+          <div class="pend-acts">
+            <button class="pend-b reag" onclick="pendReag('${e.id}')">🔁 Reagendar</button>
+            <button class="pend-b ok" onclick="pendResolver('${e.id}')">✓ Resolvido</button>
+            <button class="pend-b desc" onclick="pendDescartar('${e.id}')">Descartar</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+function pendReag(id){ closePend(); abrirReag(id); }
+function pendResolver(id){ const e=entregas.find(x=>x.id===id); if(e){ e.pendResolvido=true; persist(); } renderPendModal(); render(); toast('Pendência resolvida ✓'); }
+function pendDescartar(id){ const e=entregas.find(x=>x.id===id); if(e){ e.pendDescartado=true; persist(); } renderPendModal(); render(); toast('Pendência descartada'); }
 function descartarPendencias(){
   const hoje=todayKey();
   const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
@@ -3117,7 +3189,7 @@ function render(){
 
   // aviso: pendências de dias anteriores (respeitando o escopo da vendedora).
   // O alerta de "espera há +45 min" saiu daqui e foi para a tela do entregador.
-  const pend = entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e) < today && matchEscopo(e) && !pendDismissed.has(e.id));
+  const pend = entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e) < today && matchEscopo(e) && !e.pendResolvido && !e.pendDescartado && !pendDismissed.has(e.id));
   const horUrg = entregas.filter(e=>matchEscopo(e) && horarioUrgente(e));
   let alertasHTML='';
   if(horUrg.length){
@@ -3129,9 +3201,28 @@ function render(){
   if(pend.length){
     alertasHTML += `<div class="alerta-card pend">
       <div class="al-ico">⚠️</div>
-      <div class="al-txt"><b>${pend.length} ${pend.length===1?'entrega de dia anterior':'entregas de dias anteriores'} sem resolver</b><span>Não foram entregues nem colocadas em rota. Traga para hoje ou reagende.</span></div>
-      <button class="btn btn-primary btn-mini" onclick="trazerPendencias()">Trazer p/ hoje</button>
-      <button class="alerta-x" onclick="descartarPendencias()" title="Descartar aviso">✕</button>
+      <div class="al-txt"><b>${pend.length} ${pend.length===1?'entrega de dia anterior':'entregas de dias anteriores'} sem resolver</b><span>Não foram entregues nem colocadas em rota. Toque em Verificar pra tratar uma a uma.</span></div>
+      <button class="btn btn-primary btn-mini" onclick="abrirPendencias()">🔍 Verificar</button>
+    </div>`;
+  }
+  // aviso: entregas que NÃO deram certo (não entregue / não comprou) — a vendedora liga pro cliente pra resolver
+  const resolver = entregas.filter(e=>['nao_entregue','cancelado'].includes(e.status) && matchEscopo(e) && !e.alertaResolverVisto && (Date.now()-(e.desfechoEm||0) < 4*864e5));
+  if(resolver.length){
+    alertasHTML += `<div class="alerta-card resolver">
+      <div class="al-ico">📞</div>
+      <div class="al-txt">
+        <b>${resolver.length} ${resolver.length===1?'entrega não deu certo':'entregas não deram certo'} — fale com o cliente pra resolver</b>
+        <span>Remarque a entrega ou recupere a venda pra não perder o cliente.</span>
+        <div class="resolver-list">
+          ${resolver.map(e=>`<div class="resolver-row">
+            <span class="rr-cli">${esc(e.cliente)} <small>${e.status==='cancelado'?'não comprou':'não entregue'}${e.motivo?' · '+esc(e.motivo):''}</small></span>
+            <span class="rr-acts">
+              ${waNumero(e.contato)?`<a class="rr-wa" href="https://wa.me/${waNumero(e.contato)}" target="_blank" title="Falar com o cliente">💬</a>`:''}
+              <button class="rr-ok" onclick="marcarResolvido('${e.id}')" title="Já resolvi">✓ resolvi</button>
+            </span>
+          </div>`).join('')}
+        </div>
+      </div>
     </div>`;
   }
   $('alertas').innerHTML = alertasHTML;
@@ -4006,7 +4097,7 @@ function renderEntregador(){
   const aguard=entAguardando();
   // alertas do entregador: pendências dele de dias anteriores + entregas esperando há muito tempo
   const _hoje=todayKey();
-  const pendEnt = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !pendDismissed.has(e.id));
+  const pendEnt = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !e.pendResolvido && !e.pendDescartado && !pendDismissed.has(e.id));
   const esperaEnt = entregas.filter(e=>e.status==='aguardando' && dataDe(e)===_hoje && minutesSince(e.criadoEm)>=URGENCIA.urgente);
   const eaEl=$('ent-alertas');
   if(eaEl){
