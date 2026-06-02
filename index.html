@@ -1919,14 +1919,20 @@ function findHora(text, kw){
   if(hh>23 || mm>59) return null;
   return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
 }
-/* WhatsApp: quando copiam VÁRIAS mensagens juntas, os carimbos de horário
-   ([15:19, 02/06/2026] Fulano:  ou  02/06/2026 15:19 - Fulano:) vêm no meio do
-   texto grudados numa linha só. Quebra a linha antes de CADA carimbo para que o
-   colado em bloco fique igual ao "colar um por um" (que lê tudo certinho). */
+/* WhatsApp: quando copiam VÁRIAS mensagens juntas, os carimbos de horário vêm no
+   meio do texto grudados. Os formatos variam por aparelho:
+     iPhone:      [02/06/2026, 15:19:02] Fulano:
+     PC / Web:    [15:19, 02/06/2026] Fulano:
+     Android:     02/06/2026 15:19 - Fulano:
+   Quebra a linha antes de CADA carimbo (qualquer um deles) para que o colado em
+   bloco fique igual ao "colar um por um" (que lê tudo certinho). */
 function normWhats(text){
   if(!text) return text;
   return text
-    .replace(/\s*(\[\d{1,2}:\d{2}(?::\d{2})?[^\]]*\]\s*[^:\n]{1,40}?:)/g, '\n$1')
+    .replace(/[\u200e\u200f\u202a-\u202e]/g, '')   // remove marcas invisíveis (LRM/RLM) do iPhone
+    // colchete com horário em qualquer posição (hora-primeiro OU data-primeiro): [ ... HH:MM ... ] Remetente:
+    .replace(/\s*(\[[^\]\n]*\d{1,2}:\d{2}[^\]\n]*\]\s*[^:\n]{1,40}?:)/g, '\n$1')
+    // formato android com traço: DD/MM/AAAA HH:MM - Remetente:
     .replace(/\s*(\d{1,2}\/\d{1,2}\/\d{2,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*[-–]\s*[^:\n]{1,40}?:)/g, '\n$1')
     .replace(/^\n+/, '');
 }
@@ -4495,47 +4501,29 @@ function abrirRotaMaps(){
   const origem = entCoord || lojaCoords();        // sai de onde o entregador está (ou da loja)
   const enc = encodeURIComponent;
 
-  const ua = navigator.userAgent||'';
-  const isAndroid = /Android/i.test(ua);
-  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
-
-  // TRUQUE p/ celular: o limite de 3 paradas é só do NAVEGADOR. Abrindo o APP do Maps
-  // direto (intent no Android, esquema comgooglemaps no iOS) vale o limite maior: 9 paradas.
-  const MAXWP = 9, maxStops = MAXWP + 1;          // máx. do Google: 9 intermediárias + destino
-  let usar = segs, cortadas = 0;
-  if(segs.length > maxStops){ usar = segs.slice(0, maxStops); cortadas = segs.length - maxStops; } // primeiras EM ORDEM
+  // LIMITE REAL do Google Maps: no CELULAR só 3 paradas intermediárias por link;
+  // acima disso ele ignora as extras e abre só o começo. No computador aceita 9.
+  // Por isso, no celular abrimos em LEVAS de 4 paradas (3 intermediárias + destino),
+  // sempre na ordem certa; ao concluir as primeiras, é só tocar de novo p/ as próximas.
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent||'');
+  const MAXWP = isMobile ? 3 : 9, maxStops = MAXWP + 1;
+  let usar = segs, restantes = 0;
+  if(segs.length > maxStops){ usar = segs.slice(0, maxStops); restantes = segs.length - maxStops; } // primeiras EM ORDEM
   const destino = usar[usar.length-1];
   const via = usar.slice(0, -1);
 
-  // URL universal (desktop e fallback do celular)
+  // Link universal do Google Maps — abre o app no celular e nova aba no computador
   const qs = ['api=1'];
   if(origem) qs.push('origin=' + enc(`${origem.lat},${origem.lng}`));
   qs.push('destination=' + enc(destino));
   if(via.length) qs.push('waypoints=' + via.map(enc).join('|'));
   qs.push('travelmode=driving');
-  const httpsUrl = `https://www.google.com/maps/dir/?${qs.join('&')}`;
-
-  if(isAndroid){
-    // abre o app do Maps direto; se não tiver o app, cai no navegador (browser_fallback_url)
-    const intentUrl = `intent://www.google.com/maps/dir/?${qs.join('&')}`
-      + `#Intent;scheme=https;package=com.google.android.apps.maps;`
-      + `S.browser_fallback_url=${enc(httpsUrl)};end`;
-    window.location.href = intentUrl;
-  } else if(isIOS){
-    // esquema do app do Google Maps no iOS: várias paradas com "+to:"
-    const saddr = origem ? `saddr=${enc(`${origem.lat},${origem.lng}`)}&` : '';
-    const daddr = `daddr=${usar.map(enc).join('+to:')}`;
-    const gmaps = `comgooglemaps://?${saddr}${daddr}&directionsmode=driving`;
-    let foi=false; const t=setTimeout(()=>{ if(!foi) window.open(httpsUrl,'_blank'); }, 1200); // fallback se não tiver o app
-    window.addEventListener('blur', ()=>{ foi=true; clearTimeout(t); }, {once:true});
-    window.location.href = gmaps;
-  } else {
-    window.open(httpsUrl,'_blank');               // desktop: nova aba
-  }
+  const url = `https://www.google.com/maps/dir/?${qs.join('&')}`;
+  window.open(url, '_blank');
 
   const avisos=[];
   if(faltando.length) avisos.push(`${faltando.length} parada(s) sem localização ficaram de fora`);
-  if(cortadas) avisos.push(`o Maps abre até ${maxStops} paradas por vez — conclua estas e toque de novo p/ abrir as próximas ${cortadas}`);
+  if(restantes) avisos.push(`abriu as ${usar.length} primeiras paradas — conclua-as e toque de novo p/ abrir as próximas ${restantes}`);
   if(avisos.length) setTimeout(()=>toast(avisos.join(' · ')), 600);
 }
 
