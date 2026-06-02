@@ -1407,12 +1407,12 @@
 <script>
 /* ============ config ============ */
 const ENTREGADORES = [
-  {id:'gustavo', nome:'Gustavo', tag:'Fixo (CLT)',      cor:'#d4b45a', tipo:'fixo'},
-  {id:'joao',    nome:'João',    tag:'Por entrega',     cor:'#6fb0a6', tipo:'freelance'},
-  {id:'ewald',   nome:'Ewald',   tag:'Não remunerado',  cor:'#c97b5a', tipo:'gratis'},
-  {id:'gregory', nome:'Gregory', tag:'Não remunerado',  cor:'#d99a5a', tipo:'gratis'},
-  {id:'hugo',    nome:'Hugo',    tag:'Por entrega',     cor:'#8e9cd6', tipo:'freelance'},
-  {id:'flavio',  nome:'Flavio',  tag:'Por entrega',     cor:'#cf8aa8', tipo:'freelance'},
+  {id:'gustavo', nome:'Gustavo', tag:'Fixo (CLT)',      cor:'#d4b45a', tipo:'fixo',      tel:'5562998563940'},
+  {id:'joao',    nome:'João',    tag:'Por entrega',     cor:'#6fb0a6', tipo:'freelance', tel:'5562992271346'},
+  {id:'ewald',   nome:'Ewald',   tag:'Não remunerado',  cor:'#c97b5a', tipo:'gratis',    tel:'5562982181829'},
+  {id:'gregory', nome:'Gregory', tag:'Não remunerado',  cor:'#d99a5a', tipo:'gratis',    tel:'5562983129321'},
+  {id:'hugo',    nome:'Hugo',    tag:'Por entrega',     cor:'#8e9cd6', tipo:'freelance', tel:'5562986218413'},
+  {id:'flavio',  nome:'Flavio',  tag:'Por entrega',     cor:'#cf8aa8', tipo:'freelance', tel:'5562999296060'},
 ];
 const ENT = Object.fromEntries(ENTREGADORES.map(e=>[e.id,e]));
 const VENDEDORAS = ['Jhennifer','Ialey','Michelly','Natália']; // equipe de vendas
@@ -3962,6 +3962,7 @@ function vcard(e, eta){
         ${['entregue','nao_entregue','cancelado'].includes(e.status)
           ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">💬 Pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
           : (wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
+        ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">🛵 Falar com o entregador</button>`:''}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
         ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
@@ -4049,6 +4050,7 @@ function fcard(e){
         ? `<button class="fcard-foto fcard-foto-btn" onclick="verComprovante('${e.id}')" title="Toque para ver">📷<br>ver comprovante</button>`
         : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
+    ${telEnt(e.entregador)?`<div class="vcard-acts"><button class="vbtn ghost" onclick="falarEntregador('${e.id}')">🛵 Falar com o entregador</button></div>`:''}
   </div>`;
 }
 
@@ -4263,6 +4265,36 @@ function falarVendedora(id){
     <div class="falar-sub">Como você quer falar?</div>
     <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">💬 WhatsApp</a>
     <a class="falar-opt tel" href="tel:+${telV}" onclick="fecharFalar()">📞 Ligar</a>
+    <button class="falar-cancel" onclick="fecharFalar()">Cancelar</button>
+  </div>`;
+  bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharFalar(); });
+  document.body.appendChild(bg);
+}
+// resolve o telefone do entregador (aceita "62 99999-1234" e adiciona o 55)
+function telEnt(id){
+  const ent = ENT[id]; let t = ent && ent.tel ? (''+ent.tel).replace(/\D/g,'') : '';
+  if(!t) return '';
+  if(t.length<=11) t='55'+t;
+  return t;
+}
+// abre o seletor "Falar com o entregador": WhatsApp ou Ligar
+function falarEntregador(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  const tel=telEnt(e.entregador); if(!tel) return;
+  const ent=ENT[e.entregador]||{};
+  const nomeE = ent.nome ? ent.nome.split(' ')[0] : '';
+  const finalizada = ['entregue','nao_entregue','cancelado'].includes(e.status);
+  const msg = finalizada
+    ? 'Oi'+(nomeE?' '+nomeE:'')+', tudo bem? Quero tirar uma dúvida sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. '
+    : 'Oi'+(nomeE?' '+nomeE:'')+'! Sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. ';
+  const wa = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+  fecharFalar();
+  const bg=document.createElement('div'); bg.id='falar-bg'; bg.className='modal-bg open';
+  bg.innerHTML = `<div class="falar-modal">
+    <div class="falar-titulo">Falar com ${esc(ent.nome||'o entregador')}</div>
+    <div class="falar-sub">Como você quer falar?</div>
+    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">💬 WhatsApp</a>
+    <a class="falar-opt tel" href="tel:+${tel}" onclick="fecharFalar()">📞 Ligar</a>
     <button class="falar-cancel" onclick="fecharFalar()">Cancelar</button>
   </div>`;
   bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharFalar(); });
