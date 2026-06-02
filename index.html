@@ -1163,6 +1163,15 @@
     <div class="ent-head">
       <h2 id="ent-title">Minha rota</h2>
     </div>
+    <div class="daynav">
+      <button class="daynav-btn" onclick="mudarDiaEnt(-1)" aria-label="Dia anterior">‹</button>
+      <div class="daynav-center">
+        <span class="daynav-label" id="dia-ent-label">—</span>
+        <input type="date" id="dia-ent-input" onchange="setDiaEnt(this.value)">
+      </div>
+      <button class="daynav-btn" onclick="mudarDiaEnt(1)" aria-label="Próximo dia">›</button>
+      <button class="daynav-hoje" id="btn-ent-hoje" onclick="irHojeEnt()">Hoje</button>
+    </div>
     <div id="ent-alertas"></div>
     <div class="ent-tabs">
       <button class="ent-tab" id="ent-tab-aguard" onclick="setEntTab('aguard')">📥 Aguardando rota<span class="ent-tab-c" id="c-tab-aguard"></span></button>
@@ -3699,6 +3708,7 @@ function applyRole(){
     $('role-label').innerHTML=`Entregador · <b>${ent?ent.nome:''}</b>`;
     $('area-entregador').style.display='';
     entCoord=null;                 // começa sem GPS; pede a localização ao abrir
+    diaEnt=todayKey();             // sempre abre no dia de hoje
     entTab = (minhasEntregas().length===0 && entAguardando().length>0) ? 'aguard' : 'rota';  // sem rota e tem espera → já abre em "Aguardando"
     pegarSel.clear();
     renderEntregador();
@@ -3723,7 +3733,8 @@ function logout(){
   $('login-modal-ov').classList.remove('open');
   $('login-step2').style.display='none'; $('login-step-vend').style.display='none'; $('login-step1').style.display=''; $('login').style.display='flex';
 }
-function minhasEntregas(){ return entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e)===todayKey()); }
+function minhasEntregas(){ return entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e)===diaEnt); }
+function rotaEntHoje(){ return entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e)===todayKey()); }
 function coordOf(e){ return coordValida(e.coord)?e.coord:coordFrom(e.link); }
 function orderEntregas(items, loja){
   const withC=items.filter(coordOf), noC=items.filter(e=>!coordOf(e));
@@ -4072,7 +4083,7 @@ function transmitirPosicao(c){
 }
 function iniciarRastreio(){
   if(session.role!=='entregador' || !navigator.geolocation) return;
-  if(minhasEntregas().length===0){ pararRastreio(); return; }   // sem rota → não transmite
+  if(rotaEntHoje().length===0){ pararRastreio(); return; }   // sem rota hoje → não transmite
   pedirWakeLock();
   if(_watchId!=null) return;                                     // já está transmitindo
   _watchId = navigator.geolocation.watchPosition(
@@ -4111,9 +4122,18 @@ function usarMinhaLocalizacao(auto){
   );
 }
 let entTab='rota';                 // aba ativa do entregador
+let diaEnt = dateKey(new Date());  // dia em foco na área do entregador
+function renderDayNavEnt(){
+  const lbl=$('dia-ent-label'); if(lbl) lbl.textContent=rotuloDia(diaEnt);
+  const inp=$('dia-ent-input'); if(inp) inp.value=diaEnt;
+  const bh=$('btn-ent-hoje'); if(bh) bh.classList.toggle('hidden', diaEnt===todayKey());
+}
+function setDiaEnt(ymd){ if(!ymd) return; diaEnt=ymd; pegarSel.clear(); renderDayNavEnt(); renderEntregador(); }
+function mudarDiaEnt(delta){ const [y,m,d]=diaEnt.split('-').map(Number); const dt=new Date(y,m-1,d+delta); setDiaEnt(dateKey(dt)); }
+function irHojeEnt(){ setDiaEnt(todayKey()); }
 const pegarSel=new Set();          // entregas aguardando marcadas pra pegar
 function setEntTab(t){ entTab=t; pegarSel.clear(); renderEntregador(); }
-function entAguardando(){ return entregas.filter(e=>e.status==='aguardando' && dataDe(e)===todayKey()).sort((a,b)=>a.criadoEm-b.criadoEm); }
+function entAguardando(){ return entregas.filter(e=>e.status==='aguardando' && dataDe(e)===diaEnt).sort((a,b)=>a.criadoEm-b.criadoEm); }
 function togglePegar(id){ if(pegarSel.has(id)) pegarSel.delete(id); else pegarSel.add(id); renderEntregador(); }
 function addNaMinhaRota(){
   if(!pegarSel.size) return;
@@ -4145,6 +4165,7 @@ function cardPegar(e){
 }
 function renderEntregador(){
   const ent=ENT[session.entregador]; if(!ent) return;
+  renderDayNavEnt();
   const items=minhasEntregas();
   const aguard=entAguardando();
   // alertas do entregador: pendências dele de dias anteriores + entregas esperando há muito tempo
