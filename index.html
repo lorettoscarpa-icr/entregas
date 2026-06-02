@@ -300,7 +300,7 @@
   .rolebar b{color:var(--text)}
 
   /* ---- login / tela de entrada (estética da Central de Metas) ---- */
-  .login{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 22px;overflow-y:auto;
+  .login{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:calc(48px + env(safe-area-inset-top,0px)) 22px calc(40px + env(safe-area-inset-bottom,0px));overflow-y:auto;
     background:
       radial-gradient(ellipse 80% 50% at 50% -8%, rgba(212,180,90,.10), transparent 60%),
       radial-gradient(ellipse 100% 55% at 50% 112%, rgba(212,180,90,.06), transparent 60%),
@@ -310,13 +310,13 @@
     background-image:repeating-linear-gradient(45deg,
       rgba(212,180,90,.025) 0px, rgba(212,180,90,.025) 1px,
       transparent 1px, transparent 14px);}
-  .login-card{position:relative;z-index:1;background:transparent;border:none;box-shadow:none;padding:0;max-width:520px;width:100%;text-align:center}
+  .login-card{position:relative;z-index:1;margin:auto 0;background:transparent;border:none;box-shadow:none;padding:0;max-width:520px;width:100%;text-align:center}
   /* marca */
   .login-brand{margin-bottom:42px}
   .login-brand .logo-emblem{margin-bottom:18px}
   .login-brand .mark{display:block;font-family:var(--ff-display);font-size:13px;letter-spacing:.46em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:20px}
   .sel-eyebrow{font-family:var(--ff-eyebrow);font-size:11px;font-weight:500;letter-spacing:.5em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
-  .login-brand h1{font-family:var(--ff-grand);font-weight:500;font-size:clamp(34px,6vw,54px);line-height:1.08;letter-spacing:-.5px;color:var(--text);margin-bottom:14px}
+  .login-brand h1{font-family:var(--ff-grand);font-weight:500;font-size:clamp(23px,6.5vw,50px);line-height:1.08;letter-spacing:-.5px;color:var(--text);margin-bottom:14px;white-space:nowrap}
   .login-brand h1 em{font-style:italic;font-weight:500;color:var(--gold)}
   .login-brand .sel-sub{font-family:var(--ff-body);font-size:14.5px;color:var(--text-soft);letter-spacing:.2px}
   /* títulos de etapa */
@@ -714,7 +714,19 @@
   .dest-wrap.compact .dest-num{font-size:27px}
   .dest-wrap.compact .dest-un{font-size:12.5px;margin-left:5px}
   /* Ranking */
-  #view-ranking{max-width:880px;margin:4px auto 0}
+  #view-ranking{max-width:1040px;margin:4px auto 0}
+  .rk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+  .rk-card{border:1px solid rgba(212,180,90,.2);border-radius:16px;padding:14px 16px 18px;background:rgba(255,255,255,.018)}
+  .rk-card .rk-block{margin-top:0}
+  .rk-card .rk-block-head{font-size:11px;letter-spacing:.14em}
+  .rk-card .rk-row{gap:11px;padding:11px 0}
+  .rk-card .rk-pos{font-size:21px;width:20px;flex-basis:20px}
+  .rk-card .dest-av{width:42px;height:42px;flex-basis:42px}
+  .rk-card .dest-av.mono{font-size:17px}
+  .rk-card .rk-nome{font-size:15px}
+  .rk-card .rk-val{font-size:25px}
+  .rk-card .rk-val.money{font-size:16px}
+  @media(max-width:760px){ .rk-cols{grid-template-columns:1fr;gap:12px} .rk-card .rk-val{font-size:30px} .rk-card .rk-nome{font-size:18px} .rk-card .dest-av{width:50px;height:50px;flex-basis:50px} }
   .rk-wrap{border:1px solid rgba(212,180,90,.32);border-radius:20px;padding:24px 22px 26px;margin-bottom:18px;background:linear-gradient(160deg,rgba(255,255,255,.015),transparent)}
   .rk-block{margin-top:24px}
   .rk-block:first-of-type{margin-top:8px}
@@ -3629,7 +3641,19 @@ function loginEntregador(id){
   if(!FIREBASE_ON || typeof firebase==='undefined'){ entra(); return; }
   firebase.auth().signInAnonymously().then(entra).catch(e=>{ console.warn('login anônimo falhou', e); entra(); });
 }
+function salvarSessao(){ try{ if(session && session.role) localStorage.setItem('loretto_session', JSON.stringify(session)); }catch(_){} }
+function restaurarSessao(){
+  let s; try{ s=JSON.parse(localStorage.getItem('loretto_session')||'null'); }catch(_){ s=null; }
+  if(!s || !s.role) return false;
+  if(s.role==='entregador' && !ENT[s.entregador]) return false;
+  session = Object.assign({role:null,entregador:null,vendedora:null,geral:false}, s);
+  applyRole();
+  // garante autenticação no Firebase (anônima basta pras coleções de entregas) caso a persistência tenha caído
+  if(typeof firebase!=='undefined' && FIREBASE_ON){ setTimeout(()=>{ try{ if(!firebase.auth().currentUser) firebase.auth().signInAnonymously().catch(()=>{}); }catch(_){} }, 1500); }
+  return true;
+}
 function applyRole(){
+  salvarSessao();   // mantém conectado: guarda o perfil no aparelho
   $('login').style.display='none'; $('rolebar').style.display='flex';
   document.body.classList.remove('role-entregador');
   $('area-operacao').style.display='none'; $('area-entregador').style.display='none'; $('area-gestor').style.display='none';
@@ -3672,6 +3696,7 @@ function applyRole(){
   talvezMostrarTutorial();          // mostra o guia no primeiro acesso de cada perfil
 }
 function logout(){
+  try{ localStorage.removeItem('loretto_session'); }catch(_){}   // esquece o "manter conectado"
   pararRastreio();                 // encerra a transmissão de GPS, se estiver ativa
   entSel.clear(); selVend.clear(); pegarSel.clear(); entTab='rota';
   entCoord=null; _prevStatus=null;
@@ -4511,9 +4536,11 @@ function rankingHTML(){
   const d=rankingDados();
   return `<div class="rk-wrap">
     <div class="dest-eyebrow">Ranking do mês · competição</div>
-    ${rankBlock('Entregas no mês','📦', d.mes, false)}
-    ${rankBlock('Entregas hoje','☀️', d.dia, false)}
-    ${rankBlock('Ticket médio','💰', d.tick, true)}
+    <div class="rk-cols">
+      <div class="rk-card">${rankBlock('Entregas no mês','📦', d.mes, false)}</div>
+      <div class="rk-card">${rankBlock('Entregas hoje','☀️', d.dia, false)}</div>
+      <div class="rk-card">${rankBlock('Ticket médio','💰', d.tick, true)}</div>
+    </div>
   </div>`;
 }
 function renderGestor(){
@@ -4701,6 +4728,7 @@ if(_trackId){
 } else {
   renderFilters(); renderEntPick(); animateNext(); render(); tick();
   initFirebase();   // conecta ao Firestore (sincroniza em tempo real); se indisponível, segue no localStorage
+  restaurarSessao();   // manter conectado: se já logou neste aparelho, abre direto no painel
   setInterval(tick,1000);
 }
 setInterval(()=>{ render(); if(session.role==='entregador') renderEntregador(); }, 30000); // atualiza cronômetros
