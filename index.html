@@ -449,6 +449,11 @@
   .ent-card .meta{font-size:14px;line-height:1.65}
   .hr-alert{background:rgba(224,106,82,.16);color:var(--urgent);font-weight:600;font-size:13.5px;padding:9px 12px;border-radius:10px;margin-bottom:10px;display:flex;align-items:center;gap:7px}
   .ent-alert{background:rgba(224,179,65,.14);border:1px solid rgba(224,179,65,.4);color:var(--warn);border-radius:13px;padding:13px 15px;margin-bottom:15px;font-size:13.5px;line-height:1.55}
+  .ent-noloc{background:rgba(224,106,82,.12);border:1px solid rgba(224,106,82,.45);border-radius:13px;padding:12px 14px;margin-bottom:15px}
+  .ent-noloc-h{color:var(--urgent);font-weight:600;font-size:13.5px;margin-bottom:8px}
+  .ent-noloc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid rgba(224,106,82,.22)}
+  .ent-noloc-row span{display:flex;flex-direction:column;gap:1px;font-size:13.5px;color:var(--text)}
+  .ent-noloc-row small{color:var(--text-mute);font-size:11.5px}
   .ent-alert b{color:var(--warn)}
   .ent-order-note{font-size:12.5px;color:var(--text-mute);margin:0 2px 13px;display:flex;align-items:center;gap:7px;font-style:italic;font-family:var(--ff-display);font-size:15px}
   .ent-order-note.gps{color:#bcd4ff;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:11px;padding:9px 13px;font-style:normal}
@@ -816,6 +821,7 @@
   .vbtn.ghost.danger{color:var(--urgent)}
   .vbtn.ghost.danger:hover{border-color:var(--urgent);background:rgba(224,106,82,.1)}
   .vbtn.disabled{flex:1 1 150px;color:var(--text-mute);background:transparent;border-style:dashed;cursor:default;font-weight:400;font-size:12.5px}
+  .ent-btn.disabled,.lnk.disabled{color:var(--text-mute);background:transparent;border:1px dashed var(--line);cursor:default;font-weight:400}
   .vbtn.primary{flex:1 1 100%;background:linear-gradient(135deg,var(--gold),#c79a3b);color:#1c2114;border:none;font-weight:700;box-shadow:0 8px 20px -9px rgba(212,180,90,.7)}
   .vbtn.primary:hover{filter:brightness(1.06)}
   @media(max-width:540px){
@@ -1189,8 +1195,7 @@
       <div id="ent-list"></div>
     </div>
     <div class="ent-bottombar" id="ent-bb-rota">
-      <button class="ent-bb-btn" onclick="copiarMinhaRota()">⧉ Copiar lista</button>
-      <button class="ent-bb-btn primary" onclick="abrirRotaMaps()">🧭 Abrir rota no Maps</button>
+      <button class="ent-bb-btn primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px" onclick="enviarRotaWhatsapp()"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.55-3.7 8.24-8.25 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>Enviar entregas para WhatsApp</button>
     </div>
     <div class="ent-bottombar" id="ent-bb-add" style="display:none">
       <button class="ent-bb-btn primary" style="flex:1" id="btn-add-rota" onclick="addNaMinhaRota()">➕ Add na minha rota</button>
@@ -1426,6 +1431,8 @@ const ENTREGADORES = [
   {id:'flavio',  nome:'Flavio',  tag:'Por entrega',     cor:'#cf8aa8', tipo:'freelance', tel:'5562999296060'},
 ];
 const ENT = Object.fromEntries(ENTREGADORES.map(e=>[e.id,e]));
+/* ícone do WhatsApp (acompanha a cor e o tamanho do texto onde for usado) */
+const WA_ICON = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.55-3.7 8.24-8.25 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>';
 const VENDEDORAS = ['Jhennifer','Ialey','Michelly','Natália']; // equipe de vendas
 // WhatsApp das vendedoras (só dígitos: 55 + DDD + número)
 const TEL_VEND = { Jhennifer:'5562981688990', Ialey:'5562981728039', 'Natália':'5562982001112', Michelly:'5562981940350' };
@@ -3125,7 +3132,7 @@ function cardAguardando(e){
       <div class="card-actions">
         ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
         ${podeMexer(e)?`
-        ${waNumero(e.contato)?`<a class="lnk wa" href="https://wa.me/${waNumero(e.contato)}" target="_blank">💬 WhatsApp</a>`:''}
+        ${waNumero(e.contato)?`<a class="lnk wa" href="https://wa.me/${waNumero(e.contato)}" target="_blank">${WA_ICON} WhatsApp</a>`:'<span class="lnk disabled">sem telefone</span>'}
         <button class="iconbtn" onclick="abrirReag('${e.id}')" title="Reagendar">📅</button>
         <button class="iconbtn" onclick="abrirDesfecho('${e.id}','cancelado')" title="Não comprou">✕</button>
         <button class="iconbtn" onclick="editar('${e.id}')" title="Editar">✎</button>
@@ -3203,7 +3210,7 @@ function cardEntregue(e){
     <div class="meta" style="padding-left:0;font-size:12px">
       ${(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
       ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
-      ${e.pagamentoObs?`<div class="row"><span class="ico">💬</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
+      ${e.pagamentoObs?`<div class="row"><span class="ico">📝</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
       <div class="row"><span class="ico">🛵</span><span>${ent.nome}${dur?` · entregue em ${dur}`:''}</span></div>
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
       ${e.temComprovante?`<button class="btn btn-ghost btn-mini" onclick="verComprovante('${e.id}')" title="Ver comprovante">📷 Comprovante</button>`:''}
@@ -3339,7 +3346,7 @@ function render(){
           ${resolver.map(e=>`<div class="resolver-row">
             <span class="rr-cli">${esc(e.cliente)} <small>${e.status==='cancelado'?'não comprou':'não entregue'}${e.motivo?' · '+esc(e.motivo):''}</small></span>
             <span class="rr-acts">
-              ${waNumero(e.contato)?`<a class="rr-wa" href="https://wa.me/${waNumero(e.contato)}" target="_blank" title="Falar com o cliente">💬</a>`:''}
+              ${waNumero(e.contato)?`<a class="rr-wa" href="https://wa.me/${waNumero(e.contato)}" target="_blank" title="Falar com o cliente">${WA_ICON}</a>`:''}
               <button class="rr-ok" onclick="marcarResolvido('${e.id}')" title="Já resolvi">✓ resolvi</button>
             </span>
           </div>`).join('')}
@@ -4062,9 +4069,9 @@ function vcard(e, eta){
       <div class="vcard-acts">
         ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
         ${['entregue','nao_entregue','cancelado'].includes(e.status)
-          ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">💬 Pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
-          : (wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
-        ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">💬 Falar com o entregador</button>`:''}
+          ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
+          : (wa?`<a class="vbtn wa" href="${wa}" target="_blank">${WA_ICON} Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
+        ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
         ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
@@ -4152,7 +4159,10 @@ function fcard(e){
         ? `<button class="fcard-foto fcard-foto-btn" onclick="verComprovante('${e.id}')" title="Toque para ver">📷<br>ver comprovante</button>`
         : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
-    ${telEnt(e.entregador)?`<div class="vcard-acts"><button class="vbtn ghost" onclick="falarEntregador('${e.id}')">💬 Falar com o entregador</button></div>`:''}
+    <div class="vcard-acts">
+      ${waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>'}
+      ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
+    </div>
   </div>`;
 }
 
@@ -4335,6 +4345,14 @@ function renderEntregador(){
   const alerta = comHora.length
     ? `<div class="ent-alert"><b>⏰ Atenção aos horários combinados:</b><br>${comHora.map(e=>`${esc(e.cliente)} — ${hrLabel(e.horarioTipo)} <b>${e.horarioHora}</b>`).join(' · ')}</div>`
     : '';
+  const semLoc = ordered.filter(e=>!coordOf(e));
+  const semLocHTML = semLoc.length ? `<div class="ent-noloc">
+    <div class="ent-noloc-h">⚠️ ${semLoc.length} ${semLoc.length===1?'entrega não aparece no mapa':'entregas não aparecem no mapa'} — sem localização</div>
+    ${semLoc.map(e=>`<div class="ent-noloc-row">
+      <span><b>${esc(e.cliente)}</b><small>${(e.endereco||e.bairro)?esc([e.endereco,e.bairro,e.cidade].filter(Boolean).join(' · ')):'sem endereço — confirme com a vendedora'}</small></span>
+      ${(e.endereco||e.bairro)?`<button class="btn btn-ghost btn-mini" onclick="localizarEntregaEnt('${e.id}')">📍 localizar</button>`:''}
+    </div>`).join('')}
+  </div>` : '';
   const ordemNota = items.length ? (manual
       ? `<div class="ent-order-note manual">✋ Você organizou a <b>sua ordem</b>. <button class="reset-ord" onclick="ordemAutomatica()">↺ voltar à automática</button></div>`
       : (fromGps
@@ -4361,7 +4379,7 @@ function renderEntregador(){
         <button class="btn btn-primary btn-mini" onclick="abrirMoverEntregador()">↪ Mover p/ outro entregador</button>
       </div>
     </div>` : '';
-  $('ent-list').innerHTML=alerta + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
+  $('ent-list').innerHTML=alerta + semLocHTML + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
 }
@@ -4380,7 +4398,7 @@ function falarVendedora(id){
   bg.innerHTML = `<div class="falar-modal">
     <div class="falar-titulo">Falar com ${esc(e.vendedora||'a vendedora')}</div>
     <div class="falar-sub">Como você quer falar?</div>
-    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">💬 WhatsApp</a>
+    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">${WA_ICON} WhatsApp</a>
     <a class="falar-opt tel" href="tel:+${telV}" onclick="fecharFalar()">📞 Ligar</a>
     <button class="falar-cancel" onclick="fecharFalar()">Cancelar</button>
   </div>`;
@@ -4419,7 +4437,7 @@ function avisarCliente(id){
   bg.innerHTML = `<div class="falar-modal">
     <div class="falar-titulo">Avisar ${esc(e.cliente||'o cliente')}</div>
     <div class="falar-sub">Como você quer avisar?</div>
-    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">💬 WhatsApp (com rastreio)</a>
+    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">${WA_ICON} WhatsApp (com rastreio)</a>
     <a class="falar-opt tel" href="tel:+${num}" onclick="fecharFalar()">📞 Ligar</a>
     <button class="falar-cancel" onclick="fecharFalar()">Cancelar</button>
   </div>`;
@@ -4434,7 +4452,7 @@ function cardEntregadorView(p,n,fromGps,total){
   const telV = telVend(e.vendedora);
   const origemLbl = n===1 ? (fromGps?'📍 da sua localização':'🏬 saindo da loja') : '↳ da entrega anterior';
   const leg = p.leg!=null
-    ? `<div class="ent-leg">${origemLbl} · ~${fmtDur(Math.max(1,Math.round(p.leg)))}${p.arr?` · chegada prevista <b>${fmtClock(p.arr)}</b>`:''}</div>`
+    ? `<div class="ent-leg">${origemLbl} · ~${fmtDur(Math.max(1,Math.round(p.leg)))}${p.arr?` · chegada prevista <b>${fmtClock(p.arr)}</b>`:''}${e.coordAprox?' · 📍 <b>pino aproximado pelo setor</b>':''}</div>`
     : `<div class="ent-leg">📍 sem localização no mapa — confira o endereço</div>`;
   const _sel = entSel.has(e.id);
   return `<div class="ent-card ${temHora?'alerta':''} ${_sel?'sel':''}" style="${temHora?'':'border-left-color:'+ent.cor}">
@@ -4469,7 +4487,7 @@ function cardEntregadorView(p,n,fromGps,total){
     <div class="ent-acts">
       ${e.link?`<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`:''}
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
-      ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">💬 Avisar cliente</button>`:''}
+      ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">${WA_ICON} Avisar cliente</button>`:'<span class="ent-btn disabled">sem telefone do cliente</span>'}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
       <button class="ent-btn" onclick="devolverEnt('${e.id}')" style="background:rgba(201,169,80,.12);color:var(--gold);border-color:rgba(201,169,80,.4)">↩ Devolver pra fila</button>
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
@@ -4489,6 +4507,28 @@ function ensureMapEnt(){
   layerEnt=L.layerGroup().addTo(mapEnt); mapEntInited=true;
   setTimeout(()=>mapEnt.invalidateSize(),60);
 }
+/* entrega sem coordenada: tenta achar pelo endereço (ou ao menos pelo setor) e colocar no mapa */
+async function localizarEntregaEnt(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  if(!(e.endereco||e.bairro)){ toast('Sem endereço pra localizar — confirme com a vendedora'); return; }
+  const temRua = !!(e.endereco && e.endereco.trim());
+  toast(temRua ? '📍 Localizando pelo endereço…' : '📍 Marcando pelo setor (aproximado)…');
+  try{
+    // 1ª tentativa: endereço completo. Se não houver rua (ou falhar), tenta só o setor.
+    let res = temRua ? await geocodeEndereco([e.endereco,e.bairro,e.cidade||'Goiânia','GO','Brasil'].filter(Boolean).join(', ')) : null;
+    let aprox = false;
+    if(!res && e.bairro){ res = await geocodeEndereco([e.bairro,e.cidade||'Goiânia','GO','Brasil'].filter(Boolean).join(', ')); aprox = true; }
+    if(res){
+      e.coord={lat:res.lat,lng:res.lng};
+      e.coordAprox = aprox || !temRua;     // marca como aproximada quando veio do setor
+      if(!e.link && !e.coordAprox) e.link=`https://www.google.com/maps?q=${res.lat},${res.lng}`;  // só vira link de navegação se for preciso
+      persist(); renderEntregador();
+      toast(e.coordAprox ? '📍 Pino aproximado no setor ✓ (confirme o endereço exato)' : 'Localização adicionada ao mapa ✓');
+    } else {
+      toast('Não encontrei nem pelo setor — confirme o endereço ou peça o pin à vendedora');
+    }
+  }catch(_){ toast('Falha ao localizar (sem internet?)'); }
+}
 function renderMapEnt(){
   if(!mapEnt||!layerEnt) return;
   layerEnt.clearLayers();
@@ -4504,9 +4544,16 @@ function renderMapEnt(){
   }
   ordered.forEach((e,i)=>{
     const c=coordOf(e); if(!c) return;
-    L.circleMarker([c.lat,c.lng],{radius:11,color:'var(--ink)',weight:2,fillColor:ent.cor,fillOpacity:.95}).addTo(layerEnt)
-      .bindTooltip(String(i+1),{permanent:true,direction:'center',className:'mk-num'})
-      .bindPopup(`<b>${i+1}) ${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${e.horarioHora?'<br>⏰ '+hrLabel(e.horarioTipo)+' '+e.horarioHora:''}`);
+    if(e.coordAprox){
+      // pino aproximado (centro do setor) — estilo vazado/tracejado pra não confundir com o ponto exato
+      L.circleMarker([c.lat,c.lng],{radius:11,color:ent.cor,weight:2,dashArray:'3 3',fillColor:ent.cor,fillOpacity:.25}).addTo(layerEnt)
+        .bindTooltip(String(i+1)+'~',{permanent:true,direction:'center',className:'mk-num mk-aprox'})
+        .bindPopup(`<b>${i+1}) ${esc(e.cliente)}</b><br>~ aproximado pelo setor${e.bairro?' ('+esc(e.bairro)+')':''}<br><small>confirme o endereço exato</small>`);
+    } else {
+      L.circleMarker([c.lat,c.lng],{radius:11,color:'var(--ink)',weight:2,fillColor:ent.cor,fillOpacity:.95}).addTo(layerEnt)
+        .bindTooltip(String(i+1),{permanent:true,direction:'center',className:'mk-num'})
+        .bindPopup(`<b>${i+1}) ${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${e.horarioHora?'<br>⏰ '+hrLabel(e.horarioTipo)+' '+e.horarioHora:''}`);
+    }
     bounds.push([c.lat,c.lng]); path.push([c.lat,c.lng]);
   });
   if(path.length>1) L.polyline(path,{color:ent.cor,weight:3,opacity:.65,dashArray:'6 8'}).addTo(layerEnt);
@@ -4556,6 +4603,19 @@ function copiarMinhaRota(){
   if(!items.length){ toast('Sem entregas na rota'); return; }
   const txt=buildRouteText(items, ENT[session.entregador]);
   copyText(txt, ()=>toast('Lista copiada'), txt);
+}
+/* envia a rota (mesmo formato da lista) para o WhatsApp do próprio entregador */
+function enviarRotaWhatsapp(){
+  const items=ordemAtual();
+  if(!items.length){ toast('Sem entregas na rota'); return; }
+  const ent=ENT[session.entregador];
+  const num=(ent && ent.tel) ? ent.tel.replace(/\D/g,'') : '';
+  const txt=buildRouteText(items, ent);
+  if(!num){   // sem número cadastrado → cai pro "compartilhar/copiar"
+    copyText(txt, ()=>toast('Rota copiada — cole no seu WhatsApp'), txt);
+    return;
+  }
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(txt)}`, '_blank');
 }
 function segMaps(e){
   const c=coordOf(e);
