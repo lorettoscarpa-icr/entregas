@@ -1036,6 +1036,8 @@
           <div class="vend-chips" id="vend-chips"></div>
         </div>
         <div><label>Contato</label><input id="f-contato" type="tel" inputmode="tel" placeholder="(62) 9....-...."></div>
+        <div><label>CPF</label><input id="f-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" oninput="maskCPF(this)"></div>
+        <div><label>Nascimento</label><input id="f-nasc" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" oninput="maskData(this)"></div>
         <div>
           <label>Bairro <button type="button" class="link-btn" id="btn-bairro" onclick="buscarBairro()">📍 buscar pelo mapa</button></label>
           <input id="f-bairro" placeholder="Vila / setor">
@@ -1909,7 +1911,7 @@ function findHora(text, kw){
   return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
 }
 function parseWhatsapp(text){
-  const r = {cliente:'',contato:'',endereco:'',bairro:'',produto:'',valor:'',link:'',vendedora:'',horarioTipo:'',horarioHora:'',tipo:'',pagPrevisto:'',taxa:''};
+  const r = {cliente:'',contato:'',cpf:'',nascimento:'',endereco:'',bairro:'',produto:'',valor:'',link:'',vendedora:'',horarioTipo:'',horarioHora:'',tipo:'',pagPrevisto:'',taxa:''};
   const contentLines = [];
   for(const line of text.split(/\r?\n/)){
     if(!line.trim()) continue;
@@ -1999,6 +2001,8 @@ function fillForm(r){
   if(r.produto) $('f-prod').value=r.produto;
   if(r.valor) $('f-valor').value=r.valor;
   if(r.observacao) $('f-obs').value=r.observacao;
+  if(r.cpf) $('f-cpf').value=r.cpf;
+  if(r.nascimento) $('f-nasc').value=r.nascimento;
   if(r.link) $('f-link').value=r.link;
   if(r.tipo && ['entrega','troca','coleta'].includes(r.tipo)) $('f-tipo').value=r.tipo;
   if(r.pagPrevisto && ['cobrar','pago'].includes(r.pagPrevisto)) $('f-pag-prev').value=r.pagPrevisto;
@@ -2059,6 +2063,8 @@ async function aiParse(text){
 Campos do JSON:
 - cliente: nome da PESSOA que vai receber a entrega. NÃO use empresa, ponto de referência ou cidade como nome. Se só houver o nome de uma empresa, use a empresa.
 - contato: telefone do cliente no formato (62) 9XXXX-XXXX, sem o +55.
+- cpf: o CPF do cliente, só se aparecer, formatado 000.000.000-00. Senão "".
+- nascimento: data de nascimento do cliente, só se aparecer, formato dd/mm/aaaa. Senão "".
 - bairro: só o bairro/vila/setor.
 - cidade: a cidade (ex: Goiânia, Aparecida de Goiânia, Senador Canedo). Se não disser, deixe "".
 - endereco: rua, número, quadra, lote, complemento e ponto de referência. NÃO repita bairro nem cidade aqui.
@@ -2071,7 +2077,7 @@ Campos do JSON:
 - observacao: instrução extra útil pro entregador (ex: "casa com câmera no muro", "ligar ao chegar", "deixar na portaria", "levar maquininha"). NÃO repita aqui o que já está em pagamento/valor/endereço.
 - taxa: se a mensagem mencionar taxa de entrega ou frete COM valor (ex "taxa R$ 19,90", "frete 20"), retorne só o número (ex "19,90"). Se disser explicitamente entrega/frete grátis ou "sem taxa", retorne "0". Se NÃO mencionar nada sobre taxa/frete, retorne "".
 - genero: "F" se o PRIMEIRO NOME do cliente for nome de mulher, "M" se for nome de homem, "" se não der pra saber pelo nome. Baseie-se só no nome.
-Ignore CPF, RG e data de nascimento. Use "" (ou "entrega"/"cobrar" nos campos com padrão) para qualquer campo ausente.`;
+Ignore RG. Use "" (ou "entrega"/"cobrar" nos campos com padrão) para qualquer campo ausente.`;
   let data;
   if(AI_PROXY_URL){
     // site hospedado → passa pela Cloud Function (que guarda a chave da Anthropic)
@@ -2121,7 +2127,7 @@ async function importarLote(){
   parsed.forEach(({r})=>{
     if(!(r.cliente || r.contato || r.link)){ skip++; return; }
     novas.push({
-      id:uid(), cliente:r.cliente||'(sem nome)', contato:r.contato||'', bairro:r.bairro||'', cidade:r.cidade||'',
+      id:uid(), cliente:r.cliente||'(sem nome)', contato:r.contato||'', cpf:r.cpf||'', nascimento:r.nascimento||'', bairro:r.bairro||'', cidade:r.cidade||'',
       vendedora: ehVend ? session.vendedora : (r.vendedora||''), endereco:r.endereco||'', link:r.link||'', coord:coordFrom(r.link||''),
       horarioTipo:r.horarioTipo||'', horarioHora:r.horarioHora||'', produto:r.produto||'', valor:r.valor||'', observacao:r.observacao||'',
       tipo:r.tipo||'entrega', pagPrevisto:r.pagPrevisto||'cobrar',
@@ -2199,7 +2205,9 @@ function togglePanel(open){
     $('f-cliente').focus();
   }
 }
-function clearForm(){ ['paste','f-cliente','f-contato','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); fotoLocPendente=null; renderFotoLocPreview(); }
+function maskCPF(el){ let v=el.value.replace(/\D/g,'').slice(0,11); v=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); el.value=v; }
+function maskData(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>=5) v=v.replace(/(\d{2})(\d{2})(\d{1,4})/,'$1/$2/$3'); else if(v.length>=3) v=v.replace(/(\d{2})(\d{1,2})/,'$1/$2'); el.value=v; }
+function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); fotoLocPendente=null; renderFotoLocPreview(); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -2232,6 +2240,8 @@ async function saveEntrega(){
   entregas.push({
     id:novoId, cliente,
     contato:$('f-contato').value.trim(),
+    cpf:$('f-cpf').value.trim(),
+    nascimento:$('f-nasc').value.trim(),
     bairro, cidade, vendedora,
     endereco:end,
     link, coord,
@@ -3253,6 +3263,7 @@ function editar(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e)return;
   $('f-cliente').value=e.cliente; $('f-contato').value=e.contato; $('f-bairro').value=e.bairro;
+  $('f-cpf').value=e.cpf||''; $('f-nasc').value=e.nascimento||'';
   $('f-cidade').value=e.cidade||''; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
   $('f-prod').value=e.produto; $('f-valor').value=e.valor; $('f-obs').value=e.observacao||'';
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||'';
@@ -3997,22 +4008,36 @@ function fcard(e){
   const somaVals = Object.values(e.pagamentoValores||{}).reduce((s,v)=>s+_num(v),0);
   const totalReceb = somaVals + _num(e.taxaEntrega);
   const totalLine = totalReceb>0 ? `<div class="frow"><span class="ico">💰</span><span>Total recebido: <b>${_brl(totalReceb)}</b></span></div>` : '';
+  const horarioTxt = (e.horarioTipo && e.horarioHora) ? `${hrLabel(e.horarioTipo)} ${e.horarioHora}` : '';
+  const tipoTxt = (e.tipo==='troca') ? '🔁 Troca — traz o par antigo' : (e.tipo==='coleta') ? '↩️ Coleta de devolução' : '';
   return `<div class="fcard">
     <div class="fcard-top">
       <span class="vbadge ok">✓ Entregue${hora?' · '+hora:''}</span>
     </div>
     <div class="fcard-name">${esc(e.cliente)}</div>
+
+    <div class="fcard-sec-h">👤 Cliente</div>
+    <div class="fcard-body"><div class="fcard-info">
+      ${e.contato?`<div class="frow"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
+      ${e.cpf?`<div class="frow"><span class="ico">🪪</span><span>CPF: <b>${esc(e.cpf)}</b></span></div>`:''}
+      ${e.nascimento?`<div class="frow"><span class="ico">🎂</span><span>Nascimento: <b>${esc(e.nascimento)}</b></span></div>`:''}
+      ${e.endereco?`<div class="frow"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
+      ${(e.bairro||e.cidade)?`<div class="frow"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
+      ${horarioTxt?`<div class="frow"><span class="ico">⏰</span><span>${esc(horarioTxt)}</span></div>`:''}
+      ${e.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(e.observacao)}</span></div>`:''}
+      ${e.vendedora?`<div class="frow"><span class="ico">🙋</span><span>Vendedora: <b>${esc(e.vendedora)}</b></span></div>`:''}
+      ${e.link?`<div class="frow"><span class="ico">🧭</span><span><a class="lnk" href="${esc(e.link)}" target="_blank">abrir no mapa</a></span></div>`:''}
+    </div></div>
+
     <div class="fcard-sec-h">👟 Produto</div>
-    <div class="fcard-body">
-      <div class="fcard-info">
-        ${e.entreguePresente
-          ? `<div class="frow"><span class="ico">🎁</span><span><b>Presente</b>${e.produtoEntregue?` — ${esc(e.produtoEntregue)}`:''}</span></div>`
-          : (e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
-        ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
-        ${e.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(e.observacao)}</span></div>`:''}
-        ${(e.bairro||e.cidade)?`<div class="frow"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
-      </div>
-    </div>
+    <div class="fcard-body"><div class="fcard-info">
+      ${tipoTxt?`<div class="frow"><span class="ico">🏷️</span><span>${tipoTxt}</span></div>`:''}
+      ${e.entreguePresente
+        ? `<div class="frow"><span class="ico">🎁</span><span><b>Presente</b>${e.produtoEntregue?` — ${esc(e.produtoEntregue)}`:''}</span></div>`
+        : (e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
+      ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
+    </div></div>
+
     <div class="fcard-sec-h">💳 Pagamento</div>
     <div class="fcard-body">
       <div class="fcard-info">
