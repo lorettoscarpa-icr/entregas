@@ -3973,7 +3973,7 @@ function vcard(e, eta){
         ${['entregue','nao_entregue','cancelado'].includes(e.status)
           ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">💬 Pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
           : (wa?`<a class="vbtn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
-        ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">🛵 Falar com o entregador</button>`:''}
+        ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">💬 Falar com o entregador</button>`:''}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
         ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
@@ -4061,7 +4061,7 @@ function fcard(e){
         ? `<button class="fcard-foto fcard-foto-btn" onclick="verComprovante('${e.id}')" title="Toque para ver">📷<br>ver comprovante</button>`
         : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
-    ${telEnt(e.entregador)?`<div class="vcard-acts"><button class="vbtn ghost" onclick="falarEntregador('${e.id}')">🛵 Falar com o entregador</button></div>`:''}
+    ${telEnt(e.entregador)?`<div class="vcard-acts"><button class="vbtn ghost" onclick="falarEntregador('${e.id}')">💬 Falar com o entregador</button></div>`:''}
   </div>`;
 }
 
@@ -4303,7 +4303,7 @@ function telEnt(id){
   if(t.length<=11) t='55'+t;
   return t;
 }
-// abre o seletor "Falar com o entregador": WhatsApp ou Ligar
+// "Falar com o entregador" → abre o WhatsApp direto
 function falarEntregador(id){
   const e=entregas.find(x=>x.id===id); if(!e) return;
   const tel=telEnt(e.entregador); if(!tel) return;
@@ -4314,13 +4314,22 @@ function falarEntregador(id){
     ? 'Oi'+(nomeE?' '+nomeE:'')+', tudo bem? Quero tirar uma dúvida sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. '
     : 'Oi'+(nomeE?' '+nomeE:'')+'! Sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. ';
   const wa = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+  window.open(wa, '_blank');
+}
+// "Avisar cliente" → escolher entre WhatsApp (com link de rastreio) ou Ligar
+function avisarCliente(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  const num=waNumero(e.contato); if(!num) return;
+  const _tx = taxaDe(e);
+  const taxaTxt = _tx>0 ? `\n\n🏷️ Taxa de entrega: ${_brl(_tx)} (referente à sua região).` : '';
+  const wa = `https://wa.me/${num}?text=${encodeURIComponent(msgPadrao()+taxaTxt+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}`;
   fecharFalar();
   const bg=document.createElement('div'); bg.id='falar-bg'; bg.className='modal-bg open';
   bg.innerHTML = `<div class="falar-modal">
-    <div class="falar-titulo">Falar com ${esc(ent.nome||'o entregador')}</div>
-    <div class="falar-sub">Como você quer falar?</div>
-    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">💬 WhatsApp</a>
-    <a class="falar-opt tel" href="tel:+${tel}" onclick="fecharFalar()">📞 Ligar</a>
+    <div class="falar-titulo">Avisar ${esc(e.cliente||'o cliente')}</div>
+    <div class="falar-sub">Como você quer avisar?</div>
+    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">💬 WhatsApp (com rastreio)</a>
+    <a class="falar-opt tel" href="tel:+${num}" onclick="fecharFalar()">📞 Ligar</a>
     <button class="falar-cancel" onclick="fecharFalar()">Cancelar</button>
   </div>`;
   bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharFalar(); });
@@ -4331,9 +4340,6 @@ function cardEntregadorView(p,n,fromGps,total){
   const e=p.e;
   const ent=ENT[e.entregador]||{cor:'#888'};
   const temHora = e.horarioTipo && e.horarioHora;
-  const _tx = taxaDe(e);
-  const taxaTxt = _tx>0 ? `\n\n🏷️ Taxa de entrega: ${_brl(_tx)} (referente à sua região).` : '';
-  const wa = waNumero(e.contato) ? `https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPadrao()+taxaTxt+'\n\n📍 Acompanhe em tempo real: '+linkRastreio(e))}` : '';
   const telV = telVend(e.vendedora);
   const origemLbl = n===1 ? (fromGps?'📍 da sua localização':'🏬 saindo da loja') : '↳ da entrega anterior';
   const leg = p.leg!=null
@@ -4372,7 +4378,7 @@ function cardEntregadorView(p,n,fromGps,total){
     <div class="ent-acts">
       ${e.link?`<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`:''}
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
-      ${wa?`<a class="ent-btn wa" href="${wa}" target="_blank">💬 Avisar cliente</a>`:''}
+      ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">💬 Avisar cliente</button>`:''}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
       <button class="ent-btn" onclick="devolverEnt('${e.id}')" style="background:rgba(201,169,80,.12);color:var(--gold);border-color:rgba(201,169,80,.4)">↩ Devolver pra fila</button>
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
@@ -4462,11 +4468,10 @@ function copiarMinhaRota(){
 }
 function segMaps(e){
   const c=coordOf(e);
-  if(c) return `${c.lat},${c.lng}`;                        // coordenada (vírgula é válida no caminho)
+  if(c) return `${c.lat},${c.lng}`;                        // coordenada crua "lat,lng"
   const temEnd = (e.endereco && e.endereco.trim()) || (e.bairro && e.bairro.trim());
   if(!temEnd) return null;                                  // sem coordenada e sem rua/bairro → não dá pra mapear
-  const end=[e.endereco, e.bairro, e.cidade||'Goiânia', 'GO'].filter(Boolean).join(', ');
-  return encodeURIComponent(end);
+  return [e.endereco, e.bairro, e.cidade||'Goiânia', 'GO'].filter(Boolean).join(', '); // texto cru (encode na montagem da URL)
 }
 function abrirRotaMaps(){
   const items=ordemAtual();
@@ -4474,13 +4479,29 @@ function abrirRotaMaps(){
   items.forEach(e=>{ const s=segMaps(e); if(s) segs.push(s); else faltando.push(e); });
   if(!segs.length){ toast('Nenhuma entrega com endereço ou localização'); return; }
   const origem = entCoord || lojaCoords();        // sai de onde o entregador está (ou da loja)
-  const partes=[];
-  if(origem) partes.push(`${origem.lat},${origem.lng}`);
-  segs.forEach(s=>partes.push(s));
-  // formato de caminho: /dir/origem/parada1/parada2/.../destino — o app do Maps respeita todas as paradas
-  const url = `https://www.google.com/maps/dir/${partes.join('/')}`;
+
+  // API oficial de URLs do Google Maps: origin + destination + waypoints (separados por |).
+  // É o formato que o app respeita com VÁRIAS paradas — o formato de caminho /dir/A/B/C
+  // costuma abrir só a 1ª parada no celular.
+  const destino = segs[segs.length-1];
+  const intermedios = segs.slice(0, -1);
+  const LIM = 9;                                   // o app do Maps aceita ~10 paradas; acima disso ele corta
+  let via = intermedios, cortadas = 0;
+  if(intermedios.length > LIM){ via = intermedios.slice(0, LIM); cortadas = intermedios.length - LIM; }
+
+  const enc = encodeURIComponent;
+  const qs = ['api=1'];
+  if(origem) qs.push('origin=' + enc(`${origem.lat},${origem.lng}`));
+  qs.push('destination=' + enc(destino));
+  if(via.length) qs.push('waypoints=' + via.map(enc).join('|'));
+  qs.push('travelmode=driving');
+  const url = `https://www.google.com/maps/dir/?${qs.join('&')}`;
   window.open(url,'_blank');
-  if(faltando.length) setTimeout(()=>toast(`${faltando.length} parada(s) sem endereço ficaram de fora do Maps`), 500);
+
+  const avisos=[];
+  if(faltando.length) avisos.push(`${faltando.length} parada(s) sem endereço ficaram de fora`);
+  if(cortadas) avisos.push(`${cortadas} parada(s) acima do limite do Maps ficaram de fora — após concluir as primeiras, abra a rota de novo`);
+  if(avisos.length) setTimeout(()=>toast(avisos.join(' · ')), 600);
 }
 
 /* ============ toast ============ */
