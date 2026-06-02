@@ -1023,6 +1023,8 @@
             <button class="btn btn-ghost" onclick="importarLote()">Importar lote</button>
           </div>
         </div>
+        <button type="button" id="btn-diag" onclick="toggleDiag()" style="background:none;border:none;color:var(--text-mute);font-size:12px;cursor:pointer;padding:4px 0;text-decoration:underline">🔧 diagnóstico (mostrar o que foi colado)</button>
+        <pre id="diag-box" style="display:none;white-space:pre-wrap;word-break:break-word;background:#1c2316;border:1px solid #3a4a28;border-radius:8px;padding:10px;font-size:11px;line-height:1.5;color:#cfe0b8;max-height:320px;overflow:auto;margin:6px 0 0"></pre>
       </div>
       <div class="fields">
         <div><label>Cliente *</label><input id="f-cliente" placeholder="Nome do cliente"></div>
@@ -1934,11 +1936,15 @@ function normWhats(text){
     .replace(/\s*(\[[^\]\n]*\d{1,2}:\d{2}[^\]\n]*\]\s*[^:\n]{1,40}?:)/g, '\n$1')
     // formato android com traço: DD/MM/AAAA HH:MM - Remetente:
     .replace(/\s*(\d{1,2}\/\d{1,2}\/\d{2,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*[-–]\s*[^:\n]{1,40}?:)/g, '\n$1')
+    // no iPhone os campos colam numa linha só → quebra antes de telefone / CPF / data (padrões inequívocos)
+    .replace(/\s+(\(?\d{2}\)?\s?9\d{4}-?\d{4}\b)/g, '\n$1')         // telefone (62) 9XXXX-XXXX
+    .replace(/\s+(\d{3}\.\d{3}\.\d{3}-\d{2}\b)/g, '\n$1')            // CPF 000.000.000-00
+    .replace(/\s+(\d{2}\/\d{2}\/\d{4}\b)/g, '\n$1')                  // data 00/00/0000
     .replace(/^\n+/, '');
 }
 function parseWhatsapp(text){
   text = normWhats(text);
-  const r = {cliente:'',contato:'',cpf:'',nascimento:'',endereco:'',bairro:'',produto:'',valor:'',link:'',vendedora:'',horarioTipo:'',horarioHora:'',tipo:'',pagPrevisto:'',taxa:''};
+  const r = {cliente:'',contato:'',cpf:'',nascimento:'',endereco:'',bairro:'',produto:'',valor:'',link:'',vendedora:'',horarioTipo:'',horarioHora:'',tipo:'',pagPrevisto:'',taxa:'',observacao:''};
   const contentLines = [];
   for(const line of text.split(/\r?\n/)){
     if(!line.trim()) continue;
@@ -1977,13 +1983,15 @@ function parseWhatsapp(text){
   let ci = rest2.findIndex(isName);
   if(ci<0) ci = rest2.length ? 0 : -1;
   if(ci>=0) r.cliente = rest2[ci].replace(/[.\s]+$/,'');
+  const prodRe = /\b(3[5-9]|4[0-6])\b|sneaker|sapato|sapatos|t[êe]nis|bota|botina|mocassim|sand[áa]lia|chinelo|chuteira|all\s*black/i;
+  const obsRe = /desconto|à?\s*vista|\bpix\b|cart[ãa]o|dinheiro|parcel|\bentrada\b/i;
   rest2.forEach((ln,i)=>{
     if(i===ci) return;
-    if(sizeRe.test(ln) && !r.produto){ r.produto = ln; return; }
-    if(isAddr(ln)){ r.endereco = r.endereco ? r.endereco+' · '+ln : ln; return; }
+    if(isAddr(ln)){ r.endereco = r.endereco ? r.endereco+', '+ln : ln; return; }   // endereço
+    if(prodRe.test(ln)){ r.produto = r.produto ? r.produto+' · '+ln : ln; return; } // produto (acumula vários pares)
+    if(obsRe.test(ln)){ r.observacao = r.observacao ? r.observacao+' · '+ln : ln; return; } // desconto/forma de pagto → observação
     if(!r.endereco){ r.endereco = ln; }
-    else if(!r.produto){ r.produto = ln; }
-    else r.endereco += ' · ' + ln;
+    else r.produto = r.produto ? r.produto+' · '+ln : ln;
   });
   // horário combinado — só preenche se houver hora explícita na mensagem
   const allText = contentLines.join(' ');
@@ -2064,6 +2072,40 @@ async function colarEpreencher(){
   if(!txt || !txt.trim()){ toast('Nada copiado — copie a mensagem no WhatsApp primeiro 🙂'); $('paste').focus(); return; }
   $('paste').value = txt.trim();
   aiPreencher();   // mesmo preenchimento (com IA) usado no computador
+}
+/* mostra exatamente o que foi colado e como o sistema interpreta — pra depurar no aparelho */
+function _revelar(s){
+  return (s||'')
+    .replace(/\u200e/g,'⟨LRM⟩').replace(/\u200f/g,'⟨RLM⟩').replace(/\u00a0/g,'⟨NBSP⟩')
+    .replace(/\u202a|\u202b|\u202c|\u202d|\u202e/g,'⟨BIDI⟩')
+    .replace(/\t/g,'⟨TAB⟩')
+    .replace(/ /g,'·')
+    .replace(/\n/g,'⏎\n');
+}
+async function toggleDiag(){
+  const box=$('diag-box');
+  if(box.style.display!=='none'){ box.style.display='none'; return; }
+  box.style.display='block';
+  const t=$('paste').value;
+  if(!t.trim()){ box.textContent='Cole a mensagem no campo acima e toque de novo em 🔧 diagnóstico.'; return; }
+  let out='';
+  out+='1) TEXTO CRU QUE O APARELHO COLOU ('+t.length+' caracteres):\n';
+  out+='(· = espaço, ⏎ = quebra de linha, ⟨LRM⟩/⟨NBSP⟩ = caractere invisível)\n';
+  out+='────────────────────\n'+_revelar(t)+'\n────────────────────\n\n';
+  let norm='';
+  try{ norm = (typeof normWhats==='function') ? normWhats(t) : t; }catch(e){ norm='(erro normWhats: '+e.message+')'; }
+  out+='2) DEPOIS DE ORGANIZAR (cada linha = um campo):\n────────────────────\n'+_revelar(norm)+'\n────────────────────\n\n';
+  try{
+    const s=parseWhatsapp(t);
+    out+='3) LEITURA SIMPLES (fallback):\n'+JSON.stringify({cliente:s.cliente,contato:s.contato,endereco:s.endereco,produto:s.produto,valor:s.valor,link:s.link,vendedora:s.vendedora},null,1)+'\n\n';
+  }catch(e){ out+='3) LEITURA SIMPLES: erro '+e.message+'\n\n'; }
+  box.textContent=out+'4) IA: consultando…';
+  try{
+    const r=await aiParse(t);
+    box.textContent=out+'4) IA RESPONDEU ✓:\n'+JSON.stringify(r,null,1);
+  }catch(e){
+    box.textContent=out+'4) IA FALHOU ✗ ('+e.message+') → o app usa a leitura simples acima.\nÉ por isso que alguns campos podem sair errados no aparelho.';
+  }
 }
 async function aiPreencher(){
   const t = $('paste').value.trim();
