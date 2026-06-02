@@ -4233,9 +4233,13 @@ function renderEntregador(){
   const ordered=plan.map(p=>p.e);
   const est=routeEstMin(items);
   const start=items.length?Math.min(...items.map(e=>e.roteadoEm||e.criadoEm)):Date.now();
+  const _diaEhPassado = diaEnt < todayKey();
+  const _temFinDia = entregas.some(e=>e.entregador===session.entregador && dataDe(e)===diaEnt && ['entregue','nao_entregue','cancelado'].includes(e.status));
   $('ent-resumo').innerHTML=items.length
     ? `<div class="stat"><b>${items.length}</b><span>entregas</span></div><div class="stat"><b>${fmtDur(est)}</b><span>de rota</span></div><div class="stat"><b>${finishTime(start,est)}</b><span>término</span></div>`
-    : `<div class="stat empty-stat">Nenhuma entrega na sua rota agora.</div>`;
+    : (_diaEhPassado && _temFinDia
+        ? `<div class="stat empty-stat">Dia encerrado — veja suas entregas finalizadas abaixo.</div>`
+        : `<div class="stat empty-stat">Nenhuma entrega na sua rota agora.</div>`);
   const comHora=ordered.filter(e=>e.horarioTipo&&e.horarioHora);
   const alerta = comHora.length
     ? `<div class="ent-alert"><b>⏰ Atenção aos horários combinados:</b><br>${comHora.map(e=>`${esc(e.cliente)} — ${hrLabel(e.horarioTipo)} <b>${e.horarioHora}</b>`).join(' · ')}</div>`
@@ -4245,10 +4249,11 @@ function renderEntregador(){
       : (fromGps
         ? `<div class="ent-order-note gps">📍 Saindo de onde você está agora (ordem mais rápida). Em cada entrega, escolha o número (1º, 2º, 3º…) pra montar a sua ordem.</div>`
         : `<div class="ent-order-note">🧭 Saindo da loja. Toque em <b>Usar minha localização</b> pra sair de onde você está — ou escolha o número em cada entrega pra montar a sua ordem.</div>`)) : '';
-  const finHoje = entregas.filter(e=>e.entregador===session.entregador && dataDe(e)===todayKey() && ['entregue','nao_entregue','cancelado'].includes(e.status)).sort((a,b)=>(b.entregueEm||b.desfechoEm||0)-(a.entregueEm||a.desfechoEm||0));
-  const finHTML = finHoje.length ? `<div class="ent-fin">
-    <div class="ent-fin-h">✓ Finalizadas hoje (${finHoje.length}) — errou? toque para corrigir</div>
-    ${finHoje.map(e=>{
+  const finDia = entregas.filter(e=>e.entregador===session.entregador && dataDe(e)===diaEnt && ['entregue','nao_entregue','cancelado'].includes(e.status)).sort((a,b)=>(b.entregueEm||b.desfechoEm||0)-(a.entregueEm||a.desfechoEm||0));
+  const finLabel = diaEnt===todayKey() ? 'Finalizadas hoje' : `Finalizadas · ${esc(rotuloDia(diaEnt))}`;
+  const finHTML = finDia.length ? `<div class="ent-fin">
+    <div class="ent-fin-h">✓ ${finLabel} (${finDia.length}) — errou? toque para corrigir</div>
+    ${finDia.map(e=>{
       const ic = e.status==='entregue' ? '✓' : '✕';
       const desc = e.status==='entregue' ? pagamentoLabel(e) : (e.status==='cancelado'?'Não comprou':'Não entregue');
       return `<div class="ent-fin-row">
