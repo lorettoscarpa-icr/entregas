@@ -4479,28 +4479,49 @@ function abrirRotaMaps(){
   items.forEach(e=>{ const s=segMaps(e); if(s) segs.push(s); else faltando.push(e); });
   if(!segs.length){ toast('Nenhuma entrega com endereço ou localização'); return; }
   const origem = entCoord || lojaCoords();        // sai de onde o entregador está (ou da loja)
-
-  // API oficial de URLs do Google Maps: origin + destination + waypoints (separados por |).
-  // É o formato que o app respeita com VÁRIAS paradas — o formato de caminho /dir/A/B/C
-  // costuma abrir só a 1ª parada no celular.
-  const destino = segs[segs.length-1];
-  const intermedios = segs.slice(0, -1);
-  const LIM = 9;                                   // o app do Maps aceita ~10 paradas; acima disso ele corta
-  let via = intermedios, cortadas = 0;
-  if(intermedios.length > LIM){ via = intermedios.slice(0, LIM); cortadas = intermedios.length - LIM; }
-
   const enc = encodeURIComponent;
+
+  const ua = navigator.userAgent||'';
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
+
+  // TRUQUE p/ celular: o limite de 3 paradas é só do NAVEGADOR. Abrindo o APP do Maps
+  // direto (intent no Android, esquema comgooglemaps no iOS) vale o limite maior: 9 paradas.
+  const MAXWP = 9, maxStops = MAXWP + 1;          // máx. do Google: 9 intermediárias + destino
+  let usar = segs, cortadas = 0;
+  if(segs.length > maxStops){ usar = segs.slice(0, maxStops); cortadas = segs.length - maxStops; } // primeiras EM ORDEM
+  const destino = usar[usar.length-1];
+  const via = usar.slice(0, -1);
+
+  // URL universal (desktop e fallback do celular)
   const qs = ['api=1'];
   if(origem) qs.push('origin=' + enc(`${origem.lat},${origem.lng}`));
   qs.push('destination=' + enc(destino));
   if(via.length) qs.push('waypoints=' + via.map(enc).join('|'));
   qs.push('travelmode=driving');
-  const url = `https://www.google.com/maps/dir/?${qs.join('&')}`;
-  window.open(url,'_blank');
+  const httpsUrl = `https://www.google.com/maps/dir/?${qs.join('&')}`;
+
+  if(isAndroid){
+    // abre o app do Maps direto; se não tiver o app, cai no navegador (browser_fallback_url)
+    const intentUrl = `intent://www.google.com/maps/dir/?${qs.join('&')}`
+      + `#Intent;scheme=https;package=com.google.android.apps.maps;`
+      + `S.browser_fallback_url=${enc(httpsUrl)};end`;
+    window.location.href = intentUrl;
+  } else if(isIOS){
+    // esquema do app do Google Maps no iOS: várias paradas com "+to:"
+    const saddr = origem ? `saddr=${enc(`${origem.lat},${origem.lng}`)}&` : '';
+    const daddr = `daddr=${usar.map(enc).join('+to:')}`;
+    const gmaps = `comgooglemaps://?${saddr}${daddr}&directionsmode=driving`;
+    let foi=false; const t=setTimeout(()=>{ if(!foi) window.open(httpsUrl,'_blank'); }, 1200); // fallback se não tiver o app
+    window.addEventListener('blur', ()=>{ foi=true; clearTimeout(t); }, {once:true});
+    window.location.href = gmaps;
+  } else {
+    window.open(httpsUrl,'_blank');               // desktop: nova aba
+  }
 
   const avisos=[];
-  if(faltando.length) avisos.push(`${faltando.length} parada(s) sem endereço ficaram de fora`);
-  if(cortadas) avisos.push(`${cortadas} parada(s) acima do limite do Maps ficaram de fora — após concluir as primeiras, abra a rota de novo`);
+  if(faltando.length) avisos.push(`${faltando.length} parada(s) sem localização ficaram de fora`);
+  if(cortadas) avisos.push(`o Maps abre até ${maxStops} paradas por vez — conclua estas e toque de novo p/ abrir as próximas ${cortadas}`);
   if(avisos.length) setTimeout(()=>toast(avisos.join(' · ')), 600);
 }
 
