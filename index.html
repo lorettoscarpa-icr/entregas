@@ -1291,7 +1291,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v60</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v61</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1833,9 +1833,25 @@ function atualizarRastreioCliente(){
   if(viva && dest){
     const min=Math.max(1,Math.round(legMin(viva,dest)));
     st.textContent='Seu pedido está a caminho 🛵';
-    eta.textContent = min<=2 ? 'Chegando!' : `~${fmtDur(min)}`;
-    sub.textContent = min<=2 ? 'O entregador está pertinho de você.' : 'Tempo estimado até você.';
+    if(min<=2){ eta.textContent='Chegando!'; sub.textContent='O entregador está pertinho de você.'; }
+    else { eta.textContent=`~${fmtDur(min)}`; sub.innerHTML=`Chegada prevista por volta de <b>${fmtClock(Date.now()+min*60000)}</b>`; }
     pulse.className='track-pulse'; desenharTrack(dest,viva);
+  } else if(r && r.lat!=null && dest){
+    // GPS parado: usa a ÚLTIMA posição enviada — mostra há quanto tempo foi e a previsão (min + horário)
+    const ageMin=Math.max(1,Math.round((Date.now()-(r.atualizadoEm||Date.now()))/60000));
+    const travel=Math.max(1,Math.round(legMin({lat:r.lat,lng:r.lng},dest)));
+    const arrTs=(r.atualizadoEm||Date.now())+travel*60000;       // chegada prevista a partir do último envio
+    const restante=Math.round((arrTs-Date.now())/60000);
+    const rodape='<br><span style="opacity:.7;font-size:.88em">A localização atualiza quando o entregador reabrir o app.</span>';
+    st.textContent='Seu pedido está a caminho 🛵';
+    if(restante>2){
+      eta.textContent=`~${fmtDur(restante)}`;
+      sub.innerHTML=`Última atualização há <b>${fmtDur(ageMin)}</b> · chegada prevista por volta de <b>${fmtClock(arrTs)}</b>${rodape}`;
+    } else {
+      eta.textContent='Chegando!';
+      sub.innerHTML=`Última atualização há <b>${fmtDur(ageMin)}</b> · deve chegar a qualquer momento${rodape}`;
+    }
+    pulse.className='track-pulse off'; desenharTrack(dest,{lat:r.lat,lng:r.lng});
   } else {
     st.textContent='Seu pedido está a caminho 🛵'; eta.textContent='';
     sub.textContent='Aguardando o sinal de GPS do entregador…'; pulse.className='track-pulse';
