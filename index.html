@@ -1291,7 +1291,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v58</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v60</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -2638,6 +2638,7 @@ function confirmarReag(){
   e.dataEntrega=nova; e.status='aguardando'; e.entregador=null; e.roteadoEm=null;
   e.motivo=''; e.desfechoEm=null;
   persist(); closeReag(); diaAtivo=nova; animateNext(); render();
+  if(session && session.role==='entregador') renderEntregador();
   toast(`Reagendada para ${rotuloDia(nova)}`);
 }
 
@@ -4417,7 +4418,7 @@ function renderEntregador(){
       const desc = e.status==='entregue' ? pagamentoLabel(e) : (e.status==='cancelado'?'Não comprou':'Não entregue');
       return `<div class="ent-fin-row">
         <span class="ent-fin-cli">${ic} ${esc(e.cliente)}<small>${esc(desc)}</small></span>
-        <span class="ent-fin-acts">${e.status==='entregue'?`<button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>`:''}<button class="btn btn-ghost btn-mini" onclick="desfazerFinal('${e.id}')">↩ Desfazer</button></span>
+        <span class="ent-fin-acts"><button class="btn btn-ghost btn-mini" onclick="verDetalhesEntrega('${e.id}')">📋 Ver detalhes</button>${e.status==='entregue'?`<button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>`:''}<button class="btn btn-ghost btn-mini" onclick="desfazerFinal('${e.id}')">↩ Desfazer</button></span>
       </div>`;
     }).join('')}
   </div>` : '';
@@ -4542,6 +4543,7 @@ function cardEntregadorView(p,n,fromGps,total){
       <button class="ent-btn" onclick="devolverEnt('${e.id}')" style="background:rgba(201,169,80,.12);color:var(--gold);border-color:rgba(201,169,80,.4)">↩ Devolver pra fila</button>
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
       <button class="ent-btn full" style="background:rgba(224,106,82,.12);color:var(--urgent);border-color:rgba(224,106,82,.35)" onclick="abrirDesfecho('${e.id}','nao_entregue')">✕ Não consegui entregar</button>
+      <button class="ent-btn full" style="background:rgba(142,156,214,.14);color:#aab4e8;border-color:rgba(142,156,214,.4)" onclick="abrirReag('${e.id}')">📅 Reagendar p/ outro dia</button>
       <button class="ent-btn full" style="background:rgba(138,145,122,.16);color:var(--text-soft);border-color:rgba(138,145,122,.42)" onclick="abrirDesfecho('${e.id}','cancelado')">✕ Não deu certo</button>
     </div>
   </div>`;
