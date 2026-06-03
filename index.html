@@ -1282,6 +1282,14 @@
   </div>
 </div>
 
+<div class="modal-bg" id="det-modal" onclick="closeDet()">
+  <div class="modal" style="max-width:560px" onclick="event.stopPropagation()">
+    <h3 id="det-title" style="margin-bottom:10px">Detalhes da entrega</h3>
+    <div id="det-body" style="text-align:left;font-size:13.5px;line-height:1.55"></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeDet()">Fechar</button></div>
+  </div>
+</div>
+
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
   <div class="modal">
@@ -1338,7 +1346,7 @@
       <input type="file" id="pay-foto-arq" accept="image/*" onchange="carregarComprovante(this)" style="display:none">
       <div class="pay-foto-btns">
         <button type="button" class="btn pay-cam-btn" id="pay-cam-btn" onclick="document.getElementById('pay-foto').click()">📷 Tirar foto</button>
-        <button type="button" class="btn pay-cam-btn" id="pay-arq-btn" onclick="document.getElementById('pay-foto-arq').click()">📎 Anexar</button>
+        <button type="button" class="btn pay-cam-btn" id="pay-arq-btn" onclick="document.getElementById('pay-foto-arq').click()">🖼️ Galeria</button>
         <button type="button" class="btn pay-cam-btn" id="pay-colar-btn" onclick="colarComprovante()">📋 Colar</button>
       </div>
       <div id="pay-foto-prev"></div>
@@ -2399,6 +2407,43 @@ function mostrarImagens(titulo, fotos){
   const g=$('img-gallery'); if(g) g.innerHTML = arr.length ? arr.map(b=>`<img src="${b}" style="max-width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:10px">`).join('') : '<div class="foto-load">sem imagem</div>';
   $('img-modal').classList.add('open');
 }
+/* visão completa de uma entrega finalizada: todos os dados + todas as fotos num lugar só */
+function _detRow(ico,label,val){ return val?`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)"><span style="width:22px;flex:none">${ico}</span><span><b>${label}:</b> ${val}</span></div>`:''; }
+function verDetalhesEntrega(id){
+  const e=entregas.find(x=>x.id===id); if(!e){ toast('Entrega não encontrada'); return; }
+  const ent=(ENT[e.entregador]||{}).nome||e.entregador||'';
+  const quando=e.entregueEm?new Date(e.entregueEm).toLocaleString('pt-BR'):'';
+  const ficou=[e.produtoEntregue, fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · ');
+  let html='';
+  html+=_detRow('📞','Contato',esc(e.contato||''));
+  html+=_detRow('🏘️','Bairro/Cidade',esc([e.bairro,e.cidade].filter(Boolean).join(' - ')));
+  html+=_detRow('📍','Endereço',esc(e.endereco||''));
+  if(e.link) html+=_detRow('🧭','Mapa',`<a href="${esc(e.link)}" target="_blank" style="color:var(--gold)">abrir no mapa</a>`);
+  html+=_detRow('🧾','Produto (pedido)',esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — ')));
+  html+=_detRow('👟','Ficou com',esc(ficou));
+  html+=_detRow('💳','Pagamento',e.pagamento?esc(pagamentoLabel(e)):'');
+  if(taxaDe(e)>0) html+=_detRow('🏷️','Taxa de entrega',_brl(taxaDe(e)));
+  html+=_detRow('📝','Observação',esc(e.pagamentoObs||e.observacao||''));
+  html+=_detRow('👤','Vendedora',esc(e.vendedora||''));
+  html+=_detRow('🛵','Entregador',esc(ent)+(quando?' · '+quando:''));
+  html+=`<div id="det-fotos" style="margin-top:12px"><div class="foto-load">carregando fotos…</div></div>`;
+  $('det-title').textContent=e.cliente||'Detalhes da entrega';
+  $('det-body').innerHTML=html;
+  $('det-modal').classList.add('open');
+  carregarFotosDet(id);
+}
+async function carregarFotosDet(id){
+  const box=$('det-fotos'); if(!box) return;
+  let comp=fotoLocalGet(id); if(!comp.length){ try{ comp=await fotoCloudGet(id); }catch(_){ comp=[]; } }
+  let prod=fotoProdLocalGetArr(id).map(it=>it.foto).filter(Boolean);
+  if(!prod.length){ try{ const a=await fotoProdCloudGet(id); prod=(a||[]).map(it=>it.foto).filter(Boolean); }catch(_){ prod=[]; } }
+  let loc=fotoLocLocalGet(id); if(!loc){ try{ loc=await fotoLocCloudGet(id); }catch(_){ loc=null; } }
+  if(!$('det-fotos')) return;   // modal foi fechado enquanto carregava
+  const block=(titulo,fotos)=> (fotos&&fotos.length)?`<div style="margin-top:10px"><div style="font-weight:600;margin-bottom:6px;color:var(--text-soft)">${titulo}</div>${[].concat(fotos).filter(Boolean).map(b=>`<img src="${b}" style="max-width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:8px">`).join('')}</div>`:'';
+  const out=block('📷 Comprovante de pagamento',comp)+block('👟 Fotos dos itens',prod)+block('📍 Foto da localização',loc?[loc]:[]);
+  box.innerHTML = out || '<div class="foto-load">Sem fotos anexadas nesta entrega.</div>';
+}
+function closeDet(){ const m=$('det-modal'); if(m) m.classList.remove('open'); }
 let fotoLocPendente=null;   // foto anexada no form, aguardando salvar
 async function onFotoLocFile(input){
   const f=input&&input.files&&input.files[0]; if(!f) return;
@@ -2467,7 +2512,7 @@ function renderProdItens(){
     g+=`<button type="button" class="num-btn num-btn-sn ${it.num==='S/N'?'on':''}" style="grid-column:1/-1" onclick="selProdNum(${i},'S/N')">S/ NUMERAÇÃO</button>`;
     const fotoArea = it.foto
       ? `<div class="prod-foto-thumb"><img src="${it.foto}" onclick="verProdImg(${i})"><button type="button" class="pay-foto-x" onclick="removerProdFoto(${i})">✕</button></div>`
-      : `<div class="pay-foto-btns"><button type="button" class="btn pay-cam-btn" onclick="prodFotoAlvo=${i};document.getElementById('prod-cam-input').click()">📷 Foto</button><button type="button" class="btn pay-cam-btn" onclick="prodFotoAlvo=${i};document.getElementById('prod-arq-input').click()">📎 Anexar</button></div>`;
+      : `<div class="pay-foto-btns"><button type="button" class="btn pay-cam-btn" onclick="prodFotoAlvo=${i};document.getElementById('prod-cam-input').click()">📷 Foto</button><button type="button" class="btn pay-cam-btn" onclick="prodFotoAlvo=${i};document.getElementById('prod-arq-input').click()">🖼️ Galeria</button></div>`;
     return `<div class="prod-item">
       <div class="prod-item-top2">
         <span class="prod-item-lbl">Produto ${i+1}</span>
@@ -3216,6 +3261,7 @@ function cardEntregue(e){
       ${e.temComprovante?`<button class="btn btn-ghost btn-mini" onclick="verComprovante('${e.id}')" title="Ver comprovante">📷 Comprovante</button>`:''}
     </div>
     <div class="card-actions norail">
+      <button class="btn btn-ghost btn-mini" onclick="verDetalhesEntrega('${e.id}')">📋 Ver detalhes</button>
       ${podeMexer(e)?`
       <button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>
       <button class="btn btn-ghost btn-mini" onclick="editar('${e.id}')">Editar dados</button>
@@ -4160,6 +4206,7 @@ function fcard(e){
         : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
     <div class="vcard-acts">
+      <button class="vbtn ghost" onclick="verDetalhesEntrega('${e.id}')">📋 Ver detalhes</button>
       ${waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>'}
       ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
     </div>
