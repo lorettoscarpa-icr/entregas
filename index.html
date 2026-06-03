@@ -5034,6 +5034,29 @@ if(_trackId){
   renderFilters(); renderEntPick(); animateNext(); render(); tick();
   initFirebase();   // conecta ao Firestore (sincroniza em tempo real); se indisponível, segue no localStorage
   restaurarSessao();   // manter conectado: se já logou neste aparelho, abre direto no painel
+
+  /* === AUTO-ENTRAR pelo login da Central (sessão Firebase compartilhada) === */
+  (function(){
+    try{
+      if(typeof firebase==='undefined' || !firebase.auth) return;
+      const slug = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+      const MAPA = {};
+      VENDEDORAS.forEach(v => MAPA[slug(v)+'lorettoscarpa@gmail.com'] = {role:'vendedora', vendedora:v, geral:false, entregador:null});
+      ['Edson','Yuri'].forEach(n => MAPA[slug(n)+'lorettoscarpa@gmail.com'] = {role:'vendedora', vendedora:n, geral:true, entregador:null});
+      MAPA['lorettoscarpa@gmail.com'] = {role:'gestor', vendedora:null, entregador:null};
+      firebase.auth().onAuthStateChanged(function(u){
+        try{
+          if(typeof _clienteMode!=='undefined' && _clienteMode) return; // modo rastreio do cliente
+          if(!u || !u.email) return;                 // entregador (anônimo) ou sem login → deixa escolher
+          const cfg = MAPA[(u.email||'').trim().toLowerCase()];
+          if(!cfg) return;                            // e-mail não mapeado → tela de escolha normal
+          if(session && session.role===cfg.role && session.vendedora===cfg.vendedora) return; // já é a pessoa certa
+          session = Object.assign({role:null, entregador:null, vendedora:null, geral:false}, cfg);
+          applyRole();                                // entra direto, sem "Quem está acessando?"
+        }catch(e){ console.warn('auto-entrar falhou', e); }
+      });
+    }catch(e){ console.warn('auto-entrar init falhou', e); }
+  })();
   setInterval(tick,1000);
 }
 setInterval(()=>{ render(); if(session.role==='entregador') renderEntregador(); }, 30000); // atualiza cronômetros
