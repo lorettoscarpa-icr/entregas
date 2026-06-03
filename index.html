@@ -454,6 +454,7 @@
   .ent-noloc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid rgba(224,106,82,.22)}
   .ent-noloc-row span{display:flex;flex-direction:column;gap:1px;font-size:13.5px;color:var(--text)}
   .ent-noloc-row small{color:var(--text-mute);font-size:11.5px}
+  body.cliente #app-ver{display:none}
   .ent-alert b{color:var(--warn)}
   .ent-order-note{font-size:12.5px;color:var(--text-mute);margin:0 2px 13px;display:flex;align-items:center;gap:7px;font-style:italic;font-family:var(--ff-display);font-size:15px}
   .ent-order-note.gps{color:#bcd4ff;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:11px;padding:9px 13px;font-style:normal}
@@ -1289,6 +1290,8 @@
     <div class="form-actions"><button class="btn btn-ghost" onclick="closeDet()">Fechar</button></div>
   </div>
 </div>
+
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v58</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -5034,7 +5037,6 @@ if(_trackId){
   renderFilters(); renderEntPick(); animateNext(); render(); tick();
   initFirebase();   // conecta ao Firestore (sincroniza em tempo real); se indisponível, segue no localStorage
   restaurarSessao();   // manter conectado: se já logou neste aparelho, abre direto no painel
-
   /* === AUTO-ENTRAR pelo login da Central (sessão Firebase compartilhada) === */
   (function(){
     try{
