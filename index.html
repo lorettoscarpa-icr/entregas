@@ -455,6 +455,8 @@
   .ent-noloc-row span{display:flex;flex-direction:column;gap:1px;font-size:13.5px;color:var(--text)}
   .ent-noloc-row small{color:var(--text-mute);font-size:11.5px}
   body.cliente #app-ver{display:none}
+  .det-inline{margin-top:10px;padding:11px 13px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;font-size:13px;line-height:1.5}
+  .det-inline-fotos{margin-top:8px}
   .ent-alert b{color:var(--warn)}
   .ent-order-note{font-size:12.5px;color:var(--text-mute);margin:0 2px 13px;display:flex;align-items:center;gap:7px;font-style:italic;font-family:var(--ff-display);font-size:15px}
   .ent-order-note.gps{color:#bcd4ff;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:11px;padding:9px 13px;font-style:normal}
@@ -1291,7 +1293,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v61</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v62</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -2426,14 +2428,13 @@ function mostrarImagens(titulo, fotos){
   const g=$('img-gallery'); if(g) g.innerHTML = arr.length ? arr.map(b=>`<img src="${b}" style="max-width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:10px">`).join('') : '<div class="foto-load">sem imagem</div>';
   $('img-modal').classList.add('open');
 }
-/* visão completa de uma entrega finalizada: todos os dados + todas as fotos num lugar só */
+/* visão completa de uma entrega finalizada — expande INLINE no próprio card (sem janela em tela cheia) */
 function _detRow(ico,label,val){ return val?`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)"><span style="width:22px;flex:none">${ico}</span><span><b>${label}:</b> ${val}</span></div>`:''; }
-function verDetalhesEntrega(id){
-  const e=entregas.find(x=>x.id===id); if(!e){ toast('Entrega não encontrada'); return; }
+function detalhesHTML(e){
   const ent=(ENT[e.entregador]||{}).nome||e.entregador||'';
   const quando=e.entregueEm?new Date(e.entregueEm).toLocaleString('pt-BR'):'';
   const ficou=[e.produtoEntregue, fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · ');
-  let html='';
+  let html='<div class="det-inline">';
   html+=_detRow('📞','Contato',esc(e.contato||''));
   html+=_detRow('🏘️','Bairro/Cidade',esc([e.bairro,e.cidade].filter(Boolean).join(' - ')));
   html+=_detRow('📍','Endereço',esc(e.endereco||''));
@@ -2445,22 +2446,26 @@ function verDetalhesEntrega(id){
   html+=_detRow('📝','Observação',esc(e.pagamentoObs||e.observacao||''));
   html+=_detRow('👤','Vendedora',esc(e.vendedora||''));
   html+=_detRow('🛵','Entregador',esc(ent)+(quando?' · '+quando:''));
-  html+=`<div id="det-fotos" style="margin-top:12px"><div class="foto-load">carregando fotos…</div></div>`;
-  $('det-title').textContent=e.cliente||'Detalhes da entrega';
-  $('det-body').innerHTML=html;
-  $('det-modal').classList.add('open');
-  carregarFotosDet(id);
+  html+=`<div class="det-inline-fotos" data-detfotos="${e.id}"><div class="foto-load">carregando fotos…</div></div>`;
+  html+='</div>';
+  return html;
+}
+function verDetalhesEntrega(id){
+  if(detAberto.has(id)) detAberto.delete(id); else detAberto.add(id);
+  render();                                   // atualiza painel + aba Finalizadas
+  if(session && session.role==='entregador') renderEntregador();
+  if(detAberto.has(id)) carregarFotosDet(id);
 }
 async function carregarFotosDet(id){
-  const box=$('det-fotos'); if(!box) return;
+  const sel='[data-detfotos="'+id+'"]';
+  if(!document.querySelector(sel)) return;
   let comp=fotoLocalGet(id); if(!comp.length){ try{ comp=await fotoCloudGet(id); }catch(_){ comp=[]; } }
   let prod=fotoProdLocalGetArr(id).map(it=>it.foto).filter(Boolean);
   if(!prod.length){ try{ const a=await fotoProdCloudGet(id); prod=(a||[]).map(it=>it.foto).filter(Boolean); }catch(_){ prod=[]; } }
   let loc=fotoLocLocalGet(id); if(!loc){ try{ loc=await fotoLocCloudGet(id); }catch(_){ loc=null; } }
-  if(!$('det-fotos')) return;   // modal foi fechado enquanto carregava
   const block=(titulo,fotos)=> (fotos&&fotos.length)?`<div style="margin-top:10px"><div style="font-weight:600;margin-bottom:6px;color:var(--text-soft)">${titulo}</div>${[].concat(fotos).filter(Boolean).map(b=>`<img src="${b}" style="max-width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:8px">`).join('')}</div>`:'';
   const out=block('📷 Comprovante de pagamento',comp)+block('👟 Fotos dos itens',prod)+block('📍 Foto da localização',loc?[loc]:[]);
-  box.innerHTML = out || '<div class="foto-load">Sem fotos anexadas nesta entrega.</div>';
+  document.querySelectorAll(sel).forEach(b=>{ b.innerHTML = out || '<div class="foto-load">Sem fotos anexadas nesta entrega.</div>'; });
 }
 function closeDet(){ const m=$('det-modal'); if(m) m.classList.remove('open'); }
 let fotoLocPendente=null;   // foto anexada no form, aguardando salvar
@@ -3110,6 +3115,7 @@ function confirmarEnvio(id, entId){
 /* seleção de VÁRIAS entregas aguardando (vendedora) p/ mandar de uma vez */
 let selVend = new Set();
 const vAberto = new Set();   // cards expandidos (padrão: minimizado)
+const detAberto = new Set(); // finalizadas com "Ver detalhes" expandido inline
 function toggleVcard(id){ if(vAberto.has(id)) vAberto.delete(id); else vAberto.add(id); render(); }
 function toggleSelVend(id){ if(selVend.has(id)) selVend.delete(id); else selVend.add(id); render(); }
 function limparSelVend(){ selVend.clear(); render(); }
@@ -3281,13 +3287,14 @@ function cardEntregue(e){
       ${e.temComprovante?`<button class="btn btn-ghost btn-mini" onclick="verComprovante('${e.id}')" title="Ver comprovante">📷 Comprovante</button>`:''}
     </div>
     <div class="card-actions norail">
-      <button class="btn btn-ghost btn-mini" onclick="verDetalhesEntrega('${e.id}')">📋 Ver detalhes</button>
+      <button class="btn btn-ghost btn-mini" onclick="verDetalhesEntrega('${e.id}')">${detAberto.has(e.id)?'📋 Ocultar detalhes':'📋 Ver detalhes'}</button>
       ${podeMexer(e)?`
       <button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>
       <button class="btn btn-ghost btn-mini" onclick="editar('${e.id}')">Editar dados</button>
       <button class="iconbtn" onclick="desfazerFinal('${e.id}')" title="Desfazer — volta para a rota">↩</button>
       `:`<span class="ro-note">👁 de ${esc(e.vendedora||'outra')} · somente leitura</span>`}
     </div>
+    ${detAberto.has(e.id)?detalhesHTML(e):''}
   </div>`;
 }
 
@@ -4226,7 +4233,6 @@ function fcard(e){
         : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
     <div class="vcard-acts">
-      <button class="vbtn ghost" onclick="verDetalhesEntrega('${e.id}')">📋 Ver detalhes</button>
       ${waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>'}
       ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
     </div>
@@ -4434,8 +4440,8 @@ function renderEntregador(){
       const desc = e.status==='entregue' ? pagamentoLabel(e) : (e.status==='cancelado'?'Não comprou':'Não entregue');
       return `<div class="ent-fin-row">
         <span class="ent-fin-cli">${ic} ${esc(e.cliente)}<small>${esc(desc)}</small></span>
-        <span class="ent-fin-acts"><button class="btn btn-ghost btn-mini" onclick="verDetalhesEntrega('${e.id}')">📋 Ver detalhes</button>${e.status==='entregue'?`<button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>`:''}<button class="btn btn-ghost btn-mini" onclick="desfazerFinal('${e.id}')">↩ Desfazer</button></span>
-      </div>`;
+        <span class="ent-fin-acts"><button class="btn btn-ghost btn-mini" onclick="verDetalhesEntrega('${e.id}')">${detAberto.has(e.id)?'📋 Ocultar':'📋 Ver detalhes'}</button>${e.status==='entregue'?`<button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>`:''}<button class="btn btn-ghost btn-mini" onclick="desfazerFinal('${e.id}')">↩ Desfazer</button></span>
+      </div>${detAberto.has(e.id)?detalhesHTML(e):''}`;
     }).join('')}
   </div>` : '';
   [...entSel].forEach(id=>{ if(!items.some(e=>e.id===id)) entSel.delete(id); });   // tira da seleção o que saiu da rota
