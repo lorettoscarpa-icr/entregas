@@ -457,6 +457,24 @@
   body.cliente #app-ver{display:none}
   .det-inline{margin-top:10px;padding:11px 13px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;font-size:13px;line-height:1.5}
   .det-inline-fotos{margin-top:8px}
+  .busca-wrap{margin:0 0 14px}
+  #busca-entrega{width:100%;padding:11px 14px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit}
+  #busca-entrega:focus{outline:none;border-color:var(--gold)}
+  #busca-res:empty{display:none}
+  #busca-res{margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:11px;overflow:hidden}
+  .busca-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .busca-item:last-child{border-bottom:0}
+  .busca-item:hover{background:var(--surface-2)}
+  .busca-item b{font-size:13.5px}
+  .busca-item small{color:var(--text-mute);font-size:11.5px;display:block;margin-top:2px}
+  .busca-tag{font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap;flex:none}
+  .reag-box{background:rgba(142,156,214,.12);border:1px solid rgba(142,156,214,.4);border-radius:13px;padding:11px 14px;margin-bottom:15px}
+  .reag-h{color:#aab4e8;font-weight:600;font-size:13.5px;margin-bottom:7px}
+  .reag-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(142,156,214,.22);cursor:pointer}
+  .reag-row b{font-size:13.5px}
+  .reag-row small{color:var(--text-mute);font-size:11.5px;display:block;margin-top:2px}
+  .reag-ver{color:#aab4e8;font-size:12px;flex:none}
+  .badge-reag{display:inline-block;background:rgba(142,156,214,.16);color:#aab4e8;border:1px solid rgba(142,156,214,.4);font-size:11px;padding:2px 8px;border-radius:20px;margin-left:6px}
   .ent-alert b{color:var(--warn)}
   .ent-order-note{font-size:12.5px;color:var(--text-mute);margin:0 2px 13px;display:flex;align-items:center;gap:7px;font-style:italic;font-family:var(--ff-display);font-size:15px}
   .ent-order-note.gps{color:#bcd4ff;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:11px;padding:9px 13px;font-style:normal}
@@ -981,6 +999,13 @@
     <button class="daynav-hoje" id="btn-hoje" onclick="irHoje()">Hoje</button>
   </div>
 
+  <div class="busca-wrap">
+    <input id="busca-entrega" placeholder="🔎 Buscar entrega por nome ou telefone (qualquer data)" oninput="buscarEntrega(this.value)" autocomplete="off">
+    <div id="busca-res"></div>
+  </div>
+
+  <div id="reag-alerta"></div>
+
   <div class="kpis">
     <div class="kpi k-warn"><span class="kpi-ico">⏳</span><div class="lbl">Aguardando rota</div><div class="val" id="k-aguard">0</div></div>
     <div class="kpi k-terra" id="k-old-box"><span class="kpi-ico">⌛</span><div class="lbl">Espera mais antiga</div><div class="val" id="k-old">—</div></div>
@@ -1293,7 +1318,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v62</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v64</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1887,6 +1912,49 @@ function mudarDia(delta){
   setDia(dateKey(dt));
 }
 function irHoje(){ setDia(todayKey()); }
+/* busca uma entrega por nome ou telefone em QUALQUER data (acha as reagendadas/perdidas) */
+function _statusBusca(e){
+  const m={aguardando:['Aguardando','rgba(224,179,65,.18)','#e0b341'],em_rota:['Em rota','rgba(127,174,107,.2)','#7fae6b'],entregue:['Entregue','rgba(127,174,107,.24)','#9fce86'],nao_entregue:['Não entregue','rgba(224,106,82,.18)','#e06a52'],cancelado:['Cancelado','rgba(138,145,122,.22)','rgba(248,243,230,.7)']};
+  return m[e.status]||[e.status||'—','rgba(255,255,255,.08)','rgba(248,243,230,.7)'];
+}
+function buscarEntrega(termo){
+  const box=$('busca-res'); if(!box) return;
+  const q=norm((termo||'').trim()); const qd=q.replace(/\D/g,'');
+  if(q.length<2){ box.innerHTML=''; return; }
+  const hits=entregas.filter(e=>{
+    const nome=norm(e.cliente||''); const tel=(e.contato||'').replace(/\D/g,'');
+    return nome.includes(q) || (qd.length>=4 && tel.includes(qd));
+  }).sort((a,b)=>String(dataDe(b)||'').localeCompare(String(dataDe(a)||'')));
+  if(!hits.length){ box.innerHTML='<div class="busca-item"><span><b>Nada encontrado</b><small>tente outro nome ou parte do telefone</small></span></div>'; return; }
+  box.innerHTML=hits.slice(0,15).map(e=>{
+    const [lbl,bg,cor]=_statusBusca(e); const dia=dataDe(e);
+    const ent=e.entregador?(' · '+esc((ENT[e.entregador]||{}).nome||e.entregador)):'';
+    return `<div class="busca-item" onclick="irParaEntrega('${dia}')">
+      <span><b>${esc(e.cliente||'(sem nome)')}</b><small>${esc(rotuloDia(dia))} · ${esc(e.vendedora||'sem vendedora')}${ent}</small></span>
+      <span class="busca-tag" style="background:${bg};color:${cor}">${lbl}</span>
+    </div>`;
+  }).join('');
+}
+function irParaEntrega(dia){
+  const inp=$('busca-entrega'); if(inp) inp.value='';
+  const box=$('busca-res'); if(box) box.innerHTML='';
+  if(dia) setDia(dia);
+}
+/* aviso no topo: entregas reagendadas nas últimas 48h (pega reagendamento acidental) */
+function renderReagAlerta(){
+  const box=$('reag-alerta'); if(!box) return;
+  const lim=Date.now()-48*3600*1000;
+  const recs=entregas.filter(e=>e.reagendadaEm && e.reagendadaEm>lim && e.status!=='entregue' && e.status!=='cancelado')
+                     .sort((a,b)=>b.reagendadaEm-a.reagendadaEm);
+  if(!recs.length){ box.innerHTML=''; return; }
+  box.innerHTML=`<div class="reag-box">
+    <div class="reag-h">📅 ${recs.length} ${recs.length===1?'entrega reagendada':'entregas reagendadas'} nas últimas 48h</div>
+    ${recs.slice(0,8).map(e=>`<div class="reag-row" onclick="irParaEntrega('${dataDe(e)}')">
+      <span><b>${esc(e.cliente||'(sem nome)')}</b><small>${e.reagendadaDe?('era '+esc(rotuloDia(e.reagendadaDe))+' → '):''}${esc(rotuloDia(dataDe(e)))}${e.reagendadaPor?' · por '+esc(e.reagendadaPor):''}</small></span>
+      <span class="reag-ver">ver ›</span>
+    </div>`).join('')}
+  </div>`;
+}
 
 /* ============ helpers ============ */
 const $ = id => document.getElementById(id);
@@ -2656,6 +2724,10 @@ function closeReag(){ $('reag-modal').classList.remove('open'); reagId=null; }
 function confirmarReag(){
   const e=entregas.find(x=>x.id===reagId); if(!e){ closeReag(); return; }
   const nova=$('reag-data').value; if(!nova||nova<todayKey()){ toast('Escolha uma data de hoje em diante'); return; }
+  const antiga = e.dataEntrega || dataDe(e);
+  if(antiga && antiga!==nova) e.reagendadaDe = antiga;          // guarda de qual dia veio
+  e.reagendadaEm = Date.now();
+  e.reagendadaPor = session ? (session.vendedora || (session.role==='entregador' ? ((ENT[session.entregador]||{}).nome||'entregador') : session.role)) : '';
   e.dataEntrega=nova; e.status='aguardando'; e.entregador=null; e.roteadoEm=null;
   e.motivo=''; e.desfechoEm=null;
   persist(); closeReag(); diaAtivo=nova; animateNext(); render();
@@ -3223,7 +3295,7 @@ function cardRota(e){
         <span class="badge-ent" style="background:${ent.cor}22;color:${ent.cor}">
           <span class="dot" style="width:7px;height:7px;border-radius:50%;background:${ent.cor}"></span>${ent.nome}</span>
         <div class="card-top" style="margin-bottom:6px">
-          <div class="name">${esc(e.cliente)}</div>
+          <div class="name">${esc(e.cliente)}${e.reagendadaEm?`<span class="badge-reag" title="${e.reagendadaDe?'Era '+esc(rotuloDia(e.reagendadaDe)):''}${e.reagendadaPor?' · por '+esc(e.reagendadaPor):''}">📅 Reagendada</span>`:''}</div>
           <span class="timer ${urgClass(min)}">${fmtDur(min)}</span>
         </div>
         ${hrBadge(e)?`<div class="card-hr">${hrBadge(e)}</div>`:''}
@@ -3300,6 +3372,7 @@ function cardEntregue(e){
 
 function render(){
   const today = todayKey();
+  renderReagAlerta();
   const _dt=$('destaques-topo'); if(_dt && _dt.style.display!=='none') _dt.innerHTML=destaquesHTML(true);
   const matchFiltro = e => filtro==='todos' || e.entregador===filtro;
   const matchVend = e => filtroVend==='todas' || e.vendedora===filtroVend;
