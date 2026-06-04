@@ -219,6 +219,7 @@
 
   /* ---- copy modal ---- */
   .modal-bg{position:fixed;inset:0;background:rgba(15,18,10,.7);backdrop-filter:blur(4px);z-index:70;display:none;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  #falta-modal{z-index:95}
   .modal-bg.open{display:flex}
   .falar-modal{background:var(--surface);border:1px solid var(--line-strong);border-radius:18px;padding:22px;width:min(380px,92vw);box-shadow:var(--elev-2);text-align:center;margin:auto}
   .falar-titulo{font-family:var(--ff-display);font-size:21px;color:var(--text);margin-bottom:3px}
@@ -1336,7 +1337,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v79</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v81</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1425,7 +1426,7 @@
       <div class="prod-modo" id="prod-modo"></div>
       <div id="prod-auto"></div>
       <div id="prod-manual">
-        <div class="prod-hint">Em cada produto: uma descrição <b>ou</b> a numeração (a foto é opcional). Adicione quantos o cliente ficou.</div>
+        <div class="prod-hint">Em cada produto: a <b>numeração</b> + uma <b>descrição</b> ou uma <b>foto</b>. Adicione quantos o cliente ficou.</div>
         <input type="file" id="prod-cam-input" accept="image/*" capture="environment" onchange="carregarProdFoto(this)" style="display:none">
         <input type="file" id="prod-arq-input" accept="image/*" onchange="carregarProdFoto(this)" style="display:none">
         <div id="prod-itens"></div>
@@ -3073,7 +3074,8 @@ function confirmarPagamento(){
   if(prodModo==='manual'){
     if(!prodItens.length) faltando.push('Produto que o cliente ficou');
     else prodItens.forEach((it,i)=>{
-      if(!(it.legenda||'').trim() && !it.num) faltando.push(`Produto ${i+1}: descrição ou numeração`);
+      if(!it.num) faltando.push(`Produto ${i+1}: numeração`);
+      if(!it.foto && !(it.legenda||'').trim()) faltando.push(`Produto ${i+1}: descrição ou foto`);
     });
   }
   // "Produto único" / "Presente" NÃO travam mais sem produto cadastrado:
