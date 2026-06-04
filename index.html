@@ -475,6 +475,11 @@
   .reag-row small{color:var(--text-mute);font-size:11.5px;display:block;margin-top:2px}
   .reag-ver{color:#aab4e8;font-size:12px;flex:none}
   .badge-reag{display:inline-block;background:rgba(142,156,214,.16);color:#aab4e8;border:1px solid rgba(142,156,214,.4);font-size:11px;padding:2px 8px;border-radius:20px;margin-left:6px}
+  .link-box{background:rgba(212,180,90,.12);border:1px solid rgba(212,180,90,.4);border-radius:13px;padding:11px 14px;margin-bottom:15px}
+  .link-h{color:var(--gold);font-weight:600;font-size:13.5px;margin-bottom:7px}
+  .link-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(212,180,90,.22)}
+  .link-row b{font-size:13.5px}
+  .link-row small{color:var(--text-mute);font-size:11.5px;display:block;margin-top:2px}
   .ent-alert b{color:var(--warn)}
   .ent-order-note{font-size:12.5px;color:var(--text-mute);margin:0 2px 13px;display:flex;align-items:center;gap:7px;font-style:italic;font-family:var(--ff-display);font-size:15px}
   .ent-order-note.gps{color:#bcd4ff;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:11px;padding:9px 13px;font-style:normal}
@@ -1005,6 +1010,7 @@
   </div>
 
   <div id="reag-alerta"></div>
+  <div id="link-alerta"></div>
 
   <div class="kpis">
     <div class="kpi k-warn"><span class="kpi-ico">⏳</span><div class="lbl">Aguardando rota</div><div class="val" id="k-aguard">0</div></div>
@@ -1208,6 +1214,10 @@
       <button class="daynav-btn" onclick="mudarDiaEnt(1)" aria-label="Próximo dia">›</button>
       <button class="daynav-hoje" id="btn-ent-hoje" onclick="irHojeEnt()">Hoje</button>
     </div>
+    <div class="busca-wrap">
+      <input id="busca-ent" placeholder="🔎 Buscar nas minhas entregas (qualquer data)" oninput="buscarEntregaEnt(this.value)" autocomplete="off">
+      <div id="busca-res-ent"></div>
+    </div>
     <div id="ent-alertas"></div>
     <div class="ent-tabs">
       <button class="ent-tab" id="ent-tab-aguard" onclick="setEntTab('aguard')">📥 Aguardando rota<span class="ent-tab-c" id="c-tab-aguard"></span></button>
@@ -1318,7 +1328,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v64</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v69</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1360,6 +1370,15 @@
 </div>
 
 <!-- payment / finalize modal -->
+<div class="modal-bg" id="falta-modal" onclick="closeFalta()">
+  <div class="modal" style="max-width:430px" onclick="event.stopPropagation()">
+    <h3 style="margin-bottom:8px">⚠️ Falta preencher</h3>
+    <p style="color:var(--text-soft);font-size:13.5px;margin-bottom:10px">Para finalizar a entrega, complete:</p>
+    <ul id="falta-list" style="margin:0 0 16px 20px;font-size:14px;line-height:1.8"></ul>
+    <div class="form-actions"><button class="btn btn-primary" onclick="closeFalta()">Entendi</button></div>
+  </div>
+</div>
+
 <div class="modal-bg" id="pay-modal">
   <div class="modal">
     <h3>Finalizar entrega</h3>
@@ -1497,11 +1516,13 @@ const FOTOS = {
 const PAGAMENTOS = [
   {id:'pix',      label:'Pix',             ico:'💠'},
   {id:'cartao',   label:'Cartão',          ico:'💳'},
+  {id:'link',     label:'Link de pagamento', ico:'🔗'},
   {id:'dinheiro', label:'Dinheiro',        ico:'💵'},
   {id:'japago',   label:'Já estava pago',  ico:'✅'},
   {id:'parceria', label:'Parceria',        ico:'🤝'},
 ];
 const PAG_SEM_COBRANCA = ['japago','parceria'];   // não cobram → sem foto e sem valor
+const PAG_SEM_FOTO = ['japago','parceria','link']; // não exigem comprovante do entregador (no link, a vendedora confere o pagamento)
 const PAG = Object.fromEntries(PAGAMENTOS.map(p=>[p.id,p]));
 // Taxa de entrega (R$ 19,90). Cobrada: troca SEM defeito · Trindade/Senador Canedo/Goianira
 // (quando o cliente NÃO fica com 2 pares). Sem taxa: 2+ pares nessas cidades OU troca por defeito.
@@ -1912,16 +1933,25 @@ function mudarDia(delta){
   setDia(dateKey(dt));
 }
 function irHoje(){ setDia(todayKey()); }
-/* busca uma entrega por nome ou telefone em QUALQUER data (acha as reagendadas/perdidas) */
+/* busca por nome/telefone em QUALQUER data, ESCOPADA por perfil:
+   vendedora vê só as dela, entregador vê só as dele, gestor/geral vê todas */
+function _podeVerBusca(e){
+  if(!session) return false;
+  if(session.role==='gestor') return true;
+  if(session.role==='entregador') return e.entregador===session.entregador;
+  if(session.role==='vendedora') return !!session.geral || canonVend(e.vendedora||'')===session.vendedora;
+  return false;
+}
 function _statusBusca(e){
   const m={aguardando:['Aguardando','rgba(224,179,65,.18)','#e0b341'],em_rota:['Em rota','rgba(127,174,107,.2)','#7fae6b'],entregue:['Entregue','rgba(127,174,107,.24)','#9fce86'],nao_entregue:['Não entregue','rgba(224,106,82,.18)','#e06a52'],cancelado:['Cancelado','rgba(138,145,122,.22)','rgba(248,243,230,.7)']};
   return m[e.status]||[e.status||'—','rgba(255,255,255,.08)','rgba(248,243,230,.7)'];
 }
-function buscarEntrega(termo){
-  const box=$('busca-res'); if(!box) return;
+function _buscarRender(termo, resId){
+  const box=$(resId); if(!box) return;
   const q=norm((termo||'').trim()); const qd=q.replace(/\D/g,'');
   if(q.length<2){ box.innerHTML=''; return; }
   const hits=entregas.filter(e=>{
+    if(!_podeVerBusca(e)) return false;
     const nome=norm(e.cliente||''); const tel=(e.contato||'').replace(/\D/g,'');
     return nome.includes(q) || (qd.length>=4 && tel.includes(qd));
   }).sort((a,b)=>String(dataDe(b)||'').localeCompare(String(dataDe(a)||'')));
@@ -1929,18 +1959,46 @@ function buscarEntrega(termo){
   box.innerHTML=hits.slice(0,15).map(e=>{
     const [lbl,bg,cor]=_statusBusca(e); const dia=dataDe(e);
     const ent=e.entregador?(' · '+esc((ENT[e.entregador]||{}).nome||e.entregador)):'';
+    const vend=session.role==='entregador' ? '' : (' · '+esc(e.vendedora||'sem vendedora'));
     return `<div class="busca-item" onclick="irParaEntrega('${dia}')">
-      <span><b>${esc(e.cliente||'(sem nome)')}</b><small>${esc(rotuloDia(dia))} · ${esc(e.vendedora||'sem vendedora')}${ent}</small></span>
+      <span><b>${esc(e.cliente||'(sem nome)')}</b><small>${esc(rotuloDia(dia))}${vend}${ent}</small></span>
       <span class="busca-tag" style="background:${bg};color:${cor}">${lbl}</span>
     </div>`;
   }).join('');
 }
+function buscarEntrega(termo){ _buscarRender(termo, 'busca-res'); }       // painel (gestor/vendedora)
+function buscarEntregaEnt(termo){ _buscarRender(termo, 'busca-res-ent'); } // tela do entregador
 function irParaEntrega(dia){
-  const inp=$('busca-entrega'); if(inp) inp.value='';
-  const box=$('busca-res'); if(box) box.innerHTML='';
-  if(dia) setDia(dia);
+  ['busca-entrega','busca-ent'].forEach(id=>{ const i=$(id); if(i) i.value=''; });
+  ['busca-res','busca-res-ent'].forEach(id=>{ const b=$(id); if(b) b.innerHTML=''; });
+  if(!dia) return;
+  if(session && session.role==='entregador') setDiaEnt(dia); else setDia(dia);
 }
-/* aviso no topo: entregas reagendadas nas últimas 48h (pega reagendamento acidental) */
+/* aviso pra vendedora conferir pagamentos feitos via link */
+function renderLinkAlerta(){
+  const box=$('link-alerta'); if(!box) return;
+  if(session && session.role==='entregador'){ box.innerHTML=''; return; }
+  const pend=entregas.filter(e=> e.status==='entregue' && !e.linkConferido && (e.pagamento==='link'||e.pagamento2==='link') && _podeVerBusca(e))
+                     .sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+  if(!pend.length){ box.innerHTML=''; return; }
+  box.innerHTML=`<div class="link-box">
+    <div class="link-h">🔗 ${pend.length} ${pend.length===1?'pagamento via link para conferir':'pagamentos via link para conferir'}</div>
+    ${pend.slice(0,12).map(e=>{
+      const v=(e.pagamentoValores&&e.pagamentoValores.link)?_brl(e.pagamentoValores.link):(e.valor?('R$ '+e.valor):'');
+      return `<div class="link-row">
+        <span onclick="irParaEntrega('${dataDe(e)}')" style="cursor:pointer"><b>${esc(e.cliente||'(sem nome)')}</b><small>${esc(rotuloDia(dataDe(e)))}${v?' · '+v:''} · confira se o pagamento caiu</small></span>
+        <button class="btn btn-ghost btn-mini" onclick="confirmarLink('${e.id}')">✓ confirmar</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function confirmarLink(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  e.linkConferido=true; e.linkConferidoEm=Date.now();
+  e.linkConferidoPor = session ? (session.vendedora||session.role) : '';
+  persist(); render();
+  toast('Pagamento via link confirmado ✓');
+}
 function renderReagAlerta(){
   const box=$('reag-alerta'); if(!box) return;
   const lim=Date.now()-48*3600*1000;
@@ -2881,11 +2939,16 @@ function setPayVal(m,v){
   renderTotal();
 }
 function atualizarFotoReq(){
-  const semCob = paySel.length>0 && paySel.every(m=>PAG_SEM_COBRANCA.includes(m));
-  const parc = semCob && paySel.includes('parceria');
+  const semFoto = paySel.length>0 && paySel.every(m=>PAG_SEM_FOTO.includes(m));
+  const temLink = paySel.includes('link');
   const lbl=$('pay-foto-lbl'), cb=$('pay-cam-btn');
-  if(lbl) lbl.textContent = semCob ? (parc?'Foto (opcional — entrega de parceria)':'Foto (opcional — já estava pago)') : 'Foto do pagamento — obrigatória (PIX, dinheiro ou cartão)';
-  if(cb) cb.style.display = semCob && !payFotos.length ? 'none' : '';
+  if(lbl){
+    if(!semFoto) lbl.textContent='Foto do pagamento — obrigatória (PIX, dinheiro ou cartão)';
+    else if(temLink) lbl.textContent='Foto não necessária — pagamento via link (a vendedora confere)';
+    else if(paySel.includes('parceria')) lbl.textContent='Foto (opcional — entrega de parceria)';
+    else lbl.textContent='Foto (opcional — já estava pago)';
+  }
+  if(cb) cb.style.display = semFoto && !payFotos.length ? 'none' : '';
 }
 function comprimirImagem(file, maxW, quality){
   return new Promise((res,rej)=>{
@@ -2941,23 +3004,31 @@ function renderPayFotos(){
 }
 function removerPayFoto(i){ payFotos.splice(i,1); renderPayFotos(); }
 function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; prodModo='manual'; prodCadastro=''; }
+function mostrarFaltando(itens){
+  $('falta-list').innerHTML = itens.map(t=>`<li>${esc(t)}</li>`).join('');
+  $('falta-modal').classList.add('open');
+}
+function closeFalta(){ const m=$('falta-modal'); if(m) m.classList.remove('open'); }
 function confirmarPagamento(){
-  if(!paySel.length){ toast('Selecione a forma de pagamento'); return; }
-  if(paySel.includes('cartao') && !payCartaoTipo){ toast('💳 No cartão, marque crédito ou débito'); return; }
-  // produto que o cliente ficou — só valida no modo "Conferir / vários"
-  if(prodModo==='manual'){
-    if(!prodItens.length){ toast('👟 Adicione o produto que o cliente ficou'); return; }
-    for(const it of prodItens){
-      if(!it.foto && !(it.legenda||'').trim()){ toast('👟 Em cada produto, coloque a foto ou a legenda'); return; }
-      if(!it.num){ toast('👟 Escolha a numeração de cada produto'); return; }
-    }
-  } else if(prodModo==='unico' && !(prodCadastro||'').trim()){
-    toast('👟 Sem produto no cadastro — use "Conferir / vários"'); return;
-  }
   const e=entregas.find(x=>x.id===payId); if(!e){ closePay(); return; }
-  const corrigindo = e.status==='entregue';
+  // junta TUDO que falta e mostra de uma vez no pop-up
+  const faltando=[];
+  if(!paySel.length) faltando.push('Forma de pagamento');
+  if(paySel.includes('cartao') && !payCartaoTipo) faltando.push('No cartão: marcar crédito ou débito');
+  if(prodModo==='manual'){
+    if(!prodItens.length) faltando.push('Produto que o cliente ficou');
+    else prodItens.forEach((it,i)=>{
+      if(!it.foto && !(it.legenda||'').trim()) faltando.push(`Produto ${i+1}: foto ou legenda`);
+      if(!it.num) faltando.push(`Produto ${i+1}: numeração`);
+    });
+  } else if(prodModo==='unico' && !(prodCadastro||'').trim()){
+    faltando.push('Produto — use "Conferir / vários"');
+  }
   const semCob = paySel.length>0 && paySel.every(m=>PAG_SEM_COBRANCA.includes(m));
-  if(!semCob && !payFotos.length && !e.temComprovante){ toast('📷 Tire a foto do pagamento antes de finalizar'); return; }
+  const semFoto = paySel.length>0 && paySel.every(m=>PAG_SEM_FOTO.includes(m));
+  if(!semFoto && !payFotos.length && !e.temComprovante) faltando.push('Foto do pagamento (comprovante)');
+  if(faltando.length){ mostrarFaltando(faltando); return; }
+  const corrigindo = e.status==='entregue';
   e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now();
   e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
   e.cartaoTipo = paySel.includes('cartao') ? payCartaoTipo : null;
@@ -2984,7 +3055,7 @@ function confirmarPagamento(){
   }
   delete e.comprovante;                         // a foto NUNCA fica dentro do array (pesa demais)
   if(payFotos.length){ const ok=salvarComprovante(e.id, payFotos); e.temComprovante=true; if(!ok && !(FIREBASE_ON&&fdb)) toast('Sem espaço local p/ a(s) foto(s) — entrega salva mesmo assim'); }
-  if(semCob){ removerComprovante(e.id); e.temComprovante=false; }   // parceria/já pago: sem comprovante
+  if(semFoto && !payFotos.length){ removerComprovante(e.id); e.temComprovante=false; }   // parceria/já pago/link: sem comprovante do entregador
   persist();
   closePay(); render();
   if(session.role==='entregador') renderEntregador();
@@ -3373,6 +3444,7 @@ function cardEntregue(e){
 function render(){
   const today = todayKey();
   renderReagAlerta();
+  renderLinkAlerta();
   const _dt=$('destaques-topo'); if(_dt && _dt.style.display!=='none') _dt.innerHTML=destaquesHTML(true);
   const matchFiltro = e => filtro==='todos' || e.entregador===filtro;
   const matchVend = e => filtroVend==='todas' || e.vendedora===filtroVend;
@@ -4190,7 +4262,7 @@ function vcard(e, eta){
   const wa = waNumero(e.contato) ? `https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgVend(e,eta))}` : '';
   const temHora = e.horarioTipo && e.horarioHora;
   const _selv = e.status==='aguardando' && selVend.has(e.id);
-  const _podeSel = podeMexer(e) && e.status==='aguardando';
+  const _podeSel = !!session.geral && podeMexer(e) && e.status==='aguardando';   // só operação despacha; vendedora comum deixa na fila p/ o entregador pegar
   const aberto = vAberto.has(e.id);
   const _min = minutesSince(e.criadoEm);
   const timerTag = (e.status==='aguardando'||e.status==='em_rota') ? `<span class="vtimer ${urgClass(_min)}" title="Tempo desde que a entrega foi lançada">⏱ há ${fmtDur(_min)}</span>` : '';
@@ -4213,14 +4285,14 @@ function vcard(e, eta){
         ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
       </div>
       <div class="vcard-acts">
-        ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
+        ${(!!session.geral && podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
         ${['entregue','nao_entregue','cancelado'].includes(e.status)
           ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
           : (wa?`<a class="vbtn wa" href="${wa}" target="_blank">${WA_ICON} Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
         ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
-        ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
+        ${(!!session.geral && podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
         ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="voltarAguardando('${e.id}')">↩ Voltar p/ aguardando</button>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='nao_entregue'||e.status==='cancelado'))?`<button class="vbtn ghost" onclick="abrirReag('${e.id}')">📅 Reagendar</button>`:''}
         ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn ghost danger" onclick="excluir('${e.id}')">🗑 Excluir</button>`:''}
@@ -4496,7 +4568,10 @@ function renderEntregador(){
     <div class="ent-noloc-h">⚠️ ${semLoc.length} ${semLoc.length===1?'entrega não aparece no mapa':'entregas não aparecem no mapa'} — sem localização</div>
     ${semLoc.map(e=>`<div class="ent-noloc-row">
       <span><b>${esc(e.cliente)}</b><small>${(e.endereco||e.bairro)?esc([e.endereco,e.bairro,e.cidade].filter(Boolean).join(' · ')):'sem endereço — confirme com a vendedora'}</small></span>
-      ${(e.endereco||e.bairro)?`<button class="btn btn-ghost btn-mini" onclick="localizarEntregaEnt('${e.id}')">📍 localizar</button>`:''}
+      <span style="display:flex;gap:6px;flex:none">
+        ${(e.endereco||e.bairro)?`<button class="btn btn-ghost btn-mini" onclick="localizarEntregaEnt('${e.id}')">📍 localizar</button>`:''}
+        ${waNumero(e.contato)?`<button class="btn btn-ghost btn-mini" onclick="pedirLocalizacao('${e.id}')">💬 pedir ao cliente</button>`:''}
+      </span>
     </div>`).join('')}
   </div>` : '';
   const ordemNota = items.length ? (manual
@@ -4654,7 +4729,15 @@ function ensureMapEnt(){
   layerEnt=L.layerGroup().addTo(mapEnt); mapEntInited=true;
   setTimeout(()=>mapEnt.invalidateSize(),60);
 }
-/* entrega sem coordenada: tenta achar pelo endereço (ou ao menos pelo setor) e colocar no mapa */
+/* pede a localização ao cliente pelo WhatsApp (quando a entrega está sem mapa) */
+function pedirLocalizacao(id){
+  const e=entregas.find(x=>x.id===id); if(!e){ toast('Entrega não encontrada'); return; }
+  const num=waNumero(e.contato);
+  if(!num){ toast('Sem telefone do cliente pra pedir a localização'); return; }
+  const nome=e.cliente?e.cliente.trim().split(' ')[0]:'';
+  const msg=`Olá${nome?', '+nome:''}! Aqui é da Loretto Scarpa 👞\nEstamos a caminho com a sua entrega. Para chegarmos certinho, você pode nos enviar a sua localização?\n\nÉ rápido: toque no clipe 📎 aqui no WhatsApp → Localização → "Enviar sua localização atual". Muito obrigado!`;
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,'_blank');
+}
 async function localizarEntregaEnt(id){
   const e=entregas.find(x=>x.id===id); if(!e) return;
   if(!(e.endereco||e.bairro)){ toast('Sem endereço pra localizar — confirme com a vendedora'); return; }
