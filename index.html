@@ -1337,7 +1337,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v81</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v84</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1426,7 +1426,7 @@
       <div class="prod-modo" id="prod-modo"></div>
       <div id="prod-auto"></div>
       <div id="prod-manual">
-        <div class="prod-hint">Em cada produto: a <b>numeração</b> + uma <b>descrição</b> ou uma <b>foto</b>. Adicione quantos o cliente ficou.</div>
+        <div class="prod-hint">Em cada produto: <b>foto + numeração</b> ou <b>legenda + numeração</b>. Adicione quantos o cliente ficou.</div>
         <input type="file" id="prod-cam-input" accept="image/*" capture="environment" onchange="carregarProdFoto(this)" style="display:none">
         <input type="file" id="prod-arq-input" accept="image/*" onchange="carregarProdFoto(this)" style="display:none">
         <div id="prod-itens"></div>
@@ -2667,7 +2667,7 @@ function setProdModo(m){ prodModo=m; renderProdModo(); }
 function renderProdModo(){
   const m=$('prod-modo'); if(!m) return;
   const opt=(id,ic,lbl)=>`<button type="button" class="prod-modo-btn ${prodModo===id?'on':''}" onclick="setProdModo('${id}')">${ic}<span>${lbl}</span></button>`;
-  m.innerHTML = opt('unico','👟','Produto único') + opt('presente','🎁','Presente') + opt('manual','✍️','Detalhar produto');
+  m.innerHTML = opt('manual','✍️','Detalhar pedido') + opt('unico','📦','Pedido completo') + opt('presente','🎁','Presente');
   const man=$('prod-manual'), auto=$('prod-auto');
   if(man) man.style.display = (prodModo==='manual') ? '' : 'none';
   if(!auto) return;
@@ -2677,8 +2677,8 @@ function renderProdModo(){
     auto.innerHTML = `<div class="prod-auto-card gift"><div class="prod-auto-h">🎁 Presente — não precisa conferir</div><div class="prod-auto-sub">A vendedora vai ver o produto que ela cadastrou${prod?`: <b>${esc(prod)}</b>`:' (ela sabe o que enviou)'}.</div></div>`;
   } else { // unico
     auto.innerHTML = prod
-      ? `<div class="prod-auto-card"><div class="prod-auto-h">👟 Igual ao cadastro</div><div class="prod-auto-sub">O cliente ficou com: <b>${esc(prod)}</b></div></div>`
-      : `<div class="prod-auto-card"><div class="prod-auto-h">👟 Sem produto no cadastro</div><div class="prod-auto-sub">Tudo bem — pode finalizar assim mesmo. Se quiser informar o que o cliente ficou, use "Detalhar produto".</div></div>`;
+      ? `<div class="prod-auto-card"><div class="prod-auto-h">📦 Pedido completo</div><div class="prod-auto-sub">O cliente ficou com tudo que foi enviado pela vendedora: <b>${esc(prod)}</b></div></div>`
+      : `<div class="prod-auto-card"><div class="prod-auto-h">📦 Pedido completo</div><div class="prod-auto-sub">O cliente ficou com tudo que foi enviado pela vendedora.</div></div>`;
   }
 }
 function renderProdItens(){
