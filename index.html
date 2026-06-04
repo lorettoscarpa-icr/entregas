@@ -457,6 +457,9 @@
   body.cliente #app-ver{display:none}
   .det-inline{margin-top:10px;padding:11px 13px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;font-size:13px;line-height:1.5}
   .det-inline-fotos{margin-top:8px}
+  .det-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+  .det-thumb{width:84px;height:84px;object-fit:cover;border-radius:11px;border:1px solid var(--line-strong);cursor:pointer;transition:transform .15s}
+  .det-thumb:hover{transform:scale(1.04)}
   .busca-wrap{margin:0 0 14px}
   #busca-entrega{width:100%;padding:11px 14px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit}
   #busca-entrega:focus{outline:none;border-color:var(--gold)}
@@ -1328,7 +1331,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v69</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v71</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1492,7 +1495,7 @@ const ENT = Object.fromEntries(ENTREGADORES.map(e=>[e.id,e]));
 const WA_ICON = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.55-3.7 8.24-8.25 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>';
 const VENDEDORAS = ['Jhennifer','Ialey','Michelly','Natália']; // equipe de vendas
 // WhatsApp das vendedoras (só dígitos: 55 + DDD + número)
-const TEL_VEND = { Jhennifer:'5562981688990', Ialey:'5562981728039', 'Natália':'5562982001112', Michelly:'5562981940350' };
+const TEL_VEND = { Jhennifer:'5562981688990', Ialey:'5562981728039', 'Natália':'5562982001112', Michelly:'5562981940350', Edson:'5562999266976' };
 // resolve o telefone a partir do nome registrado na venda (tolera grafias)
 function telVend(nome){
   if(!nome) return '';
@@ -2589,7 +2592,7 @@ async function carregarFotosDet(id){
   let prod=fotoProdLocalGetArr(id).map(it=>it.foto).filter(Boolean);
   if(!prod.length){ try{ const a=await fotoProdCloudGet(id); prod=(a||[]).map(it=>it.foto).filter(Boolean); }catch(_){ prod=[]; } }
   let loc=fotoLocLocalGet(id); if(!loc){ try{ loc=await fotoLocCloudGet(id); }catch(_){ loc=null; } }
-  const block=(titulo,fotos)=> (fotos&&fotos.length)?`<div style="margin-top:10px"><div style="font-weight:600;margin-bottom:6px;color:var(--text-soft)">${titulo}</div>${[].concat(fotos).filter(Boolean).map(b=>`<img src="${b}" style="max-width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:8px">`).join('')}</div>`:'';
+  const block=(titulo,fotos)=> (fotos&&fotos.length)?`<div style="margin-top:10px"><div style="font-weight:600;margin-bottom:6px;color:var(--text-soft)">${titulo}</div><div class="det-thumbs">${[].concat(fotos).filter(Boolean).map(b=>`<img class="det-thumb" src="${b}" onclick="mostrarImagens('${titulo}',[this.src])">`).join('')}</div></div>`:'';
   const out=block('📷 Comprovante de pagamento',comp)+block('👟 Fotos dos itens',prod)+block('📍 Foto da localização',loc?[loc]:[]);
   document.querySelectorAll(sel).forEach(b=>{ b.innerHTML = out || '<div class="foto-load">Sem fotos anexadas nesta entrega.</div>'; });
 }
@@ -4706,7 +4709,9 @@ function cardEntregadorView(p,n,fromGps,total){
       ${taxaDe(e)>0?`<div class="row"><span class="ico">🏷️</span><span style="color:var(--warn)">Cobrar taxa de entrega: <b>${_brl(taxaDe(e))}</b></span></div>`:''}
     </div>
     <div class="ent-acts">
-      ${e.link?`<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`:''}
+      ${e.link
+        ? `<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`
+        : (waNumero(e.contato)?`<button class="ent-btn" onclick="pedirLocalizacao('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Solicitar localização</button>`:'')}
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
       ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">${WA_ICON} Avisar cliente</button>`:'<span class="ent-btn disabled">sem telefone do cliente</span>'}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
