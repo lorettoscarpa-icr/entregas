@@ -726,6 +726,7 @@
   .vbadge.falha{background:rgba(224,106,82,.18);color:var(--urgent)}
   .vbadge.cancel{background:rgba(138,145,122,.2);color:var(--text-mute)}
   .vbadge.presente{background:rgba(212,180,90,.18);color:var(--gold-lt)}
+  .vbadge.sis{background:rgba(91,140,200,.18);color:#7fb0e0}
   .vtimer{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:rgba(138,145,122,.16);color:var(--text-soft)}
   .vtimer.warn{background:rgba(224,179,65,.16);color:var(--warn)}
   .vtimer.urgent{background:rgba(224,106,82,.18);color:var(--urgent)}
@@ -850,6 +851,9 @@
   .vbtn{flex:1 1 150px;min-height:46px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:12px;font-family:var(--ff-body);font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid var(--line-strong);transition:.15s;color:var(--text);background:var(--surface-3)}
   .vbtn:active{transform:translateY(1px)}
   .vbtn.wa{background:linear-gradient(135deg,var(--calm),#5f9152);color:#16210f;border:none;box-shadow:0 8px 20px -9px rgba(127,174,107,.7)}
+  .vbtn.sis-on{background:rgba(91,140,200,.18);color:#7fb0e0;border-color:rgba(91,140,200,.45)}
+  .vbtn.sis-off{background:var(--surface-3);color:var(--text-soft)}
+  .btn.btn-sis-on{background:rgba(91,140,200,.18);color:#7fb0e0;border-color:rgba(91,140,200,.45)}
   .vbtn.wa:hover{filter:brightness(1.06)}
   .vbtn.ghost{background:var(--surface-2);color:var(--text-soft);flex:0 1 auto;padding:0 16px}
   .vbtn.ghost:hover{color:var(--text);border-color:var(--line-strong)}
@@ -1143,6 +1147,7 @@
           </div>
         </div>
         <div><label>Produto</label><textarea id="f-prod" rows="2" placeholder="Um modelo por linha, com o valor (ex.: Sneaker Milão 41 - 289,90)" style="resize:vertical;min-height:44px;font-family:inherit"></textarea></div>
+        <div class="full"><label>Link de pagamento (Stone) — opcional</label><input id="f-linkpag" placeholder="Cole aqui o link da Stone, se o pagamento for por link"></div>
         <div class="full"><label>Observação</label><input id="f-obs" placeholder="Ex: casa com câmera · ligar antes · deixar na portaria"></div>
         <div class="full"><label class="chk-row"><input type="checkbox" id="f-presente"><span>🎁 Embalagem de presente</span><small>marcado sozinho quando a IA identifica cliente mulher — pode ajustar</small></label></div>
       </div>
@@ -1337,7 +1342,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v87</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v90</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1981,7 +1986,7 @@ function _buscarRender(termo, resId){
     const [lbl,bg,cor]=_statusBusca(e); const dia=dataDe(e);
     const ent=e.entregador?(' · '+esc((ENT[e.entregador]||{}).nome||e.entregador)):'';
     const vend=session.role==='entregador' ? '' : (' · '+esc(e.vendedora||'sem vendedora'));
-    return `<div class="busca-item" onclick="irParaEntrega('${dia}')">
+    return `<div class="busca-item" onclick="irParaEntrega('${dia}','${e.id}')">
       <span><b>${esc(e.cliente||'(sem nome)')}</b><small>${esc(rotuloDia(dia))}${vend}${ent}</small></span>
       <span class="busca-tag" style="background:${bg};color:${cor}">${lbl}</span>
     </div>`;
@@ -1989,11 +1994,18 @@ function _buscarRender(termo, resId){
 }
 function buscarEntrega(termo){ _buscarRender(termo, 'busca-res'); }       // painel (gestor/vendedora)
 function buscarEntregaEnt(termo){ _buscarRender(termo, 'busca-res-ent'); } // tela do entregador
-function irParaEntrega(dia){
-  ['busca-entrega','busca-ent'].forEach(id=>{ const i=$(id); if(i) i.value=''; });
-  ['busca-res','busca-res-ent'].forEach(id=>{ const b=$(id); if(b) b.innerHTML=''; });
-  if(!dia) return;
-  if(session && session.role==='entregador') setDiaEnt(dia); else setDia(dia);
+function irParaEntrega(dia,id){
+  ['busca-entrega','busca-ent'].forEach(i=>{ const el=$(i); if(el) el.value=''; });
+  ['busca-res','busca-res-ent'].forEach(i=>{ const b=$(i); if(b) b.innerHTML=''; });
+  const e = id ? entregas.find(x=>x.id===id) : null;
+  const fin = e && ['entregue','nao_entregue','cancelado'].includes(e.status);
+  if(e){ if(fin) detAberto.add(id); else vAberto.add(id); }   // já abre o card / os detalhes
+  if(dia){ if(session && session.role==='entregador') setDiaEnt(dia); else setDia(dia); }
+  if(e && fin) carregarFotosDet(id);
+  if(id){ setTimeout(()=>{                                     // rola até a entrega e destaca
+    const el = document.querySelector('[data-eid="'+id+'"]') || document.querySelector('[data-detfotos="'+id+'"]');
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); const card=el.closest('.card,.vcard')||el; card.style.transition='box-shadow .25s'; card.style.boxShadow='0 0 0 2px var(--gold)'; setTimeout(()=>{ card.style.boxShadow=''; },2200); }
+  }, 380); }
 }
 /* aviso pra vendedora conferir pagamentos feitos via link */
 function renderLinkAlerta(){
@@ -2019,6 +2031,14 @@ function confirmarLink(id){
   e.linkConferidoPor = session ? (session.vendedora||session.role) : '';
   persist(); render();
   toast('Pagamento via link confirmado ✓');
+}
+function toggleLancado(id){
+  const e=entregas.find(x=>x.id===id); if(!e||!podeMexer(e)) return;
+  e.lancado=!e.lancado;
+  if(e.lancado){ e.lancadoEm=Date.now(); e.lancadoPor=session?(session.vendedora||session.role):''; }
+  else { e.lancadoEm=null; e.lancadoPor=''; }
+  persist(); render(); if(typeof renderFinalizadas==='function') renderFinalizadas();
+  toast(e.lancado?'Marcado como lançado no sistema ✓':'Desmarcado — falta lançar');
 }
 function renderReagAlerta(){
   const box=$('reag-alerta'); if(!box) return;
@@ -2141,7 +2161,15 @@ function parseWhatsapp(text){
   }
   const rest = [];
   for(const ln of contentLines){
-    if(/https?:\/\/\S+/i.test(ln)){ if(!r.link) r.link = ln.match(/https?:\/\/\S+/i)[0]; continue; }
+    const urlm = ln.match(/https?:\/\/\S+/i);
+    if(urlm){
+      const u = urlm[0];
+      const ehMaps = /(maps\.|google\.[^\/]*\/maps|goo\.gl\/maps|maps\.app\.goo\.gl|\/maps\?|[?&]q=-?\d|geo:)/i.test(u);
+      const ehPag = !ehMaps && (/(stone|ton\.com|pagar\.?me|pag\.ae|payment|checkout|cobran)/i.test(u) || /pagamento|pagar|stone|link de pag/i.test(ln));
+      if(ehPag){ if(!r.linkPagamento) r.linkPagamento = u; }
+      else { if(!r.link) r.link = u; }
+      continue;
+    }
     const money = ln.match(/(?:r\$\s*)?(\d{1,4}[.,]\d{2})(?!\d)/i);
     const digits = (ln.match(/\d/g)||[]).length;
     // linha que é SÓ um valor (total que a vendedora manda quando o cliente fica com tudo) → vira o "a cobrar".
@@ -2226,6 +2254,7 @@ function fillForm(r){
   if(r.cpf) $('f-cpf').value=r.cpf;
   if(r.nascimento) $('f-nasc').value=r.nascimento;
   if(r.link) $('f-link').value=r.link;
+  if(r.linkPagamento) $('f-linkpag').value=r.linkPagamento;
   if(r.tipo && ['entrega','troca','coleta'].includes(r.tipo)) $('f-tipo').value=r.tipo;
   if(r.pagPrevisto && ['cobrar','pago'].includes(r.pagPrevisto)) $('f-pag-prev').value=r.pagPrevisto;
   if(r.taxa){ const n=_num(r.taxa); setTaxaForm(n>0?n:0); }   // "" não muda (fica grátis); "0" grátis; valor → cobra
@@ -2334,6 +2363,7 @@ async function aiPreencher(){
     const base = parseWhatsapp(t); // vendedora (remetente) e link são mais confiáveis pelo método direto
     if(!r.vendedora && base.vendedora) r.vendedora = base.vendedora;
     if(!r.link && base.link) r.link = base.link;
+    if(!r.linkPagamento && base.linkPagamento) r.linkPagamento = base.linkPagamento;
     if((r.taxa===undefined||r.taxa==='') && base.taxa) r.taxa = base.taxa;
     fillForm(r);
     toast('✨ Preenchido com IA — confira e cadastre');
@@ -2392,6 +2422,7 @@ async function parseChunkSmart(ch){
     const r = await aiParse(ch);
     if(!r.vendedora && base.vendedora) r.vendedora = base.vendedora;
     if(!r.link && base.link) r.link = base.link;
+    if(!r.linkPagamento && base.linkPagamento) r.linkPagamento = base.linkPagamento;
     if(!r.tipo) r.tipo = base.tipo || 'entrega';
     if(!r.pagPrevisto) r.pagPrevisto = base.pagPrevisto || 'cobrar';
     if((r.taxa===undefined||r.taxa==='') && base.taxa) r.taxa = base.taxa;
@@ -2493,7 +2524,7 @@ function togglePanel(open){
 }
 function maskCPF(el){ let v=el.value.replace(/\D/g,'').slice(0,11); v=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); el.value=v; }
 function maskData(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>=5) v=v.replace(/(\d{2})(\d{2})(\d{1,4})/,'$1/$2/$3'); else if(v.length>=3) v=v.replace(/(\d{2})(\d{1,2})/,'$1/$2'); el.value=v; }
-function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); fotoLocPendente=null; renderFotoLocPreview(); }
+function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); fotoLocPendente=null; renderFotoLocPreview(); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -2538,6 +2569,7 @@ async function saveEntrega(){
     pagPrevisto:$('f-pag-prev').value||'cobrar',
     produto:$('f-prod').value.trim(),
     valor:$('f-valor').value.trim(),
+    linkPagamento:$('f-linkpag').value.trim(),
     observacao:$('f-obs').value.trim(),
     presente:$('f-presente') ? $('f-presente').checked : false,
     taxaEntrega:getTaxaForm(),
@@ -2593,6 +2625,7 @@ function detalhesHTML(e){
   html+=_detRow('🧾','Produto (pedido)',esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):''));
   html+=_detRow('👟','Ficou com',esc(ficou));
   html+=_detRow('💳','Pagamento',e.pagamento?esc(pagamentoLabel(e)):'');
+  if(e.linkPagamento) html+=_detRow('🔗','Link de pagamento',`<a href="${esc(e.linkPagamento)}" target="_blank" style="color:var(--gold)">abrir link da Stone</a>`);
   if(e.troco!=null) html+=_detRow('💰','Troco devolvido', e.troco>0?_brl(e.troco):'sem troco');
   if(taxaDe(e)>0) html+=_detRow('🏷️','Taxa de entrega',_brl(taxaDe(e)));
   html+=_detRow('📝','Obs. do pagamento',esc(e.pagamentoObs||''));
@@ -3383,7 +3416,7 @@ function cardAguardando(e){
     ? `<span class="badge-agendada">📅 agendada</span>`
     : `<span class="timer ${uc}">${fmtDur(min)}</span>`;
   const aberto = vAberto.has(e.id);
-  return `<div class="card ${aberto?'open':'mini'} ${selected.has(e.id)?'sel':''}" style="border-left-color:var(--${uc==='calm'?'calm':uc==='warn'?'warn':'urgent'})">
+  return `<div data-eid="${e.id}" class="card ${aberto?'open':'mini'} ${selected.has(e.id)?'sel':''}" style="border-left-color:var(--${uc==='calm'?'calm':uc==='warn'?'warn':'urgent'})">
     <div class="card-head" onclick="toggleVcard('${e.id}')">
       <div class="card-head-main">
         <div class="card-top">
@@ -3422,7 +3455,7 @@ function cardRota(e){
   const ent=ENT[e.entregador]||{nome:'?',cor:'#888'};
   const min=minutesSince(e.criadoEm);
   const aberto = vAberto.has(e.id);
-  return `<div class="card ${aberto?'open':'mini'}" style="border-left-color:${ent.cor}">
+  return `<div data-eid="${e.id}" class="card ${aberto?'open':'mini'}" style="border-left-color:${ent.cor}">
     <div class="card-head" onclick="toggleVcard('${e.id}')">
       <div class="card-head-main">
         <span class="badge-ent" style="background:${ent.cor}22;color:${ent.cor}">
@@ -3460,7 +3493,7 @@ function cardEntregue(e){
   if(e.status==='nao_entregue' || e.status==='cancelado'){
     const cancel = e.status==='cancelado';
     const cor = cancel ? 'var(--text-mute)' : 'var(--urgent)';
-    return `<div class="card" style="border-left-color:${cor};opacity:.92">
+    return `<div data-eid="${e.id}" class="card" style="border-left-color:${cor};opacity:.92">
       <div class="card-top" style="margin-bottom:6px">
         <div class="name" style="font-size:18px">${esc(e.cliente)}</div>
         <span class="badge-desf ${cancel?'cancel':'falha'}">${cancel?'✕ Não comprou':'✕ Não entregue'}</span>
@@ -3478,9 +3511,10 @@ function cardEntregue(e){
     </div>`;
   }
   const dur=e.entregueEm?fmtDur(Math.floor((e.entregueEm-e.criadoEm)/60000)):'';
-  return `<div class="card" style="border-left-color:var(--calm)">
+  return `<div data-eid="${e.id}" class="card" style="border-left-color:var(--calm)">
     <div class="card-top" style="margin-bottom:6px">
       <div class="name" style="font-size:18px">${esc(e.cliente)}</div>
+      ${e.lancado?`<span class="vbadge sis">✓ Lançado</span>`:''}
       ${e.pagamento?`<span class="badge-pag">${esc(pagamentoLabel(e))}</span>`:''}
     </div>
     <div class="meta" style="padding-left:0;font-size:12px">
@@ -3494,6 +3528,7 @@ function cardEntregue(e){
     <div class="card-actions norail">
       <button class="btn btn-ghost btn-mini" onclick="verDetalhesEntrega('${e.id}')">${detAberto.has(e.id)?'📋 Ocultar detalhes':'📋 Ver detalhes'}</button>
       ${podeMexer(e)?`
+      <button class="btn ${e.lancado?'btn-sis-on':'btn-ghost'} btn-mini" onclick="toggleLancado('${e.id}')">${e.lancado?'✓ Lançado no sistema':'☐ Marcar lançado'}</button>
       <button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>
       <button class="btn btn-ghost btn-mini" onclick="editar('${e.id}')">Editar dados</button>
       <button class="iconbtn" onclick="desfazerFinal('${e.id}')" title="Desfazer — volta para a rota">↩</button>
@@ -3652,7 +3687,7 @@ function editar(id){
   $('f-cliente').value=e.cliente; $('f-contato').value=e.contato; $('f-bairro').value=e.bairro;
   $('f-cpf').value=e.cpf||''; $('f-nasc').value=e.nascimento||'';
   $('f-cidade').value=e.cidade||''; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
-  $('f-prod').value=e.produto; $('f-valor').value=e.valor; $('f-obs').value=e.observacao||'';
+  $('f-prod').value=e.produto; $('f-valor').value=e.valor; $('f-obs').value=e.observacao||''; $('f-linkpag').value=e.linkPagamento||'';
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||'';
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
   if($('f-presente'))$('f-presente').checked=!!e.presente;
@@ -3674,7 +3709,7 @@ async function salvarEdicao(){
   e.coord=coordFrom(e.link);
   if(!e.coord && ehLinkCurto(e.link)){ const rc=await resolverLinkCurto(e.link); if(rc && isFinite(rc.lat)&&isFinite(rc.lng)) e.coord={lat:rc.lat,lng:rc.lng}; else if(rc && rc.endereco && !e.endereco){ e.endereco=rc.endereco; } }
   e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value;
-  e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim();
+  e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim(); e.linkPagamento=$('f-linkpag').value.trim();
   e.tipo=$('f-tipo').value||'entrega'; e.pagPrevisto=$('f-pag-prev').value||'cobrar';
   if($('f-presente'))e.presente=$('f-presente').checked;
   e.taxaEntrega=getTaxaForm();
@@ -4328,7 +4363,7 @@ function vcard(e, eta){
   const aberto = vAberto.has(e.id);
   const _min = minutesSince(e.criadoEm);
   const timerTag = (e.status==='aguardando'||e.status==='em_rota') ? `<span class="vtimer ${urgClass(_min)}" title="Tempo desde que a entrega foi lançada">⏱ há ${fmtDur(_min)}</span>` : '';
-  return `<div class="vcard ${aberto?'open':'mini'} ${_selv?'sel':''}" style="border-left-color:${accent}">
+  return `<div data-eid="${e.id}" class="vcard ${aberto?'open':'mini'} ${_selv?'sel':''}" style="border-left-color:${accent}">
     <div class="vhead" onclick="toggleVcard('${e.id}')">
       <div class="vhead-content">
         <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${timerTag}</div>
@@ -4385,9 +4420,11 @@ function renderFinalizadas(){
   const dia=diaAtivo, ehGeral=!!session.geral;
   const base = ehGeral ? entregas.filter(e=>dataDe(e)===dia) : entregasDaVendedora(dia);
   const fin = base.filter(e=>e.status==='entregue').sort((a,b)=>(a.entregueEm||0)-(b.entregueEm||0)); // em fila: feito primeiro
-  $('fin-sub').innerHTML = ehGeral
+  const _lanc = fin.filter(e=>e.lancado).length, _falta = fin.length - _lanc;
+  const _resumoSis = fin.length ? `<div style="margin-top:7px;font-size:12.5px;color:var(--text-soft)">📥 <b style="color:#7fb0e0">${_lanc}</b> lançados no sistema · <b style="color:var(--gold)">${_falta}</b> a lançar</div>` : '';
+  $('fin-sub').innerHTML = (ehGeral
     ? `Entregas <b>finalizadas</b> de <b>${esc(rotuloDia(dia))}</b> — confira como cada cliente pagou.`
-    : `Suas entregas <b>finalizadas</b> de <b>${esc(rotuloDia(dia))}</b> — forma de pagamento, comprovante e detalhes.`;
+    : `Suas entregas <b>finalizadas</b> de <b>${esc(rotuloDia(dia))}</b> — forma de pagamento, comprovante e detalhes.`) + _resumoSis;
   $('fin-list').innerHTML = fin.length
     ? fin.map(fcard).join('')
     : `<div class="empty">Nenhuma entrega finalizada neste dia ainda.</div>`;
@@ -4403,6 +4440,7 @@ function fcard(e){
   return `<div class="fcard">
     <div class="fcard-top">
       <span class="vbadge ok">✓ Entregue${hora?' · '+hora:''}</span>
+      ${e.lancado?`<span class="vbadge sis">✓ Lançado no sistema</span>`:''}
     </div>
     <div class="fcard-name">${esc(e.cliente)}</div>
 
@@ -4440,6 +4478,7 @@ function fcard(e){
         : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
     <div class="vcard-acts">
+      <button class="vbtn ${e.lancado?'sis-on':'sis-off'}" onclick="toggleLancado('${e.id}')">${e.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>
       ${waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>'}
       ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
     </div>
@@ -4774,6 +4813,7 @@ function cardEntregadorView(p,n,fromGps,total){
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
       ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">${WA_ICON} Avisar cliente</button>`:'<span class="ent-btn disabled">sem telefone do cliente</span>'}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
+      ${e.linkPagamento?`<a class="ent-btn" href="${esc(e.linkPagamento)}" target="_blank" style="background:rgba(201,169,80,.14);color:var(--gold);border-color:rgba(201,169,80,.4)">🔗 Conferir pagamento</a>`:''}
       <button class="ent-btn" onclick="devolverEnt('${e.id}')" style="background:rgba(201,169,80,.12);color:var(--gold);border-color:rgba(201,169,80,.4)">↩ Devolver pra fila</button>
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
       <button class="ent-btn full" style="background:rgba(224,106,82,.12);color:var(--urgent);border-color:rgba(224,106,82,.35)" onclick="abrirDesfechoCombo('${e.id}')">✕ Não consegui entregar / não deu certo</button>
