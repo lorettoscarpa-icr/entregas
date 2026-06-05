@@ -1348,7 +1348,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v95</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v98</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1671,6 +1671,20 @@ function coordFrom(url){
   ];
   for(const p of pats){ const m=s.match(p); if(m){ const r={lat:parseFloat(m[1]), lng:parseFloat(m[2])}; if(coordValida(r)) return r; } }
   return null;
+}
+// melhor link de mapa pro entregador: usa o pin se houver; senão joga o endereço/nome no Google Maps (ele resolve no celular)
+function mapaHref(e){
+  if(!e) return '';
+  const c = e.coord || coordFrom(e.link||'');
+  if(c) return `https://www.google.com/maps?q=${c.lat},${c.lng}`;     // 1) tem coordenada → pin exato
+  const txt = [e.endereco, e.bairro, e.cidade].filter(Boolean).join(', ').trim();
+  if(txt){                                                            // 2) joga o nome/endereço na busca do Maps (Google resolve no celular)
+    const temRegiao = /(goi[âa]nia|aparecida|senador|trindade|goi[áa]s)/i.test(txt);
+    const q = txt + (temRegiao ? '' : ' Goiânia GO');
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+  }
+  if(e.link) return e.link;                                           // 3) sobrou só o link → abre ele
+  return '';
 }
 function lojaCoords(){ const l=config.loja; return (l && l.lat && l.lng)?{lat:l.lat,lng:l.lng}:null; }
 
@@ -2659,7 +2673,7 @@ function detalhesHTML(e){
   html+=_detRow('📞','Contato',esc(e.contato||''));
   html+=_detRow('🏘️','Bairro/Cidade',esc([e.bairro,e.cidade].filter(Boolean).join(' - ')));
   html+=_detRow('📍','Endereço',esc(e.endereco||''));
-  if(e.link) html+=_detRow('🧭','Mapa',`<a href="${esc(e.link)}" target="_blank" style="color:var(--gold)">abrir no mapa</a>`);
+  if(mapaHref(e)) html+=_detRow('🧭','Mapa',`<a href="${esc(mapaHref(e))}" target="_blank" style="color:var(--gold)">abrir no mapa</a>`);
   html+=_detRow('🧾','Produto (pedido)',esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):''));
   html+=_detRow('👟','Ficou com',esc(ficou));
   html+=_detRow('💳','Pagamento',e.pagamento?esc(pagamentoLabel(e)):'');
@@ -4478,6 +4492,7 @@ function fcard(e){
   return `<div class="fcard">
     <div class="fcard-top">
       <span class="vbadge ok">✓ Entregue${hora?' · '+hora:''}</span>
+      ${e.entregador && (ENT[e.entregador]||{}).nome?`<span class="vbadge" style="background:${(ENT[e.entregador]||{}).cor||'#888'}22;color:${(ENT[e.entregador]||{}).cor||'#888'}">🛵 ${esc((ENT[e.entregador]||{}).nome)}</span>`:''}
       ${e.lancado?`<span class="vbadge sis">✓ Lançado no sistema</span>`:''}
     </div>
     <div class="fcard-name">${esc(e.cliente)}</div>
@@ -4492,7 +4507,7 @@ function fcard(e){
       ${horarioTxt?`<div class="frow"><span class="ico">⏰</span><span>${esc(horarioTxt)}</span></div>`:''}
       ${e.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(e.observacao)}</span></div>`:''}
       ${e.vendedora?`<div class="frow"><span class="ico">🙋</span><span>Vendedora: <b>${esc(e.vendedora)}</b></span></div>`:''}
-      ${e.link?`<div class="frow"><span class="ico">🧭</span><span><a class="lnk" href="${esc(e.link)}" target="_blank">abrir no mapa</a></span></div>`:''}
+      ${mapaHref(e)?`<div class="frow"><span class="ico">🧭</span><span><a class="lnk" href="${esc(mapaHref(e))}" target="_blank">abrir no mapa</a></span></div>`:''}
     </div></div>
 
     <div class="fcard-sec-h">👟 Produto</div>
