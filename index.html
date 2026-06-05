@@ -1337,7 +1337,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v84</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v86</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -2674,11 +2674,11 @@ function renderProdModo(){
   if(prodModo==='manual'){ auto.innerHTML=''; return; }
   const prod=(prodCadastro||'').trim();
   if(prodModo==='presente'){
-    auto.innerHTML = `<div class="prod-auto-card gift"><div class="prod-auto-h">🎁 Presente — não precisa conferir</div><div class="prod-auto-sub">A vendedora vai ver o produto que ela cadastrou${prod?`: <b>${esc(prod)}</b>`:' (ela sabe o que enviou)'}.</div></div>`;
+    auto.innerHTML = `<div class="prod-auto-card gift"><div class="prod-auto-h">🎁 Presente</div><div class="prod-auto-sub">Entregue embrulhado, sem abrir nem conferir — a vendedora já registrou o que foi enviado${prod?`: <b>${esc(prod)}</b>`:''}.<br><span style="opacity:.72">Use só para presentes de verdade. Pedido normal com mais de um par? Use "Detalhar pedido".</span></div></div>`;
   } else { // unico
     auto.innerHTML = prod
-      ? `<div class="prod-auto-card"><div class="prod-auto-h">📦 Pedido completo</div><div class="prod-auto-sub">O cliente ficou com tudo que foi enviado pela vendedora: <b>${esc(prod)}</b></div></div>`
-      : `<div class="prod-auto-card"><div class="prod-auto-h">📦 Pedido completo</div><div class="prod-auto-sub">O cliente ficou com tudo que foi enviado pela vendedora.</div></div>`;
+      ? `<div class="prod-auto-card"><div class="prod-auto-h">📦 Pedido completo</div><div class="prod-auto-sub">O cliente ficou com tudo que foi enviado pela vendedora: <b>${esc(prod)}</b>.<br><span style="opacity:.72">Tem mais de uma numeração pra registrar? Use "Detalhar pedido".</span></div></div>`
+      : `<div class="prod-auto-card"><div class="prod-auto-h">📦 Pedido completo</div><div class="prod-auto-sub">O cliente ficou com tudo que foi enviado pela vendedora.<br><span style="opacity:.72">Tem mais de uma numeração pra registrar? Use "Detalhar pedido".</span></div></div>`;
   }
 }
 function renderProdItens(){
