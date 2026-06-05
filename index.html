@@ -135,6 +135,11 @@
   .paste-row textarea{min-height:46px}
   .paste-btns{display:flex;flex-direction:column;gap:8px}
   .paste-cta{width:100%;margin-bottom:10px;min-height:50px;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px}
+  /* MOBILE: mostra só o botão "Colar e preencher"; campo manual vira plano B */
+  .paste-fallback-note{display:none}
+  body.is-mobile .paste-row, body.is-mobile #btn-diag{display:none}
+  body.is-mobile .paste-zone.fallback .paste-row{display:flex;flex-direction:column;align-items:stretch}
+  body.is-mobile .paste-zone.fallback .paste-fallback-note{display:block;font-size:12.5px;color:var(--warn);margin:2px 0 9px;line-height:1.4}
   .fields{display:grid;grid-template-columns:1fr 1fr;gap:13px}
   .fields .full{grid-column:1/-1}
   .chk-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;margin:2px 0}
@@ -1069,6 +1074,7 @@
       <div class="paste-zone">
         <label>Preencher pela mensagem do WhatsApp <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(detecta nome, telefone, endereço, valor e horário)</span></label>
         <button class="btn btn-primary paste-cta" id="btn-colar" onclick="colarEpreencher()">📋 Colar mensagem e preencher</button>
+        <div class="paste-fallback-note">Não consegui colar sozinho aqui 🙈 — cole a mensagem no campo abaixo (toque e segure → Colar) e toque em ✨ Preencher com IA.</div>
         <div class="paste-row">
           <textarea id="paste" placeholder="…ou cole a mensagem aqui (toque e segure → Colar) e use ✨ Preencher com IA. Para vários, separe por ⛔"></textarea>
           <div class="paste-btns">
@@ -1342,7 +1348,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v90</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v91</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -2293,6 +2299,7 @@ async function lerClipboardCompleto(){
 async function colarEpreencher(){
   const btn=$('btn-colar'), old=btn?btn.textContent:'';
   if(!(navigator.clipboard && (navigator.clipboard.read || navigator.clipboard.readText))){
+    const pz=document.querySelector('.paste-zone'); if(pz) pz.classList.add('fallback');
     $('paste').focus(); toast('Cole a mensagem no campo abaixo e toque em ✨ Preencher com IA'); return;
   }
   if(btn){ btn.textContent='📋 Lendo...'; btn.disabled=true; }
@@ -2300,6 +2307,7 @@ async function colarEpreencher(){
   try{ txt = await lerClipboardCompleto(); }
   catch(e){
     if(btn){ btn.textContent=old; btn.disabled=false; }
+    const pz=document.querySelector('.paste-zone'); if(pz) pz.classList.add('fallback');
     $('paste').focus();
     toast('Toque e segure no campo abaixo → Colar, depois ✨ Preencher com IA');
     return;
@@ -5334,6 +5342,7 @@ if(_trackId){
   $('track-view').style.display='flex';
   $('track-st').textContent='Link de rastreio inválido'; const tp=$('track-pulse'); if(tp) tp.className='track-pulse off';
 } else {
+  if(/Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent||'')) document.body.classList.add('is-mobile');
   renderFilters(); renderEntPick(); animateNext(); render(); tick();
   initFirebase();   // conecta ao Firestore (sincroniza em tempo real); se indisponível, segue no localStorage
   restaurarSessao();   // manter conectado: se já logou neste aparelho, abre direto no painel
