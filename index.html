@@ -1142,7 +1142,7 @@
             <input id="f-taxa-valor" placeholder="Valor R$" inputmode="decimal" style="flex:1;display:none">
           </div>
         </div>
-        <div><label>Produto</label><input id="f-prod" placeholder="Modelo / tamanhos"></div>
+        <div><label>Produto</label><textarea id="f-prod" rows="2" placeholder="Um modelo por linha, com o valor (ex.: Sneaker Milão 41 - 289,90)" style="resize:vertical;min-height:44px;font-family:inherit"></textarea></div>
         <div class="full"><label>Observação</label><input id="f-obs" placeholder="Ex: casa com câmera · ligar antes · deixar na portaria"></div>
         <div class="full"><label class="chk-row"><input type="checkbox" id="f-presente"><span>🎁 Embalagem de presente</span><small>marcado sozinho quando a IA identifica cliente mulher — pode ajustar</small></label></div>
       </div>
@@ -1337,7 +1337,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v86</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v87</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -2144,7 +2144,10 @@ function parseWhatsapp(text){
     if(/https?:\/\/\S+/i.test(ln)){ if(!r.link) r.link = ln.match(/https?:\/\/\S+/i)[0]; continue; }
     const money = ln.match(/(?:r\$\s*)?(\d{1,4}[.,]\d{2})(?!\d)/i);
     const digits = (ln.match(/\d/g)||[]).length;
-    if(money && digits<=6){ if(!r.valor) r.valor = money[1]; continue; }
+    // linha que é SÓ um valor (total que a vendedora manda quando o cliente fica com tudo) → vira o "a cobrar".
+    // Preço junto do produto (ex.: "Sneaker Milão 41 - 289,90") NÃO é consumido aqui: fica na linha do produto.
+    const soPreco = /^\s*(?:total\s*:?\s*)?(?:[-–•]\s*)?(?:r\$\s*)?\d{1,4}[.,]\d{2}\s*$/i.test(ln);
+    if(money && digits<=6 && soPreco){ if(!r.valor) r.valor = money[1]; continue; }
     // CPF (XXX.XXX.XXX-XX ou com espaços) — não é campo de entrega, ignora
     const isCPF = /\b\d{3}[.\s]\d{3}[.\s]\d{3}[-\s]\d{2}\b/.test(ln) && !/\+?\s*55\b|\(\d{2}\)/.test(ln);
     if(isCPF) continue;
@@ -2171,10 +2174,10 @@ function parseWhatsapp(text){
   rest2.forEach((ln,i)=>{
     if(i===ci) return;
     if(isAddr(ln)){ r.endereco = r.endereco ? r.endereco+', '+ln : ln; return; }   // endereço
-    if(prodRe.test(ln)){ r.produto = r.produto ? r.produto+' · '+ln : ln; return; } // produto (acumula vários pares)
+    if(prodRe.test(ln)){ r.produto = r.produto ? r.produto+'\n'+ln : ln; return; } // produto (um por linha)
     if(obsRe.test(ln)){ r.observacao = r.observacao ? r.observacao+' · '+ln : ln; return; } // desconto/forma de pagto → observação
     if(!r.endereco){ r.endereco = ln; }
-    else r.produto = r.produto ? r.produto+' · '+ln : ln;
+    else r.produto = r.produto ? r.produto+'\n'+ln : ln;
   });
   // horário combinado — só preenche se houver hora explícita na mensagem
   const allText = contentLines.join(' ');
@@ -2587,7 +2590,7 @@ function detalhesHTML(e){
   html+=_detRow('🏘️','Bairro/Cidade',esc([e.bairro,e.cidade].filter(Boolean).join(' - ')));
   html+=_detRow('📍','Endereço',esc(e.endereco||''));
   if(e.link) html+=_detRow('🧭','Mapa',`<a href="${esc(e.link)}" target="_blank" style="color:var(--gold)">abrir no mapa</a>`);
-  html+=_detRow('🧾','Produto (pedido)',esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — ')));
+  html+=_detRow('🧾','Produto (pedido)',esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):''));
   html+=_detRow('👟','Ficou com',esc(ficou));
   html+=_detRow('💳','Pagamento',e.pagamento?esc(pagamentoLabel(e)):'');
   if(e.troco!=null) html+=_detRow('💰','Troco devolvido', e.troco>0?_brl(e.troco):'sem troco');
@@ -3398,7 +3401,7 @@ function cardAguardando(e){
         ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
         ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
         ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
+        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
         ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
         ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
       </div>
@@ -3482,7 +3485,7 @@ function cardEntregue(e){
     </div>
     <div class="meta" style="padding-left:0;font-size:12px">
       ${(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
+      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
       ${e.pagamentoObs?`<div class="row"><span class="ico">📝</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
       <div class="row"><span class="ico">🛵</span><span>${ent.nome}${dur?` · entregue em ${dur}`:''}</span></div>
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
@@ -4339,7 +4342,7 @@ function vcard(e, eta){
         ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
         ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
         ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
+        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
         ${temHora?`<div class="row"><span class="ico">⏰</span><span style="color:var(--warn)">${hrLabel(e.horarioTipo)} ${esc(e.horarioHora)}</span></div>`:''}
         ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
       </div>
@@ -4422,7 +4425,7 @@ function fcard(e){
       ${e.entreguePresente
         ? `<div class="frow"><span class="ico">🎁</span><span><b>Presente</b>${e.produtoEntregue?` — ${esc(e.produtoEntregue)}`:''}</span></div>`
         : (e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
+      ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
     </div></div>
 
     <div class="fcard-sec-h">💳 Pagamento</div>
@@ -4759,7 +4762,7 @@ function cardEntregadorView(p,n,fromGps,total){
       ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
       ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
       ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc([e.produto,e.valor?'R$ '+e.valor:''].filter(Boolean).join(' — '))}</span></div>`:''}
+      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
       ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span>Vendedora: <b>${esc(e.vendedora)}</b></span></div>`:''}
       ${taxaDe(e)>0?`<div class="row"><span class="ico">🏷️</span><span style="color:var(--warn)">Cobrar taxa de entrega: <b>${_brl(taxaDe(e))}</b></span></div>`:''}
