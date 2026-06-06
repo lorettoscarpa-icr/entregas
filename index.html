@@ -1355,7 +1355,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v100</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v101</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -3840,7 +3840,7 @@ function switchTab(name){
   $('tab-ranking').classList.toggle('on', isRank);
   const dt=$('destaques-topo');
   if(dt){ if(name==='painel'){ dt.innerHTML=destaquesHTML(true); dt.style.display=''; } else dt.style.display='none'; }  // destaques só no Painel
-  if(isMapa){ ensureMap(); renderMap(); if(!suggestion && entregas.some(e=>e.status==='aguardando' && coordOf(e))) sugerirRotas(); }
+  if(isMapa){ ensureMap(); renderMap(); if(!suggestion && aguardandoHoje().some(e=>coordOf(e))) sugerirRotas(); }
   else if(isFin){ renderFinalizadas(); }
   else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); }
   else { animateNext(); render(); }
@@ -3858,6 +3858,9 @@ function ensureMap(){
   mapInited=true;
   setTimeout(()=>map.invalidateSize(),60);
 }
+// Mapa & Rotas considera SÓ as entregas de hoje que ainda não têm entregador (status aguardando).
+// Fica de fora: já roteadas (em_rota), finalizadas, e as de outros dias (anteriores ou futuros).
+function aguardandoHoje(){ return entregas.filter(e=>e.status==='aguardando' && dataDe(e)===todayKey()); }
 function renderMap(){
   if(!map || !markerLayer) return;
   markerLayer.clearLayers();
@@ -3870,7 +3873,7 @@ function renderMap(){
   }
   const clusterOf={};
   if(suggestion) suggestion.groups.forEach((g,ci)=>g.forEach(id=>clusterOf[id]=ci));
-  entregas.filter(e=>e.status==='aguardando').forEach(e=>{
+  aguardandoHoje().forEach(e=>{
     const c=e.coord||coordFrom(e.link); if(!c) return;
     const ci = suggestion ? clusterOf[e.id] : null;
     const color = (ci!=null) ? ROUTE_COLORS[ci%ROUTE_COLORS.length] : '#9aa386';
@@ -3938,7 +3941,7 @@ function autoThreshold(items){
   return isFinite(cut)? cut : AUTO_FALLBACK_KM;
 }
 function sugerirRotas(){
-  const aguard=entregas.filter(e=>e.status==='aguardando');
+  const aguard=aguardandoHoje();
   const withC=aguard.filter(coordOf);
   const semC=aguard.filter(e=>!coordOf(e));
   if(!withC.length){ toast('Nenhuma entrega com localização no mapa'); return; }
@@ -3974,7 +3977,7 @@ function kmeans(pts,k,iters){
   return pts.map((p,i)=>({p,cluster:asg[i]}));
 }
 function dividirEm(k){
-  const aguard=entregas.filter(e=>e.status==='aguardando');
+  const aguard=aguardandoHoje();
   const withC=aguard.filter(coordOf);
   const semC=aguard.filter(e=>!coordOf(e));
   if(!withC.length){ toast('Nenhuma entrega com localização no mapa'); return; }
