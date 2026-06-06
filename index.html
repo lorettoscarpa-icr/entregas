@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Loretto Scarpa · Central de Entregas</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4a5c2a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Entregas">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Barlow:wght@300;400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -1348,7 +1355,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v98</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v100</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1778,7 +1785,7 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "428188657366",
   appId: "1:428188657366:web:091e9d32ddfd712c83cb77"
 };
-let fdb=null, FIREBASE_ON=false, _fbAssinado=false, _fbMigrou=false, _clienteMode=false;
+let fdb=null, FIREBASE_ON=false, _fbAssinado=false, _fbMigrou=false, _fbSynced=false, _clienteMode=false;
 /* COLE AQUI a URL da Cloud Function da IA (passo 3). Vazio = usa a IA só dentro do Claude. */
 const AI_PROXY_URL = "https://lorettoia.lorettoscarpa.workers.dev/";
 // links encurtados de mapa (pin do WhatsApp) não trazem a coordenada — precisam ser expandidos no servidor (worker)
@@ -1796,6 +1803,27 @@ async function resolverLinkCurto(url){
 }
 let _shadow={};                         // último estado salvo (p/ enviar só o que mudou)
 function _snapShadow(){ _shadow={}; entregas.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }
+function _shadowFromArr(arr){ _shadow={}; arr.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }   // sombra = o que está REALMENTE na nuvem
+// carimbo da última transição de status (finalização / desfecho / reabertura) — usado p/ resolver conflito
+function _transStamp(e){ return Math.max(e.entregueEm||0, e.desfechoEm||0, e.reabertoEm||0); }
+// mescla a nuvem com o local, em vez de sobrescrever cego:
+function _mergeNuvem(arr){
+  const cloud = arr.map(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.vendedora) e.vendedora=c; } return e; });
+  if(!_fbSynced) return cloud;                 // 1ª sincronização: confia na nuvem (não ressuscita excluídas)
+  const locais={}; entregas.forEach(l=>locais[l.id]=l);
+  const cloudIds=new Set();
+  const merged = cloud.map(c=>{
+    cloudIds.add(String(c.id));
+    const l = locais[c.id];
+    // Trava 3: vence quem finalizou/reabriu por último (protege finalizada de gravação velha, sem quebrar o "desfazer")
+    if(l && _transStamp(l) > _transStamp(c)) return l;
+    return c;
+  });
+  // entrega local que a nuvem não tem: mantém só se for criação local AINDA NÃO enviada (sem sombra).
+  // se já esteve na nuvem e sumiu, é exclusão de verdade → respeita.
+  entregas.forEach(l=>{ if(!cloudIds.has(String(l.id)) && _shadow[l.id]===undefined) merged.push(l); });
+  return merged;
+}
 function initFirebase(){
   if(typeof firebase==='undefined' || !FIREBASE_CONFIG.apiKey){ return false; } // sem SDK/config → fica no localStorage
   try{
@@ -1810,13 +1838,15 @@ function assinarEntregas(){
   if(!FIREBASE_ON || _fbAssinado) return; _fbAssinado=true;  fdb.collection('entregas').onSnapshot(snap=>{
     const arr=[]; snap.forEach(d=>arr.push(d.data()));
     // 1ª sincronização: nuvem vazia + temos dados locais → sobe os locais (migração única)
-    if(arr.length===0 && entregas.length>0 && !_fbMigrou){ _fbMigrou=true; _subirTudo(entregas.slice()); return; }
+    if(arr.length===0 && entregas.length>0 && !_fbMigrou){ _fbMigrou=true; _fbSynced=true; _subirTudo(entregas.slice()); return; }
     _fbMigrou=true;
-    entregas = arr.map(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.vendedora) e.vendedora=c; } return e; });
+    entregas = _mergeNuvem(arr);         // mescla (não sobrescreve cego)
     sanitizeCoords(entregas);            // joga fora coordenadas impossíveis (lixo antigo)
     migrarComprovantes(entregas);       // tira fotos pesadas de dentro do array (memória)
-    _snapShadow();
+    _shadowFromArr(arr);                 // sombra = o que está REALMENTE na nuvem
+    _fbSynced=true;
     store.save(entregas);               // mantém cache local
+    persist();                          // sobe só o que a mesclagem preservou (finalização nova / criação local)
     _rerenderAtual();
   }, err=>console.warn('Firebase: leitura bloqueada — verifique as regras do Firestore', err));
 }
@@ -2846,14 +2876,14 @@ function migrarComprovantes(arr){
 function persist(){
   const okLocal = store.save(entregas);          // cache local sempre
   if(!FIREBASE_ON || !fdb) return okLocal;
+  if(!_fbSynced) return okLocal;                  // Trava 1: não sobe nada antes da 1ª sincronização (não sobrescreve a nuvem com estado velho)
   try{
-    const batch=fdb.batch(); let mudou=false; const ids=new Set();
+    const batch=fdb.batch(); let mudou=false;
     entregas.forEach(e=>{
-      ids.add(String(e.id));
       const j=JSON.stringify(e);
       if(_shadow[e.id]!==j){ batch.set(fdb.collection('entregas').doc(String(e.id)), e); _shadow[e.id]=j; mudou=true; }
     });
-    Object.keys(_shadow).forEach(id=>{ if(!ids.has(id)){ batch.delete(fdb.collection('entregas').doc(String(id))); delete _shadow[id]; mudou=true; } });
+    // Trava 2: NÃO apagar "pelo que falta". Exclusão só pela ação explícita do 🗑 (excluir()), nunca como efeito de salvar.
     if(mudou) batch.commit().catch(e=>console.warn('Firebase: gravação falhou', e));
     return true;                                   // Firebase guarda mesmo se o localStorage estiver cheio (fotos)
   }catch(e){ console.warn(e); return okLocal; }
@@ -3173,7 +3203,7 @@ function confirmarPagamento(){
   if(!semFoto && !payFotos.length && !e.temComprovante) faltando.push('Foto do pagamento (comprovante)');
   if(faltando.length){ mostrarFaltando(faltando); return; }
   const corrigindo = e.status==='entregue';
-  e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now();
+  e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now(); e.reabertoEm=null;
   e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
   e.obsProduto = ($('prod-note')?$('prod-note').value.trim():'') || '';
   e.troco = (paySel.includes('dinheiro') && payTrocoTeve===true) ? (_num(payTrocoVal)||0) : null;
@@ -3233,7 +3263,7 @@ function desfazerFinal(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e) return;
   e.status = e.entregador ? 'em_rota' : 'aguardando';
-  delete e.entregueEm; delete e.desfechoEm; delete e.motivo; delete e.alertaResolverVisto;
+  delete e.entregueEm; delete e.desfechoEm; delete e.motivo; delete e.alertaResolverVisto; e.reabertoEm=Date.now();
   persist(); render(); if(session.role==='entregador') renderEntregador();
   toast(e.status==='em_rota' ? 'Voltou para a rota — refaça a finalização' : 'Voltou para aguardando');
 }
@@ -3315,7 +3345,10 @@ function trazerPendencias(){
 function excluir(id){
   if(_bloqueado(id)) return;
   if(!confirm('Excluir esta entrega?'))return;
-  entregas = entregas.filter(x=>x.id!==id); selected.delete(id); removerComprovante(id); persist(); render();
+  entregas = entregas.filter(x=>x.id!==id); selected.delete(id); removerComprovante(id);
+  delete _shadow[id];
+  if(FIREBASE_ON && fdb){ fdb.collection('entregas').doc(String(id)).delete().catch(e=>console.warn('Firebase: exclusão falhou', e)); }  // exclusão explícita, só aqui
+  persist(); render();
 }
 
 /* ============ rota ============ */
@@ -5453,6 +5486,25 @@ document.addEventListener('paste', async (e)=>{
     }
   }
 });
+</script>
+<script>
+// PWA: registra o service worker (sempre busca a versão nova online; usa cache só offline)
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // checa atualização toda vez que o app volta pro primeiro plano
+      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') reg.update(); });
+      reg.addEventListener('updatefound', ()=>{
+        const nv = reg.installing;
+        nv && nv.addEventListener('statechange', ()=>{
+          if(nv.state==='installed' && navigator.serviceWorker.controller){ location.reload(); } // versão nova pronta → recarrega
+        });
+      });
+    }).catch(()=>{});
+    let _swReload=false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if(_swReload) return; _swReload=true; location.reload(); });
+  });
+}
 </script>
 </body>
 </html>
