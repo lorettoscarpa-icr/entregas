@@ -143,14 +143,14 @@
   .paste-actions-hint{font-size:12px;color:var(--text-mute);margin:0 0 10px}
   .paste-zone textarea{width:100%;min-height:64px;max-height:55vh;overflow-y:auto;resize:vertical;line-height:1.45}
   .paste-fallback-note{display:none}
-  body.is-mobile #btn-diag{display:none}
+  body.is-mobile #btn-diag, body.is-mobile #paste, body.is-mobile .paste-ai, body.is-mobile .paste-actions-hint{display:none}
   body.is-mobile .paste-zone.fallback .paste-fallback-note{display:block;font-size:12.5px;color:var(--warn);margin:6px 0;line-height:1.4}
+  body.is-mobile .paste-zone.fallback #paste{display:block}
   .paste-img-hint{font-size:12px;color:var(--text-mute);margin:2px 0 4px}
   .paste-foto{display:flex;align-items:center;gap:10px;margin-top:8px}
   .paste-foto-tag{font-size:12px;color:var(--text-mute)}
   .paste-foto img{width:54px;height:54px;object-fit:cover;border-radius:10px;border:1px solid var(--line-strong);cursor:pointer}
   .btn-sm{padding:6px 11px;font-size:12.5px}
-  body.is-mobile #btn-diag{display:none}
   .paste-zone.fallback .paste-fallback-note{display:block;font-size:12.5px;color:var(--warn);margin:6px 0;line-height:1.4}
   .fields{display:grid;grid-template-columns:1fr 1fr;gap:13px}
   .fields .full{grid-column:1/-1}
@@ -1085,12 +1085,12 @@
         <div class="paste-actions">
           <button class="btn btn-ghost" id="btn-colar" onclick="colarMensagem()">📋 Colar mensagem</button>
           <button class="btn btn-ghost" onclick="colarImagemTopo()">📋 Colar imagem</button>
-          <button class="btn btn-ghost" onclick="document.getElementById('f-foto-loc').click()">📎 Anexar imagem</button>
+          <button class="btn btn-ghost" onclick="addLinkLocal()">📍 Add link da localização</button>
         </div>
-        <div class="paste-img-hint">no WhatsApp: segure a foto → Copiar; aqui toque em 📋 Colar imagem (ou 📎 Anexar da galeria)</div>
+        <div class="paste-img-hint">no WhatsApp: segure a foto → Copiar, depois 📋 Colar imagem · ou copie o pin do mapa e toque em 📍 Add link da localização</div>
         <textarea id="paste" oninput="autoGrow(this)" placeholder="Cole aqui a mensagem (toque e segure → Colar) — ou toque em 📋 Colar mensagem. Pode colar a IMAGEM aqui também, vai junto com o texto."></textarea>
         <div id="paste-foto" class="paste-foto" style="display:none"></div>
-        <div class="paste-actions" style="margin-top:10px">
+        <div class="paste-actions paste-ai" style="margin-top:10px">
           <button class="btn btn-primary" id="btn-ai" onclick="aiPreencher()">✨ Preencher com IA</button>
           <button class="btn btn-ghost" id="btn-ai-add" onclick="aiAdicionar()" title="Só preenche os campos vazios — não apaga o que você já cadastrou">➕ Adicionar com IA</button>
         </div>
@@ -1120,7 +1120,11 @@
         <div><label>Cidade</label><input id="f-cidade" placeholder="Goiânia / Aparecida..."></div>
         <div class="full"><label>Endereço escrito</label><input id="f-end" placeholder="Rua, número, referência"></div>
         <div class="full"><label>Link do endereço (mapa) <button type="button" class="link-btn" id="btn-geo" onclick="localizarPorEndereco()">🔍 localizar pelo endereço</button></label><input id="f-link" placeholder="https://maps... (cole o pin do WhatsApp)"></div>
-        <input id="f-foto-loc" type="file" accept="image/*" style="display:none" onchange="onFotoLocFile(this)">
+        <div class="full">
+          <label>Foto da localização <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(opcional — anexe ou cole a foto lá em cima; ela aparece aqui)</span></label>
+          <input id="f-foto-loc" type="file" accept="image/*" style="display:none" onchange="onFotoLocFile(this)">
+          <div id="foto-loc-preview" class="foto-loc-preview" style="display:none"></div>
+        </div>
         <div>
           <label>Horário combinado</label>
           <div class="hr-row">
@@ -2380,11 +2384,13 @@ async function lerClipboardCompleto(){
   }
   return '';
 }
+function isMob(){ return document.body.classList.contains('is-mobile'); }
+function formTemDados(){ return !!($('f-cliente').value.trim() || $('f-contato').value.trim() || $('f-end').value.trim()); }
 async function colarMensagem(){
   const btn=$('btn-colar'), old=btn?btn.textContent:'';
   if(!(navigator.clipboard && (navigator.clipboard.read || navigator.clipboard.readText))){
     const pz=document.querySelector('.paste-zone'); if(pz) pz.classList.add('fallback');
-    $('paste').focus(); toast('Cole a mensagem no campo abaixo e toque em ✨ Preencher com IA'); return;
+    $('paste').focus(); toast('Cole a mensagem no campo e toque em ✨ Preencher com IA'); return;
   }
   if(btn){ btn.textContent='📋 Lendo...'; btn.disabled=true; }
   let txt='';
@@ -2400,7 +2406,27 @@ async function colarMensagem(){
   if(!txt || !txt.trim()){ toast('Nada copiado — copie a mensagem no WhatsApp primeiro 🙂'); $('paste').focus(); return; }
   $('paste').value = txt.trim();
   autoGrow($('paste'));
-  toast('Mensagem colada — agora toque em ✨ Preencher ou ➕ Adicionar');
+  if(isMob()){
+    // celular: sem campo visível → já preenche. Se o formulário já tem dados, completa (não apaga); senão, preenche.
+    if(formTemDados()) aiAdicionar(); else aiPreencher();
+  } else {
+    toast('Mensagem colada — agora toque em ✨ Preencher ou ➕ Adicionar');
+  }
+}
+/* botão "Add link da localização": lê o link do mapa copiado e joga no campo Link */
+async function addLinkLocal(){
+  let txt='';
+  try{ txt = (navigator.clipboard && navigator.clipboard.readText) ? (await navigator.clipboard.readText()) : ''; }
+  catch(e){ txt=''; }
+  txt=(txt||'').trim();
+  if(!txt){ $('f-link').focus(); toast('Copie o link do mapa (WhatsApp/Google Maps) e toque de novo'); return; }
+  const m = txt.match(/https?:\/\/\S+/);
+  const url = m ? m[0] : txt;
+  $('f-link').value = url;
+  toast('📍 Link da localização adicionado');
+  const c = (typeof coordFrom==='function') ? coordFrom(url) : null;
+  if(c){ buscarBairroAuto(c, false); }
+  else if(typeof ehLinkCurto==='function' && ehLinkCurto(url)){ try{ const rc=await resolverLinkCurto(url); if(rc && isFinite(rc.lat) && isFinite(rc.lng)) buscarBairroAuto({lat:rc.lat,lng:rc.lng}, false); }catch(_){} }
 }
 /* mostra exatamente o que foi colado e como o sistema interpreta — pra depurar no aparelho */
 function _revelar(s){
@@ -2800,7 +2826,7 @@ function renderFotoLocPreview(){
 async function colarImagemTopo(){
   try{
     if(!(navigator.clipboard && navigator.clipboard.read)){
-      toast('Seu navegador não deixa colar imagem aqui — use 📎 Anexar imagem (galeria/câmera).'); return;
+      toast('Seu navegador não deixa colar imagem aqui. Copie a foto no WhatsApp (segure → Copiar) e tente de novo.'); return;
     }
     const itens = await navigator.clipboard.read();
     for(const it of itens){
@@ -2809,13 +2835,14 @@ async function colarImagemTopo(){
         const blob = await it.getType(tipo);
         fotoLocPendente = await comprimirFotoLocal(blob);
         renderFotoLocPreview();
-        toast('Imagem colada 📋');
+        if(isMob()){ toast('Imagem colada 📋 — lendo…'); aiAdicionar(); }   // celular: já lê a imagem e completa
+        else toast('Imagem colada 📋');
         return;
       }
     }
     toast('Nenhuma imagem copiada. No WhatsApp: segure a foto → Copiar, depois toque em 📋 Colar imagem.');
   }catch(e){
-    toast('Não consegui acessar a área de transferência — use 📎 Anexar imagem (galeria/câmera).');
+    toast('Não consegui acessar a área de transferência. Copie a foto no WhatsApp (segure → Copiar) e tente de novo.');
   }
 }
 /* miniatura da imagem anexada, logo abaixo do campo (Preencher/Adicionar ficam embaixo dela) */
