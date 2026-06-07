@@ -138,15 +138,20 @@
   textarea,input{font-family:var(--ff-body);width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--text);padding:11px 13px;font-size:14px;transition:.15s;resize:vertical}
   textarea:focus,input:focus{outline:none;border-color:var(--gold);background:#2f4a1c}
   textarea::placeholder,input::placeholder{color:var(--text-mute)}
-  .paste-row{display:flex;gap:10px;align-items:flex-end}
-  .paste-row textarea{min-height:46px}
-  .paste-btns{display:flex;flex-direction:column;gap:8px}
-  .paste-cta{width:100%;margin-bottom:10px;min-height:50px;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px}
-  /* MOBILE: mostra só o botão "Colar e preencher"; campo manual vira plano B */
+  .paste-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .paste-actions .btn{flex:1 1 0;min-width:150px;min-height:46px;justify-content:center}
+  .paste-actions-hint{font-size:12px;color:var(--text-mute);margin:0 0 10px}
+  .paste-zone textarea{width:100%;min-height:64px;max-height:55vh;overflow-y:auto;resize:vertical;line-height:1.45}
   .paste-fallback-note{display:none}
-  body.is-mobile .paste-row, body.is-mobile #btn-diag{display:none}
-  body.is-mobile .paste-zone.fallback .paste-row{display:flex;flex-direction:column;align-items:stretch}
-  body.is-mobile .paste-zone.fallback .paste-fallback-note{display:block;font-size:12.5px;color:var(--warn);margin:2px 0 9px;line-height:1.4}
+  body.is-mobile #btn-diag{display:none}
+  body.is-mobile .paste-zone.fallback .paste-fallback-note{display:block;font-size:12.5px;color:var(--warn);margin:6px 0;line-height:1.4}
+  .paste-img-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .paste-img-hint{font-size:12px;color:var(--text-mute)}
+  .paste-foto{display:flex;align-items:center;gap:8px}
+  .paste-foto img{width:54px;height:54px;object-fit:cover;border-radius:10px;border:1px solid var(--line-strong);cursor:pointer}
+  .btn-sm{padding:6px 11px;font-size:12.5px}
+  body.is-mobile #btn-diag{display:none}
+  .paste-zone.fallback .paste-fallback-note{display:block;font-size:12.5px;color:var(--warn);margin:6px 0;line-height:1.4}
   .fields{display:grid;grid-template-columns:1fr 1fr;gap:13px}
   .fields .full{grid-column:1/-1}
   .chk-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;margin:2px 0}
@@ -932,9 +937,6 @@
   }
   @media(max-width:540px){
     .fields{grid-template-columns:1fr}
-    .paste-row{flex-direction:column;align-items:stretch}
-    .paste-btns{flex-direction:row}
-    .paste-btns .btn{flex:1}
     .clock{display:none}
     .routebar{flex-direction:column;align-items:stretch}
     .routebar .selinfo{text-align:center}
@@ -1079,15 +1081,20 @@
     </div>
     <div class="panel-body">
       <div class="paste-zone">
-        <label>Preencher pela mensagem do WhatsApp <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(detecta nome, telefone, endereço, valor e horário)</span></label>
-        <button class="btn btn-primary paste-cta" id="btn-colar" onclick="colarEpreencher()">📋 Colar mensagem e preencher</button>
-        <div class="paste-fallback-note">Não consegui colar sozinho aqui 🙈 — cole a mensagem no campo abaixo (toque e segure → Colar) e toque em ✨ Preencher com IA.</div>
-        <div class="paste-row">
-          <textarea id="paste" placeholder="…ou cole a mensagem aqui (toque e segure → Colar) e use ✨ Preencher com IA. Para vários, separe por ⛔"></textarea>
-          <div class="paste-btns">
-            <button class="btn btn-primary" id="btn-ai" onclick="aiPreencher()">✨ Preencher com IA</button>
-            <button class="btn btn-ghost" onclick="importarLote()">Importar lote</button>
-          </div>
+        <label>Preencher pela mensagem do WhatsApp <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(detecta nome, telefone, endereço, valor e horário — e lê também a foto anexada/colada)</span></label>
+        <div class="paste-actions">
+          <button class="btn btn-ghost" id="btn-colar" onclick="colarMensagem()">📋 Colar mensagem</button>
+          <button class="btn btn-primary" id="btn-ai" onclick="aiPreencher()">✨ Preencher com IA</button>
+          <button class="btn btn-ghost" id="btn-ai-add" onclick="aiAdicionar()" title="Só preenche os campos vazios — não apaga o que você já cadastrou">➕ Adicionar com IA</button>
+        </div>
+        <div class="paste-actions-hint"><b>Preencher</b> substitui tudo · <b>Adicionar</b> só completa os campos vazios</div>
+        <textarea id="paste" oninput="autoGrow(this)" placeholder="Cole aqui a mensagem (toque e segure → Colar) — ou toque em 📋 Colar mensagem. Pode colar a IMAGEM aqui também, vai junto com o texto."></textarea>
+        <div class="paste-fallback-note">Não consegui colar sozinho 🙈 — cole a mensagem no campo acima (toque e segure → Colar) e toque em ✨ Preencher com IA.</div>
+        <div class="paste-img-row">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-foto-loc').click()">📎 Anexar imagem</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="colarImagemTopo()">📋 Colar imagem</button>
+          <span class="paste-img-hint">no WhatsApp: segure a foto → Copiar; aqui toque em 📋 Colar imagem (ou 📎 Anexar da galeria)</span>
+          <div id="paste-foto" class="paste-foto" style="display:none"></div>
         </div>
         <button type="button" id="btn-diag" onclick="toggleDiag()" style="background:none;border:none;color:var(--text-mute);font-size:12px;cursor:pointer;padding:4px 0;text-decoration:underline">🔧 diagnóstico (mostrar o que foi colado)</button>
         <pre id="diag-box" style="display:none;white-space:pre-wrap;word-break:break-word;background:#1c2316;border:1px solid #3a4a28;border-radius:8px;padding:10px;font-size:11px;line-height:1.5;color:#cfe0b8;max-height:320px;overflow:auto;margin:6px 0 0"></pre>
@@ -1103,7 +1110,7 @@
           <input id="f-vend" placeholder="Quem fez a venda" list="vend-list" autocomplete="off">
           <div class="vend-chips" id="vend-chips"></div>
         </div>
-        <div><label>Contato</label><input id="f-contato" type="tel" inputmode="tel" placeholder="(62) 9....-...."></div>
+        <div><label>Contato</label><input id="f-contato" type="tel" inputmode="tel" placeholder="(62) 9....-...." oninput="maskTelefone(this)"></div>
         <div><label>CPF</label><input id="f-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" oninput="maskCPF(this)"></div>
         <div><label>Nascimento</label><input id="f-nasc" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" oninput="maskData(this)"></div>
         <div>
@@ -1114,7 +1121,7 @@
         <div class="full"><label>Endereço escrito</label><input id="f-end" placeholder="Rua, número, referência"></div>
         <div class="full"><label>Link do endereço (mapa) <button type="button" class="link-btn" id="btn-geo" onclick="localizarPorEndereco()">🔍 localizar pelo endereço</button></label><input id="f-link" placeholder="https://maps... (cole o pin do WhatsApp)"></div>
         <div class="full">
-          <label>Foto da localização <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(opcional — o print que o cliente mandou)</span></label>
+          <label>Foto da localização <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(opcional — o print/foto do endereço; depois toque em ✨ Ler endereço da foto)</span></label>
           <input id="f-foto-loc" type="file" accept="image/*" style="display:none" onchange="onFotoLocFile(this)">
           <button type="button" class="btn btn-ghost" style="width:100%" onclick="document.getElementById('f-foto-loc').click()">📷 Anexar foto da localização</button>
           <div id="foto-loc-preview" class="foto-loc-preview" style="display:none"></div>
@@ -2332,7 +2339,7 @@ function fillForm(r){
   if(r.cliente) $('f-cliente').value=r.cliente;
   if(r.vendedora && !ehVend) $('f-vend').value=r.vendedora;
   else if(ehVend) $('f-vend').value=session.vendedora;
-  if(r.contato) $('f-contato').value=r.contato;
+  if(r.contato) $('f-contato').value=formatPhone(r.contato);
   if(r.endereco) $('f-end').value=r.endereco;
   if(r.bairro) $('f-bairro').value=r.bairro;
   if(r.cidade) $('f-cidade').value=r.cidade;
@@ -2378,7 +2385,7 @@ async function lerClipboardCompleto(){
   }
   return '';
 }
-async function colarEpreencher(){
+async function colarMensagem(){
   const btn=$('btn-colar'), old=btn?btn.textContent:'';
   if(!(navigator.clipboard && (navigator.clipboard.read || navigator.clipboard.readText))){
     const pz=document.querySelector('.paste-zone'); if(pz) pz.classList.add('fallback');
@@ -2391,13 +2398,14 @@ async function colarEpreencher(){
     if(btn){ btn.textContent=old; btn.disabled=false; }
     const pz=document.querySelector('.paste-zone'); if(pz) pz.classList.add('fallback');
     $('paste').focus();
-    toast('Toque e segure no campo abaixo → Colar, depois ✨ Preencher com IA');
+    toast('Toque e segure no campo → Colar, depois ✨ Preencher com IA');
     return;
   }
   if(btn){ btn.textContent=old; btn.disabled=false; }
   if(!txt || !txt.trim()){ toast('Nada copiado — copie a mensagem no WhatsApp primeiro 🙂'); $('paste').focus(); return; }
   $('paste').value = txt.trim();
-  aiPreencher();   // mesmo preenchimento (com IA) usado no computador
+  autoGrow($('paste'));
+  toast('Mensagem colada — agora toque em ✨ Preencher ou ➕ Adicionar');
 }
 /* mostra exatamente o que foi colado e como o sistema interpreta — pra depurar no aparelho */
 function _revelar(s){
@@ -2441,31 +2449,59 @@ async function toggleDiag(){
     box.textContent=out+'4) IA FALHOU ✗ ('+e.message+') → o app usa a leitura simples acima.\nÉ por isso que alguns campos podem sair errados no aparelho.';
   }
 }
-async function aiPreencher(){
+async function aiPreencher(){ return aiRodar('preencher'); }   // substitui pelos dados lidos
+let _aiBusy=false;
+/* núcleo: lê TEXTO e/ou FOTO e preenche. modo 'preencher' (substitui) | 'adicionar' (só completa vazios) */
+async function aiRodar(modo){
   const t = $('paste').value.trim();
-  if(!t){ toast('Cole a mensagem primeiro'); return; }
-  const _chunks = splitDeliveries(t).filter(c=>c.trim());
-  if(_chunks.length > 1){ return importarLote(); }   // várias mensagens (separadas por ⛔) → importa todas
-  const btn=$('btn-ai'), old=btn.textContent;
-  btn.textContent='✨ Lendo...'; btn.disabled=true;
+  const temFoto = !!fotoLocPendente;
+  if(!t && !temFoto){ toast(modo==='adicionar' ? 'Cole um texto ou anexe uma foto pra completar' : 'Cole a mensagem ou anexe uma foto primeiro'); return; }
+  if(_aiBusy) return;                               // evita disparo duplicado (e gasto duplicado de IA)
+  _aiBusy = true;
+  toast(temFoto && !t ? '✨ Lendo a foto…' : '✨ Lendo…');   // feedback visível (vale no celular)
+  const btn=$(modo==='adicionar' ? 'btn-ai-add' : 'btn-ai'); let old;
+  if(btn){ old=btn.textContent; btn.textContent='✨ Lendo...'; btn.disabled=true; }
   try{
-    const r = await aiParse(t);
-    const base = parseWhatsapp(t); // vendedora (remetente) e link são mais confiáveis pelo método direto
-    if(!r.vendedora && base.vendedora) r.vendedora = base.vendedora;
-    if(!r.link && base.link) r.link = base.link;
-    if(!r.linkPagamento && base.linkPagamento) r.linkPagamento = base.linkPagamento;
-    if((r.taxa===undefined||r.taxa==='') && base.taxa) r.taxa = base.taxa;
-    fillForm(r);
-    toast('✨ Preenchido com IA — confira e cadastre');
+    const r = await aiParseConteudo({ text:t, dataUrl: temFoto ? fotoLocPendente : null });
+    if(t){ // remetente/link saem melhor pelo método direto quando há texto
+      const base = parseWhatsapp(t);
+      if(!r.vendedora && base.vendedora) r.vendedora = base.vendedora;
+      if(!r.link && base.link) r.link = base.link;
+      if(!r.linkPagamento && base.linkPagamento) r.linkPagamento = base.linkPagamento;
+      if(modo==='preencher' && (r.taxa===undefined||r.taxa==='') && base.taxa) r.taxa = base.taxa;
+    }
+    (modo==='adicionar' ? fillFormSoVazios : fillForm)(r);
+    toast(modo==='adicionar' ? '➕ Completei o que faltava — o que já estava preenchido foi mantido' : '✨ Preenchido com IA — confira e cadastre');
     if($('f-link').value && !$('f-bairro').value.trim()) buscarBairroAuto(coordFrom($('f-link').value), false);
   }catch(e){
-    fillForm(parseWhatsapp(t));
-    toast('IA indisponível agora — usei o preenchimento simples');
-  }finally{ btn.textContent=old; btn.disabled=false; }
+    if(t){ (modo==='adicionar' ? fillFormSoVazios : fillForm)(parseWhatsapp(t)); toast('IA indisponível agora — usei o leitor simples'); }
+    else { toast('Não consegui ler a foto agora — tente uma imagem mais nítida'); }
+  }finally{ _aiBusy=false; if(btn){ btn.textContent=old; btn.disabled=false; } }
 }
-async function aiParse(text){
-  text = normWhats(text);
-  const sys=`Você extrai dados de mensagens de venda do WhatsApp de uma loja de calçados masculinos em Goiânia, para um sistema de entregas locais. As mensagens são informais e os dados vêm fora de ordem. Preencha o MÁXIMO de campos possível a partir da mensagem. Responda SOMENTE com um objeto JSON válido, sem markdown, sem nenhum texto antes ou depois.
+/* preenche SÓ os campos vazios — nunca apaga/substitui o que já está no formulário */
+function fillFormSoVazios(r){
+  const ehVend = session.role==='vendedora' && !session.geral; // nome travado nela
+  const setVazio=(id,val)=>{ const el=$(id); if(val && el && !el.value.trim()) el.value=val; };
+  setVazio('f-cliente', r.cliente);
+  if(ehVend){ if(!$('f-vend').value.trim()) $('f-vend').value=session.vendedora; }
+  else setVazio('f-vend', r.vendedora);
+  if(r.contato && !$('f-contato').value.trim()) $('f-contato').value=formatPhone(r.contato);
+  setVazio('f-end', r.endereco);
+  setVazio('f-bairro', r.bairro);
+  setVazio('f-cidade', r.cidade);
+  setVazio('f-prod', r.produto);
+  setVazio('f-valor', r.valor);
+  setVazio('f-obs', r.observacao);
+  setVazio('f-cpf', r.cpf);
+  setVazio('f-nasc', r.nascimento);
+  setVazio('f-link', r.link);
+  setVazio('f-linkpag', r.linkPagamento);
+  if(r.horarioTipo && !$('f-hr-tipo').value){ $('f-hr-tipo').value=r.horarioTipo; if(r.horarioHora) setVazio('f-hr-hora', r.horarioHora); }
+  // tipo, pagamento previsto, taxa e "presente" NÃO são tocados — são ajustes da gestão
+}
+/* 2º botão: ADICIONAR com IA — lê a colagem (texto e/ou foto) e preenche só o que está faltando */
+async function aiAdicionar(){ return aiRodar('adicionar'); }
+const SYS_EXTRACAO = `Você extrai dados de mensagens de venda do WhatsApp de uma loja de calçados masculinos em Goiânia, para um sistema de entregas locais. As mensagens são informais e os dados vêm fora de ordem. Preencha o MÁXIMO de campos possível a partir da mensagem. Responda SOMENTE com um objeto JSON válido, sem markdown, sem nenhum texto antes ou depois.
 Campos do JSON:
 - cliente: nome da PESSOA que vai receber a entrega. NÃO use empresa, ponto de referência ou cidade como nome. Se só houver o nome de uma empresa, use a empresa.
 - contato: telefone do cliente no formato (62) 9XXXX-XXXX, sem o +55.
@@ -2484,6 +2520,9 @@ Campos do JSON:
 - taxa: se a mensagem mencionar taxa de entrega ou frete COM valor (ex "taxa R$ 19,90", "frete 20"), retorne só o número (ex "19,90"). Se disser explicitamente entrega/frete grátis ou "sem taxa", retorne "0". Se NÃO mencionar nada sobre taxa/frete, retorne "".
 - genero: "F" se o PRIMEIRO NOME do cliente for nome de mulher, "M" se for nome de homem, "" se não der pra saber pelo nome. Baseie-se só no nome.
 Ignore RG. Use "" (ou "entrega"/"cobrar" nos campos com padrão) para qualquer campo ausente.`;
+async function aiParse(text){
+  text = normWhats(text);
+  const sys=SYS_EXTRACAO;
   let data;
   if(AI_PROXY_URL){
     // site hospedado → passa pela Cloud Function (que guarda a chave da Anthropic)
@@ -2504,72 +2543,53 @@ Ignore RG. Use "" (ou "entrega"/"cobrar" nos campos com padrão) para qualquer c
   txt=txt.replace(/```json|```/g,'').trim();
   return JSON.parse(txt);
 }
-/* lê UMA mensagem com a IA (mesma qualidade do preenchimento individual),
-   com fallback automático para o leitor simples se a IA falhar */
-async function parseChunkSmart(ch){
-  const base = parseWhatsapp(ch); // remetente (vendedora) e link saem melhor no método direto
-  try{
-    const r = await aiParse(ch);
-    if(!r.vendedora && base.vendedora) r.vendedora = base.vendedora;
-    if(!r.link && base.link) r.link = base.link;
-    if(!r.linkPagamento && base.linkPagamento) r.linkPagamento = base.linkPagamento;
-    if(!r.tipo) r.tipo = base.tipo || 'entrega';
-    if(!r.pagPrevisto) r.pagPrevisto = base.pagPrevisto || 'cobrar';
-    if((r.taxa===undefined||r.taxa==='') && base.taxa) r.taxa = base.taxa;
-    return {r, ia:true};
-  }catch(e){ return {r:base, ia:false}; }
-}
-async function importarLote(){
-  const t = $('paste').value.trim();
-  if(!t){ toast('Cole as mensagens primeiro'); return; }
-  const chunks = splitDeliveries(t).filter(c=>c.trim());
-  if(!chunks.length){ toast('Não encontrei mensagens no texto'); return; }
-  const ehVend = session.role==='vendedora' && !session.geral;
-  const btn=document.querySelector('.paste-row .btn-ghost'); let bo;
-  if(btn){ bo=btn.textContent; btn.disabled=true; btn.textContent=`✨ Lendo ${chunks.length} com IA...`; }
-  // lê todas com a IA em paralelo (cada uma com seu próprio fallback)
-  const parsed = await Promise.all(chunks.map(ch=>parseChunkSmart(ch)));
-  const usouIA = parsed.some(p=>p.ia), todasIA = parsed.every(p=>p.ia);
-  const novas=[]; let skip=0;
-  parsed.forEach(({r})=>{
-    if(!(r.cliente || r.contato || r.link)){ skip++; return; }
-    novas.push({
-      id:uid(), cliente:r.cliente||'(sem nome)', contato:r.contato||'', cpf:r.cpf||'', nascimento:r.nascimento||'', bairro:r.bairro||'', cidade:r.cidade||'',
-      vendedora: ehVend ? session.vendedora : (r.vendedora||''), endereco:r.endereco||'', link:r.link||'', coord:coordFrom(r.link||''),
-      horarioTipo:r.horarioTipo||'', horarioHora:r.horarioHora||'', produto:r.produto||'', valor:r.valor||'', observacao:r.observacao||'',
-      tipo:r.tipo||'entrega', pagPrevisto:r.pagPrevisto||'cobrar',
-      presente: (r.genero==='F') || !!r.presente,
-      taxaEntrega: (r.taxa && _num(r.taxa)>0) ? _num(r.taxa) : null,
-      status:'aguardando', entregador:null, criadoEm:Date.now(), entregueEm:null
+/* lê TEXTO e/ou FOTO com a IA e devolve os campos (print de endereço, comprovante, etc.) */
+async function aiParseConteudo({ text, dataUrl }){
+  let media=null, b64=null;
+  if(dataUrl){ const m=/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl); if(m){ media=m[1]; b64=m[2]; } }
+  const temTexto = !!(text && text.trim());
+  const userText = temTexto ? normWhats(text)
+    : "Esta é uma imagem que o cliente enviou (print de endereço, comprovante, etiqueta ou foto do local). Extraia os dados seguindo as regras e responda SOMENTE com o JSON.";
+  let data;
+  if(AI_PROXY_URL){
+    // site hospedado → passa pelo Worker (que guarda a chave)
+    const payload = { system:SYS_EXTRACAO, text:userText };
+    if(b64) payload.image = { media_type:media, data:b64 };
+    const res = await fetch(AI_PROXY_URL,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+    if(!res.ok) throw new Error('proxy '+res.status);
+    data = await res.json();
+  } else {
+    // dentro do ambiente Claude (pré-visualização) → chamada direta (com visão se houver imagem)
+    const content = b64
+      ? [ { type:"image", source:{ type:"base64", media_type:media, data:b64 } }, { type:"text", text:userText } ]
+      : userText;
+    const res = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, system:SYS_EXTRACAO, messages:[{ role:"user", content }] })
     });
-  });
-  if(!novas.length){ if(btn){ btn.textContent=bo; btn.disabled=false; } toast('Não encontrei entregas válidas no texto'); return; }
-  // expande links curtos (pin do WhatsApp) e geocodifica as sem localização (com respiro entre buscas)
-  const curtas = novas.filter(e=>!e.coord && ehLinkCurto(e.link));
-  for(let i=0;i<curtas.length;i++){
-    const e=curtas[i];
-    if(btn) btn.textContent=`Lendo localização ${i+1}/${curtas.length}...`;
-    const rc = await resolverLinkCurto(e.link);
-    if(rc && isFinite(rc.lat) && isFinite(rc.lng)) e.coord={lat:rc.lat,lng:rc.lng};
-    else if(rc && rc.endereco && !e.endereco) e.endereco=rc.endereco;   // o link aponta pra um lugar: usa o endereço
+    if(!res.ok) throw new Error('api '+res.status);
+    data = await res.json();
   }
-  const semGeo = novas.filter(e=>!e.coord && (e.endereco||e.bairro));
-  if(btn){ btn.disabled=true; }
-  for(let i=0;i<semGeo.length;i++){
-    const e=semGeo[i];
-    if(btn) btn.textContent=`Localizando ${i+1}/${semGeo.length}...`;
-    try{
-      const res=await geocodeEndereco([e.endereco,e.bairro,e.cidade||'Goiânia','GO','Brasil'].filter(Boolean).join(', '));
-      if(res){ e.coord={lat:res.lat,lng:res.lng}; if(!e.link) e.link=`https://www.google.com/maps?q=${res.lat},${res.lng}`; }
-    }catch(err){}
-    await new Promise(r=>setTimeout(r, 1100)); // respeita o limite do serviço
-  }
-  if(btn){ btn.textContent=bo; btn.disabled=false; }
-  entregas.push(...novas);
-  const semLoc = novas.filter(e=>!e.coord).length;
-  persist(); refreshVendChips(); $('paste').value=''; togglePanel(false); animateNext(); render();
-  const selo = todasIA ? ' ✨ com IA' : (usouIA ? ' ✨ (parte com IA)' : ' (leitura simples — IA fora do ar)');
-  toast(`${novas.length} ${novas.length===1?'entrega importada':'entregas importadas'}${selo}${skip?` · ${skip} ignoradas`:''}${semLoc?` · ${semLoc} sem localização`:''}`);
+  if(data && data.error){ throw new Error('IA: ' + (data.error.message || JSON.stringify(data.error))); }
+  let txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+  txt=txt.replace(/```json|```/g,'').trim();
+  const a=txt.indexOf('{'), b=txt.lastIndexOf('}');   // tolera texto em volta do JSON
+  if(a>=0 && b>a) txt=txt.slice(a, b+1);
+  return JSON.parse(txt);
+}
+async function lerEnderecoFoto(){
+  if(!fotoLocPendente){ toast('Anexe ou cole a foto do endereço primeiro 📷'); return; }
+  const btn=$('btn-ler-foto'); let bo;
+  if(btn){ bo=btn.textContent; btn.disabled=true; btn.textContent='✨ Lendo a foto...'; }
+  try{
+    const r = await aiParseConteudo({ text:'', dataUrl: fotoLocPendente });
+    fillFormSoVazios(r);   // atalho da foto = completar (não apaga o que já está preenchido)
+    toast('➕ Completei com a foto — o que já estava preenchido foi mantido');
+    if($('f-link').value && !$('f-bairro').value.trim()) buscarBairroAuto(coordFrom($('f-link').value), false);
+  }catch(e){
+    console.warn('ler foto falhou', e);
+    toast('Não consegui ler a foto agora — tente uma imagem mais nítida ou preencha à mão');
+  }finally{ if(btn){ btn.textContent=bo; btn.disabled=false; } }
 }
 function buscarBairro(){
   const c = coordFrom($('f-link').value.trim());
@@ -2614,7 +2634,19 @@ function togglePanel(open){
 }
 function maskCPF(el){ let v=el.value.replace(/\D/g,'').slice(0,11); v=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); el.value=v; }
 function maskData(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>=5) v=v.replace(/(\d{2})(\d{2})(\d{1,4})/,'$1/$2/$3'); else if(v.length>=3) v=v.replace(/(\d{2})(\d{1,2})/,'$1/$2'); el.value=v; }
-function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); fotoLocPendente=null; renderFotoLocPreview(); }
+function maskTelefone(el){
+  let d=(el.value||'').replace(/\D/g,'');
+  if(d.length>11 && d.startsWith('55')) d=d.slice(2);   // tira o 55 se colar com país
+  d=d.slice(0,11);
+  let v=d;
+  if(d.length>10)      v=`(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;   // 11: (62) 99999-9999
+  else if(d.length>6)  v=`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;   // 7-10: (62) 9999-9999
+  else if(d.length>2)  v=`(${d.slice(0,2)}) ${d.slice(2)}`;
+  else if(d.length>0)  v=`(${d}`;
+  el.value=v;
+}
+function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
+function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -2626,6 +2658,14 @@ async function saveEntrega(){
   let coord = coordFrom(link);
   let end=$('f-end').value.trim();
   const bairro=$('f-bairro').value.trim(), cidade=$('f-cidade').value.trim();
+  const contato=$('f-contato').value.trim();
+  const pagPrev=$('f-pag-prev').value||'cobrar';
+  const valor=$('f-valor').value.trim();
+  // TRAVA: precisa de CONTATO ou LOCALIZAÇÃO — senão o entregador não tem como levar nem pedir o endereço
+  const temLoc = !!coord || !!link || !!end || !!bairro || !!fotoLocPendente;
+  if(!contato && !temLoc){ toast('Precisa de pelo menos o CONTATO ou a LOCALIZAÇÃO — senão o entregador não tem como levar'); $('f-contato').focus(); return; }
+  // TRAVA: "a cobrar" sem valor não faz sentido (cobrar o quê?)
+  if(pagPrev==='cobrar' && !valor){ toast('Pagamento "a cobrar" precisa do valor — senão não dá pra saber quanto cobrar'); $('f-valor').focus(); return; }
   // link encurtado (pin do WhatsApp)? expande no worker pra pegar coordenada OU endereço
   if(!coord && ehLinkCurto(link)){
     const btn=$('btn-salvar'), old=btn.textContent; btn.textContent='Localizando...'; btn.disabled=true;
@@ -2646,7 +2686,7 @@ async function saveEntrega(){
   const novoId=uid();
   entregas.push({
     id:novoId, cliente,
-    contato:$('f-contato').value.trim(),
+    contato,
     cpf:$('f-cpf').value.trim(),
     nascimento:$('f-nasc').value.trim(),
     bairro, cidade, vendedora,
@@ -2656,9 +2696,9 @@ async function saveEntrega(){
     horarioTipo:$('f-hr-tipo').value,
     horarioHora:$('f-hr-hora').value,
     tipo:$('f-tipo').value||'entrega',
-    pagPrevisto:$('f-pag-prev').value||'cobrar',
+    pagPrevisto:pagPrev,
     produto:$('f-prod').value.trim(),
-    valor:$('f-valor').value.trim(),
+    valor,
     linkPagamento:$('f-linkpag').value.trim(),
     observacao:$('f-obs').value.trim(),
     presente:$('f-presente') ? $('f-presente').checked : false,
@@ -2749,13 +2789,42 @@ function closeDet(){ const m=$('det-modal'); if(m) m.classList.remove('open'); }
 let fotoLocPendente=null;   // foto anexada no form, aguardando salvar
 async function onFotoLocFile(input){
   const f=input&&input.files&&input.files[0]; if(!f) return;
-  try{ fotoLocPendente=await comprimirImagem(f, 1280, 0.72); renderFotoLocPreview(); toast('Foto da localização anexada 📍'); }
+  try{ fotoLocPendente=await comprimirFotoLocal(f); renderFotoLocPreview(); toast('Foto da localização anexada 📍'); }
   catch(e){ toast('Não consegui ler essa imagem'); }
   input.value='';
 }
 function renderFotoLocPreview(){
   const w=$('foto-loc-preview'); if(!w) return;
-  if(fotoLocPendente){ w.style.display=''; w.innerHTML=`<img src="${fotoLocPendente}" onclick="verPreviewFotoLoc()" alt="foto"><button type="button" class="foto-loc-x" onclick="removerFotoLocPendente()">✕ remover</button>`; }
+  if(fotoLocPendente){ w.style.display=''; w.innerHTML=`<img src="${fotoLocPendente}" onclick="verPreviewFotoLoc()" alt="foto"><button type="button" class="btn btn-ghost" id="btn-ler-foto" style="margin-left:4px" onclick="lerEnderecoFoto()" title="Lê a foto e completa só os campos vazios">✨ Ler da foto (completar)</button><button type="button" class="foto-loc-x" onclick="removerFotoLocPendente()">✕ remover</button>`; }
+  else { w.style.display='none'; w.innerHTML=''; }
+  renderPasteFoto();
+}
+/* botão "Colar imagem": lê a imagem COPIADA da área de transferência (funciona no iPhone/Android via toque, com permissão) */
+async function colarImagemTopo(){
+  try{
+    if(!(navigator.clipboard && navigator.clipboard.read)){
+      toast('Seu navegador não deixa colar imagem aqui — use 📎 Anexar imagem (galeria/câmera).'); return;
+    }
+    const itens = await navigator.clipboard.read();
+    for(const it of itens){
+      const tipo = (it.types||[]).find(t=>t.indexOf('image')===0);
+      if(tipo){
+        const blob = await it.getType(tipo);
+        fotoLocPendente = await comprimirFotoLocal(blob);
+        renderFotoLocPreview();
+        toast('Imagem colada 📋');
+        return;
+      }
+    }
+    toast('Nenhuma imagem copiada. No WhatsApp: segure a foto → Copiar, depois toque em 📋 Colar imagem.');
+  }catch(e){
+    toast('Não consegui acessar a área de transferência — use 📎 Anexar imagem (galeria/câmera).');
+  }
+}
+/* miniatura da imagem dentro da própria área de preenchimento (espelha a foto-loc) */
+function renderPasteFoto(){
+  const w=$('paste-foto'); if(!w) return;
+  if(fotoLocPendente){ w.style.display=''; w.innerHTML=`<img src="${fotoLocPendente}" onclick="verPreviewFotoLoc()" alt="imagem anexada"><button type="button" class="btn btn-primary btn-sm" onclick="aiPreencher()">✨ Preencher</button><button type="button" class="btn btn-ghost btn-sm" onclick="aiAdicionar()" title="Só completa os campos vazios">➕ Completar</button><button type="button" class="foto-loc-x" onclick="removerFotoLocPendente()">✕</button>`; }
   else { w.style.display='none'; w.innerHTML=''; }
 }
 function removerFotoLocPendente(){ fotoLocPendente=null; renderFotoLocPreview(); }
@@ -3148,6 +3217,16 @@ function comprimirImagem(file, maxW, quality){
     };
     img.onerror=rej; img.src=url;
   });
+}
+/* comprime a FOTO DA LOCALIZAÇÃO mirando caber no Firestore (limite ~1MB/doc), mantendo legível pra IA e pro entregador */
+async function comprimirFotoLocal(file){
+  const passos=[[1280,0.72],[1100,0.62],[980,0.55],[850,0.48],[720,0.42]];
+  let ultimo=null;
+  for(const [w,q] of passos){
+    ultimo=await comprimirImagem(file,w,q);
+    if(ultimo && ultimo.length < 800000) return ultimo;   // ~800KB de base64 — sobra folga pro doc de 1MB
+  }
+  return ultimo;
 }
 // comprime o comprovante mirando um tamanho seguro pra nuvem (Firestore ~1MB), mantendo legível
 async function comprimirComprovante(file){
@@ -3784,7 +3863,7 @@ let editId=null;
 function editar(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e)return;
-  $('f-cliente').value=e.cliente; $('f-contato').value=e.contato; $('f-bairro').value=e.bairro;
+  $('f-cliente').value=e.cliente; $('f-contato').value=formatPhone(e.contato); $('f-bairro').value=e.bairro;
   $('f-cpf').value=e.cpf||''; $('f-nasc').value=e.nascimento||'';
   $('f-cidade').value=e.cidade||''; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
   $('f-prod').value=e.produto; $('f-valor').value=e.valor; $('f-obs').value=e.observacao||''; $('f-linkpag').value=e.linkPagamento||'';
@@ -5476,7 +5555,7 @@ $('paste').addEventListener('paste', async (e)=>{
     if(it.type && it.type.indexOf('image')===0){
       const f=it.getAsFile(); if(!f) continue;
       e.preventDefault();
-      try{ fotoLocPendente=await comprimirImagem(f); renderFotoLocPreview(); toast('Foto da localização anexada 📍'); }catch(_){}
+      try{ fotoLocPendente=await comprimirFotoLocal(f); renderFotoLocPreview(); toast('Foto da localização anexada 📍'); }catch(_){}
       return;
     }
   }
