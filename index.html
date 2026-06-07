@@ -145,9 +145,9 @@
   .paste-fallback-note{display:none}
   body.is-mobile #btn-diag{display:none}
   body.is-mobile .paste-zone.fallback .paste-fallback-note{display:block;font-size:12.5px;color:var(--warn);margin:6px 0;line-height:1.4}
-  .paste-img-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
-  .paste-img-hint{font-size:12px;color:var(--text-mute)}
-  .paste-foto{display:flex;align-items:center;gap:8px}
+  .paste-img-hint{font-size:12px;color:var(--text-mute);margin:2px 0 4px}
+  .paste-foto{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .paste-foto-tag{font-size:12px;color:var(--text-mute)}
   .paste-foto img{width:54px;height:54px;object-fit:cover;border-radius:10px;border:1px solid var(--line-strong);cursor:pointer}
   .btn-sm{padding:6px 11px;font-size:12.5px}
   body.is-mobile #btn-diag{display:none}
@@ -1081,21 +1081,21 @@
     </div>
     <div class="panel-body">
       <div class="paste-zone">
-        <label>Preencher pela mensagem do WhatsApp <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(detecta nome, telefone, endereço, valor e horário — e lê também a foto anexada/colada)</span></label>
+        <label>Preencher pela mensagem do WhatsApp <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(detecta nome, telefone, endereço, valor e horário — e lê também a foto)</span></label>
         <div class="paste-actions">
           <button class="btn btn-ghost" id="btn-colar" onclick="colarMensagem()">📋 Colar mensagem</button>
+          <button class="btn btn-ghost" onclick="colarImagemTopo()">📋 Colar imagem</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('f-foto-loc').click()">📎 Anexar imagem</button>
+        </div>
+        <div class="paste-img-hint">no WhatsApp: segure a foto → Copiar; aqui toque em 📋 Colar imagem (ou 📎 Anexar da galeria)</div>
+        <textarea id="paste" oninput="autoGrow(this)" placeholder="Cole aqui a mensagem (toque e segure → Colar) — ou toque em 📋 Colar mensagem. Pode colar a IMAGEM aqui também, vai junto com o texto."></textarea>
+        <div id="paste-foto" class="paste-foto" style="display:none"></div>
+        <div class="paste-actions" style="margin-top:10px">
           <button class="btn btn-primary" id="btn-ai" onclick="aiPreencher()">✨ Preencher com IA</button>
           <button class="btn btn-ghost" id="btn-ai-add" onclick="aiAdicionar()" title="Só preenche os campos vazios — não apaga o que você já cadastrou">➕ Adicionar com IA</button>
         </div>
         <div class="paste-actions-hint"><b>Preencher</b> substitui tudo · <b>Adicionar</b> só completa os campos vazios</div>
-        <textarea id="paste" oninput="autoGrow(this)" placeholder="Cole aqui a mensagem (toque e segure → Colar) — ou toque em 📋 Colar mensagem. Pode colar a IMAGEM aqui também, vai junto com o texto."></textarea>
         <div class="paste-fallback-note">Não consegui colar sozinho 🙈 — cole a mensagem no campo acima (toque e segure → Colar) e toque em ✨ Preencher com IA.</div>
-        <div class="paste-img-row">
-          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-foto-loc').click()">📎 Anexar imagem</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="colarImagemTopo()">📋 Colar imagem</button>
-          <span class="paste-img-hint">no WhatsApp: segure a foto → Copiar; aqui toque em 📋 Colar imagem (ou 📎 Anexar da galeria)</span>
-          <div id="paste-foto" class="paste-foto" style="display:none"></div>
-        </div>
         <button type="button" id="btn-diag" onclick="toggleDiag()" style="background:none;border:none;color:var(--text-mute);font-size:12px;cursor:pointer;padding:4px 0;text-decoration:underline">🔧 diagnóstico (mostrar o que foi colado)</button>
         <pre id="diag-box" style="display:none;white-space:pre-wrap;word-break:break-word;background:#1c2316;border:1px solid #3a4a28;border-radius:8px;padding:10px;font-size:11px;line-height:1.5;color:#cfe0b8;max-height:320px;overflow:auto;margin:6px 0 0"></pre>
       </div>
@@ -1120,12 +1120,7 @@
         <div><label>Cidade</label><input id="f-cidade" placeholder="Goiânia / Aparecida..."></div>
         <div class="full"><label>Endereço escrito</label><input id="f-end" placeholder="Rua, número, referência"></div>
         <div class="full"><label>Link do endereço (mapa) <button type="button" class="link-btn" id="btn-geo" onclick="localizarPorEndereco()">🔍 localizar pelo endereço</button></label><input id="f-link" placeholder="https://maps... (cole o pin do WhatsApp)"></div>
-        <div class="full">
-          <label>Foto da localização <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(opcional — o print/foto do endereço; depois toque em ✨ Ler endereço da foto)</span></label>
-          <input id="f-foto-loc" type="file" accept="image/*" style="display:none" onchange="onFotoLocFile(this)">
-          <button type="button" class="btn btn-ghost" style="width:100%" onclick="document.getElementById('f-foto-loc').click()">📷 Anexar foto da localização</button>
-          <div id="foto-loc-preview" class="foto-loc-preview" style="display:none"></div>
-        </div>
+        <input id="f-foto-loc" type="file" accept="image/*" style="display:none" onchange="onFotoLocFile(this)">
         <div>
           <label>Horário combinado</label>
           <div class="hr-row">
@@ -2794,9 +2789,11 @@ async function onFotoLocFile(input){
   input.value='';
 }
 function renderFotoLocPreview(){
-  const w=$('foto-loc-preview'); if(!w) return;
-  if(fotoLocPendente){ w.style.display=''; w.innerHTML=`<img src="${fotoLocPendente}" onclick="verPreviewFotoLoc()" alt="foto"><button type="button" class="btn btn-ghost" id="btn-ler-foto" style="margin-left:4px" onclick="lerEnderecoFoto()" title="Lê a foto e completa só os campos vazios">✨ Ler da foto (completar)</button><button type="button" class="foto-loc-x" onclick="removerFotoLocPendente()">✕ remover</button>`; }
-  else { w.style.display='none'; w.innerHTML=''; }
+  const w=$('foto-loc-preview');
+  if(w){
+    if(fotoLocPendente){ w.style.display=''; w.innerHTML=`<img src="${fotoLocPendente}" onclick="verPreviewFotoLoc()" alt="foto"><button type="button" class="foto-loc-x" onclick="removerFotoLocPendente()">✕ remover</button>`; }
+    else { w.style.display='none'; w.innerHTML=''; }
+  }
   renderPasteFoto();
 }
 /* botão "Colar imagem": lê a imagem COPIADA da área de transferência (funciona no iPhone/Android via toque, com permissão) */
@@ -2821,10 +2818,10 @@ async function colarImagemTopo(){
     toast('Não consegui acessar a área de transferência — use 📎 Anexar imagem (galeria/câmera).');
   }
 }
-/* miniatura da imagem dentro da própria área de preenchimento (espelha a foto-loc) */
+/* miniatura da imagem anexada, logo abaixo do campo (Preencher/Adicionar ficam embaixo dela) */
 function renderPasteFoto(){
   const w=$('paste-foto'); if(!w) return;
-  if(fotoLocPendente){ w.style.display=''; w.innerHTML=`<img src="${fotoLocPendente}" onclick="verPreviewFotoLoc()" alt="imagem anexada"><button type="button" class="btn btn-primary btn-sm" onclick="aiPreencher()">✨ Preencher</button><button type="button" class="btn btn-ghost btn-sm" onclick="aiAdicionar()" title="Só completa os campos vazios">➕ Completar</button><button type="button" class="foto-loc-x" onclick="removerFotoLocPendente()">✕</button>`; }
+  if(fotoLocPendente){ w.style.display=''; w.innerHTML=`<img src="${fotoLocPendente}" onclick="verPreviewFotoLoc()" alt="imagem anexada"><span class="paste-foto-tag">imagem anexada — entra na IA junto com o texto</span><button type="button" class="foto-loc-x" onclick="removerFotoLocPendente()">✕ remover</button>`; }
   else { w.style.display='none'; w.innerHTML=''; }
 }
 function removerFotoLocPendente(){ fotoLocPendente=null; renderFotoLocPreview(); }
