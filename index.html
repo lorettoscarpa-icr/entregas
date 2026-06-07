@@ -237,6 +237,11 @@
   /* ---- copy modal ---- */
   .modal-bg{position:fixed;inset:0;background:rgba(15,18,10,.7);backdrop-filter:blur(4px);z-index:70;display:none;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   #falta-modal{z-index:95}
+  .falta-grupo{margin-bottom:13px}
+  .falta-grupo:last-child{margin-bottom:0}
+  .falta-h{font-family:var(--ff-eyebrow);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-lt);font-weight:700;margin-bottom:5px}
+  #falta-list ul{margin:0 0 0 20px;padding:0}
+  #falta-list li{margin:2px 0}
   .modal-bg.open{display:flex}
   .falar-modal{background:var(--surface);border:1px solid var(--line-strong);border-radius:18px;padding:22px;width:min(380px,92vw);box-shadow:var(--elev-2);text-align:center;margin:auto}
   .falar-titulo{font-family:var(--ff-display);font-size:21px;color:var(--text);margin-bottom:3px}
@@ -592,7 +597,7 @@
   .pay-val-row label{flex:0 0 auto;min-width:96px;font-family:var(--ff-eyebrow);font-size:12px;letter-spacing:.04em;color:var(--text-soft);display:flex;align-items:center;gap:6px}
   .pay-val-row input{flex:1;text-align:right}
   .pay-val-total{display:flex;justify-content:space-between;align-items:center;margin-top:11px;padding-top:9px;border-top:1px dashed var(--line);font-size:13px;color:var(--text-soft)}
-  .pay-val-total b{color:var(--gold-lt);font-size:16px;font-family:var(--ff-display)}
+  .pay-val-total b{color:var(--gold-lt);font-size:17px;font-weight:700;font-family:var(--ff-body);font-variant-numeric:tabular-nums}
   .pay-opt{font-family:var(--ff-body);background:var(--bg2);border:1px solid var(--line);border-radius:13px;padding:15px;cursor:pointer;color:var(--text);transition:.15s;font-size:14px;font-weight:500;display:flex;align-items:center;gap:9px}
   .pay-opt:hover{border-color:var(--line-strong)}
   .pay-opt.on{border-color:var(--gold);background:rgba(217,164,65,.14);color:var(--gold)}
@@ -1085,9 +1090,9 @@
         <div class="paste-actions">
           <button class="btn btn-ghost" id="btn-colar" onclick="colarMensagem()">📋 Colar mensagem</button>
           <button class="btn btn-ghost" onclick="colarImagemTopo()">📋 Colar imagem</button>
-          <button class="btn btn-ghost" onclick="addLinkLocal()">📍 Add link da localização</button>
+          <button class="btn btn-ghost" onclick="addLinkLocal()">📍 Colar link da localização</button>
         </div>
-        <div class="paste-img-hint">no WhatsApp: segure a foto → Copiar, depois 📋 Colar imagem · ou copie o pin do mapa e toque em 📍 Add link da localização</div>
+        <div class="paste-img-hint">no WhatsApp: segure a foto → Copiar, depois 📋 Colar imagem · ou copie o pin do mapa e toque em 📍 Colar link da localização</div>
         <textarea id="paste" oninput="autoGrow(this)" placeholder="Cole aqui a mensagem (toque e segure → Colar) — ou toque em 📋 Colar mensagem. Pode colar a IMAGEM aqui também, vai junto com o texto."></textarea>
         <div id="paste-foto" class="paste-foto" style="display:none"></div>
         <div class="paste-actions paste-ai" style="margin-top:10px">
@@ -1159,8 +1164,9 @@
           <label>Taxa de entrega</label>
           <div class="hr-row">
             <select id="f-taxa-tipo" onchange="toggleTaxaCampo()">
-              <option value="gratis">🆓 Entrega grátis</option>
+              <option value="auto">⚙️ Automático (pela cidade)</option>
               <option value="cobrar">🏷️ Cobrar taxa</option>
+              <option value="gratis">🆓 Entrega grátis</option>
             </select>
             <input id="f-taxa-valor" placeholder="Valor R$" inputmode="decimal" style="flex:1;display:none">
           </div>
@@ -1418,7 +1424,7 @@
   <div class="modal" style="max-width:430px" onclick="event.stopPropagation()">
     <h3 style="margin-bottom:8px">⚠️ Falta preencher</h3>
     <p style="color:var(--text-soft);font-size:13.5px;margin-bottom:10px">Para finalizar a entrega, complete:</p>
-    <ul id="falta-list" style="margin:0 0 16px 20px;font-size:14px;line-height:1.8"></ul>
+    <div id="falta-list" style="margin:0 0 16px;font-size:14px;line-height:1.7"></div>
     <div class="form-actions"><button class="btn btn-primary" onclick="closeFalta()">Entendi</button></div>
   </div>
 </div>
@@ -1569,29 +1575,51 @@ const PAGAMENTOS = [
 const PAG_SEM_COBRANCA = ['japago','parceria'];   // não cobram → sem foto e sem valor
 const PAG_SEM_FOTO = ['japago','parceria','link']; // não exigem comprovante do entregador (no link, a vendedora confere o pagamento)
 const PAG = Object.fromEntries(PAGAMENTOS.map(p=>[p.id,p]));
-// Taxa de entrega (R$ 19,90). Cobrada: troca SEM defeito · Trindade/Senador Canedo/Goianira
-// (quando o cliente NÃO fica com 2 pares). Sem taxa: 2+ pares nessas cidades OU troca por defeito.
+// Taxa de entrega (R$ 19,90). Cobra: cidade fora de Goiânia/Aparecida (qualquer outro município),
+// troca SEM defeito, ou quando mandam cobrar. Não cobra: 2+ pares na outra cidade, ou troca por defeito.
 const TAXA_ENTREGA = 19.90;
-function taxaCidade(e){ const c=normTxt(e&&e.cidade); return (c.includes('trindade')||c.includes('senador canedo')||c.includes('goianira')) ? TAXA_ENTREGA : 0; }
-// taxa efetiva da entrega: a da venda (cadastro) tem prioridade; senão, a regra de cidade
-function taxaDe(e){ return (e && e.taxaEntrega>0) ? e.taxaEntrega : taxaCidade(e); }
+function taxaCidade(e){
+  const c=normTxt(e&&e.cidade);
+  if(!c) return 0;                                              // sem cidade → assume Goiânia (sem taxa)
+  if(c.includes('goiania')||c.includes('aparecida')) return 0;  // Goiânia / Aparecida de Goiânia → sem taxa por cidade
+  return TAXA_ENTREGA;                                          // qualquer outro município → taxa
+}
+// taxa efetiva: escolha explícita do cadastro/finalização vence (inclui grátis=0); se não houver, usa a regra de cidade
+function taxaDe(e){
+  if(!e) return 0;
+  if(typeof e.taxaEntrega==='number') return e.taxaEntrega>0 ? e.taxaEntrega : 0;
+  return taxaCidade(e);
+}
 function taxaBadge(e){ const t=taxaDe(e); return t>0 ? `<span class="badge-cobrar" style="background:rgba(224,179,65,.16);color:var(--warn);border-color:rgba(224,179,65,.4)">🏷️ taxa ${_brl(t)}</span>` : ''; }
+// Produto + valor pro entregador: cada item na sua linha com o próprio valor (sem linha de total — o entregador soma na hora)
+function prodValorHtml(e){
+  if(!e || (!e.produto && !e.valor)) return '';
+  const prod = esc(e.produto||'').replace(/\n/g,'<br>');
+  if(!e.valor) return prod;
+  if(!e.produto) return 'R$ '+esc(e.valor);
+  const multi = (e.produto||'').split('\n').filter(x=>x.trim()).length > 1;
+  return multi ? prod : `${prod} — R$ ${esc(e.valor)}`;
+}
 // ---- campo de taxa no formulário de cadastro ----
 function toggleTaxaCampo(){
   const cobrar = $('f-taxa-tipo').value==='cobrar', inp=$('f-taxa-valor');
   inp.style.display = cobrar ? '' : 'none';
   if(cobrar && !inp.value.trim()) inp.value = TAXA_ENTREGA.toFixed(2).replace('.',',');  // sugere o padrão
 }
+// null/undefined → "auto" (segue a regra de cidade) · 0 → grátis explícito · >0 → cobrar
 function setTaxaForm(valor){
+  if(valor===null || valor===undefined){ $('f-taxa-tipo').value='auto'; $('f-taxa-valor').value=''; toggleTaxaCampo(); return; }
   const v=Number(valor)||0;
   $('f-taxa-tipo').value = v>0 ? 'cobrar' : 'gratis';
   $('f-taxa-valor').value = v>0 ? v.toFixed(2).replace('.',',') : '';
   toggleTaxaCampo();
 }
+// "auto" → null (deixa a regra de cidade decidir) · grátis → 0 explícito · cobrar → valor
 function getTaxaForm(){
-  if($('f-taxa-tipo').value!=='cobrar') return null;
-  const n=_num($('f-taxa-valor').value);
-  return n>0 ? n : TAXA_ENTREGA;
+  const tipo=$('f-taxa-tipo').value;
+  if(tipo==='cobrar'){ const n=_num($('f-taxa-valor').value); return n>0 ? n : TAXA_ENTREGA; }
+  if(tipo==='gratis') return 0;     // grátis explícito (vence a regra de cidade)
+  return null;                      // automático → regra de cidade
 }
 function pagLabel(id){ const p=PAG[id]; return p?`${p.ico} ${p.label}`:''; }
 const URGENCIA = {atencao:20, urgente:45}; // minutos
@@ -2413,7 +2441,7 @@ async function colarMensagem(){
     toast('Mensagem colada — agora toque em ✨ Preencher ou ➕ Adicionar');
   }
 }
-/* botão "Add link da localização": lê o link do mapa copiado e joga no campo Link */
+/* botão "Colar link da localização": lê o link do mapa copiado e joga no campo Link */
 async function addLinkLocal(){
   let txt='';
   try{ txt = (navigator.clipboard && navigator.clipboard.readText) ? (await navigator.clipboard.readText()) : ''; }
@@ -2518,7 +2546,9 @@ function fillFormSoVazios(r){
   setVazio('f-link', r.link);
   setVazio('f-linkpag', r.linkPagamento);
   if(r.horarioTipo && !$('f-hr-tipo').value){ $('f-hr-tipo').value=r.horarioTipo; if(r.horarioHora) setVazio('f-hr-hora', r.horarioHora); }
-  // tipo, pagamento previsto, taxa e "presente" NÃO são tocados — são ajustes da gestão
+  // taxa: só aplica a decisão da IA se o usuário ainda não escolheu manualmente (continua em "Automático")
+  if(r.taxa && $('f-taxa-tipo').value==='auto'){ const n=_num(r.taxa); setTaxaForm(n>0?n:0); }
+  // tipo, pagamento previsto e "presente" NÃO são tocados — são ajustes da gestão
 }
 /* 2º botão: ADICIONAR com IA — lê a colagem (texto e/ou foto) e preenche só o que está faltando */
 async function aiAdicionar(){ return aiRodar('adicionar'); }
@@ -2531,14 +2561,14 @@ Campos do JSON:
 - bairro: só o bairro/vila/setor.
 - cidade: a cidade (ex: Goiânia, Aparecida de Goiânia, Senador Canedo). Se não disser, deixe "".
 - endereco: rua, número, quadra, lote, complemento e ponto de referência. NÃO repita bairro nem cidade aqui.
-- produto: modelo do calçado e tamanhos/numeração.
-- valor: apenas o número, ex "289,90". Sem "R$".
+- produto: liste UM modelo por linha (modelo + tamanho/numeração). Se a mensagem trouxer o preço de CADA item, coloque o valor no fim da linha do item (ex.: "Sneaker Milão 41 - 289,90"). NUNCA junte vários modelos na mesma linha, nem some os valores aqui. Se for um único produto, pode deixar só o modelo+tamanho (sem repetir o preço).
+- valor: o valor TOTAL a cobrar na entrega; se houver vários itens, a SOMA deles. Apenas o número, ex "289,90". Sem "R$".
 - tipo: "entrega" (padrão), "troca" se o cliente vai TROCAR um par (leva o novo, traz o antigo / outro número / outro modelo), "coleta" se é só RETIRAR/DEVOLVER um produto com o cliente (devolução, reembolso, recolher).
 - pagPrevisto: "pago" se a mensagem indica que JÁ foi pago (pix enviado, pago, quitado, comprovante, cartão aprovado); "cobrar" se será pago na entrega / a cobrar / na hora / dinheiro / maquininha. Na dúvida, "cobrar".
 - horarioTipo: "ate" se a entrega tem que ser até um horário, "apos" se a partir de um horário, "pico" se por volta de um horário, senão "".
 - horarioHora: "HH:MM" ou "".
 - observacao: instrução extra útil pro entregador (ex: "casa com câmera no muro", "ligar ao chegar", "deixar na portaria", "levar maquininha"). NÃO repita aqui o que já está em pagamento/valor/endereço.
-- taxa: se a mensagem mencionar taxa de entrega ou frete COM valor (ex "taxa R$ 19,90", "frete 20"), retorne só o número (ex "19,90"). Se disser explicitamente entrega/frete grátis ou "sem taxa", retorne "0". Se NÃO mencionar nada sobre taxa/frete, retorne "".
+- taxa: regra da TAXA DE ENTREGA (padrão R$ 19,90). Retorne só o número (ex "19,90"), "0" (sem taxa), ou "" se não houver como decidir. Avalie NESTA ordem: PRIMEIRO as ISENÇÕES — retorne "0" se: for TROCA POR DEFEITO (em QUALQUER cidade, inclusive fora de Goiânia/Aparecida — o defeito é por conta da loja); OU disser grátis/sem taxa; OU o cliente ficar com 2 PARES OU MAIS numa entrega para outra cidade. Se NÃO cair em nenhuma isenção, então COBRA (retorne "19,90", ou o valor escrito se houver outro) quando: (1) a cidade NÃO for Goiânia nem Aparecida de Goiânia (qualquer outro município: Senador Canedo, Trindade, Goianira, etc.); (2) for TROCA que NÃO seja por defeito, em qualquer cidade; (3) a mensagem mandar cobrar de forma explícita ("cobrar taxa de entrega", "taxa", "frete"). Entrega comum em Goiânia/Aparecida, sem isenção e sem nada indicando taxa: retorne "" (não invente).
 - genero: "F" se o PRIMEIRO NOME do cliente for nome de mulher, "M" se for nome de homem, "" se não der pra saber pelo nome. Baseie-se só no nome.
 Ignore RG. Use "" (ou "entrega"/"cobrar" nos campos com padrão) para qualquer campo ausente.`;
 async function aiParse(text){
@@ -2667,7 +2697,7 @@ function maskTelefone(el){
   el.value=v;
 }
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
-function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(0); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
+function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -2773,7 +2803,7 @@ function detalhesHTML(e){
   html+=_detRow('🏘️','Bairro/Cidade',esc([e.bairro,e.cidade].filter(Boolean).join(' - ')));
   html+=_detRow('📍','Endereço',esc(e.endereco||''));
   if(mapaHref(e)) html+=_detRow('🧭','Mapa',`<a href="${esc(mapaHref(e))}" target="_blank" style="color:var(--gold)">abrir no mapa</a>`);
-  html+=_detRow('🧾','Produto (pedido)',esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):''));
+  html+=_detRow('🧾','Produto (pedido)',prodValorHtml(e));
   html+=_detRow('👟','Ficou com',esc(ficou));
   html+=_detRow('💳','Pagamento',e.pagamento?esc(pagamentoLabel(e)):'');
   if(e.linkPagamento) html+=_detRow('🔗','Link de pagamento',`<a href="${esc(e.linkPagamento)}" target="_blank" style="color:var(--gold)">abrir link da Stone</a>`);
@@ -3105,8 +3135,8 @@ function abrirPagamento(id){
     paySel = [e.pagamento, e.pagamento2].filter(Boolean);
     payVal = Object.assign({}, e.pagamentoValores||{});
     payCartaoTipo = e.cartaoTipo || null;
-    payTaxa = e.taxaEntrega ? true : false;
-    payTaxaVal = e.taxaEntrega || taxaDe(e) || 0;
+    payTaxa = taxaDe(e) > 0;
+    payTaxaVal = taxaDe(e) || 0;
   } else {
     paySel = (e && e.pagPrevisto==='pago') ? ['japago'] : [];
     payVal = {};
@@ -3293,37 +3323,41 @@ function renderPayFotos(){
 }
 function removerPayFoto(i){ payFotos.splice(i,1); renderPayFotos(); }
 function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; payTrocoTeve=null; payTrocoVal=''; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; prodModo='manual'; prodCadastro=''; const pn=$('prod-note'); if(pn) pn.value=''; }
-function mostrarFaltando(itens){
-  $('falta-list').innerHTML = itens.map(t=>`<li>${esc(t)}</li>`).join('');
+function mostrarFaltando(pag, prod){
+  pag = pag||[]; prod = prod||[];
+  const grupo = (titulo, itens) => itens.length
+    ? `<div class="falta-grupo"><div class="falta-h">${titulo}</div><ul>${itens.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`
+    : '';
+  $('falta-list').innerHTML = grupo('💳 Pagamento', pag) + grupo('👟 Produto', prod);
   $('falta-modal').classList.add('open');
 }
 function closeFalta(){ const m=$('falta-modal'); if(m) m.classList.remove('open'); }
 function confirmarPagamento(){
   const e=entregas.find(x=>x.id===payId); if(!e){ closePay(); return; }
-  // junta TUDO que falta e mostra de uma vez no pop-up
-  const faltando=[];
-  if(!paySel.length) faltando.push('Forma de pagamento');
-  if(paySel.includes('cartao') && !payCartaoTipo) faltando.push('No cartão: marcar crédito ou débito');
+  // junta o que falta, separado em PAGAMENTO e PRODUTO, e mostra de uma vez no pop-up
+  const faltaPag=[], faltaProd=[];
+  if(!paySel.length) faltaPag.push('Forma de pagamento');
+  if(paySel.includes('cartao') && !payCartaoTipo) faltaPag.push('No cartão: marcar crédito ou débito');
   if(prodModo==='manual'){
-    if(!prodItens.length) faltando.push('Produto que o cliente ficou');
+    if(!prodItens.length) faltaProd.push('Produto que o cliente ficou');
     else prodItens.forEach((it,i)=>{
-      if(!it.num) faltando.push(`Produto ${i+1}: numeração`);
-      if(!it.foto && !(it.legenda||'').trim()) faltando.push(`Produto ${i+1}: descrição ou foto`);
+      if(!it.num) faltaProd.push(`Produto ${i+1}: numeração`);
+      if(!it.foto && !(it.legenda||'').trim()) faltaProd.push(`Produto ${i+1}: descrição ou foto`);
     });
   }
   // "Produto único" / "Presente" NÃO travam mais sem produto cadastrado:
   // muitas vezes o entregador só entregou (ex.: já estava pago) e não sabe o item.
   const semCob = paySel.length>0 && paySel.every(m=>PAG_SEM_COBRANCA.includes(m));
   const semFoto = paySel.length>0 && paySel.every(m=>PAG_SEM_FOTO.includes(m));
-  if(!semFoto && !payFotos.length && !e.temComprovante) faltando.push('Foto do pagamento (comprovante)');
-  if(faltando.length){ mostrarFaltando(faltando); return; }
+  if(!semFoto && !payFotos.length && !e.temComprovante) faltaPag.push('Foto do pagamento (comprovante)');
+  if(faltaPag.length || faltaProd.length){ mostrarFaltando(faltaPag, faltaProd); return; }
   const corrigindo = e.status==='entregue';
   e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now(); e.reabertoEm=null;
   e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
   e.obsProduto = ($('prod-note')?$('prod-note').value.trim():'') || '';
   e.troco = (paySel.includes('dinheiro') && payTrocoTeve===true) ? (_num(payTrocoVal)||0) : null;
   e.cartaoTipo = paySel.includes('cartao') ? payCartaoTipo : null;
-  e.taxaEntrega = payTaxa ? payTaxaVal : null;
+  e.taxaEntrega = payTaxa ? payTaxaVal : 0;
   // valores por forma (ex: Pix 120 + Cartão 80) — formas "sem cobrança" não têm valor
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
   e.pagamentoValores = Object.keys(vals).length ? vals : null;
@@ -3634,7 +3668,7 @@ function cardAguardando(e){
         ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
         ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
         ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
+        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
         ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
         ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
       </div>
@@ -3719,7 +3753,7 @@ function cardEntregue(e){
     </div>
     <div class="meta" style="padding-left:0;font-size:12px">
       ${(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
+      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
       ${e.pagamentoObs?`<div class="row"><span class="ico">📝</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
       <div class="row"><span class="ico">🛵</span><span>${ent.nome}${dur?` · entregue em ${dur}`:''}</span></div>
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
@@ -3894,7 +3928,7 @@ function editar(id){
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||'';
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
   if($('f-presente'))$('f-presente').checked=!!e.presente;
-  setTaxaForm(e.taxaEntrega||0);
+  setTaxaForm(e.taxaEntrega);
   fotoLocPendente=null; renderFotoLocPreview();
   if(e.temFotoLocal){
     const lc=fotoLocLocalGet(e.id);
@@ -4583,7 +4617,7 @@ function vcard(e, eta){
         ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
         ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
         ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
+        ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
         ${temHora?`<div class="row"><span class="ico">⏰</span><span style="color:var(--warn)">${hrLabel(e.horarioTipo)} ${esc(e.horarioHora)}</span></div>`:''}
         ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
       </div>
@@ -4670,7 +4704,7 @@ function fcard(e){
       ${e.entreguePresente
         ? `<div class="frow"><span class="ico">🎁</span><span><b>Presente</b>${e.produtoEntregue?` — ${esc(e.produtoEntregue)}`:''}</span></div>`
         : (e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
+      ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
     </div></div>
 
     <div class="fcard-sec-h">💳 Pagamento</div>
@@ -5008,7 +5042,7 @@ function cardEntregadorView(p,n,fromGps,total){
       ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
       ${(e.bairro||e.cidade)?`<div class="row"><span class="ico">🏘️</span><span>${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span></div>`:''}
       ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${esc(e.produto||'').replace(/\n/g,'<br>')+(e.valor?((e.produto?' — ':'')+'R$ '+esc(e.valor)):'')}</span></div>`:''}
+      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
       ${e.observacao?`<div class="row"><span class="ico">📝</span><span style="color:var(--warn)">${esc(e.observacao)}</span></div>`:''}
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span>Vendedora: <b>${esc(e.vendedora)}</b></span></div>`:''}
       ${taxaDe(e)>0?`<div class="row"><span class="ico">🏷️</span><span style="color:var(--warn)">Cobrar taxa de entrega: <b>${_brl(taxaDe(e))}</b></span></div>`:''}
