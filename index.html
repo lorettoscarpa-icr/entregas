@@ -2570,7 +2570,7 @@ async function aiAdicionar(){ return aiRodar('adicionar'); }
 const SYS_EXTRACAO = `Você extrai dados de mensagens de venda do WhatsApp de uma loja de calçados masculinos em Goiânia, para um sistema de entregas locais. As mensagens são informais e os dados vêm fora de ordem. Preencha o MÁXIMO de campos possível a partir da mensagem. Responda SOMENTE com um objeto JSON válido, sem markdown, sem nenhum texto antes ou depois.
 Campos do JSON:
 - cliente: nome da PESSOA que vai receber a entrega. NÃO use empresa, ponto de referência ou cidade como nome. Se só houver o nome de uma empresa, use a empresa.
-- contato: telefone do cliente no formato (62) 9XXXX-XXXX, sem o +55.
+- contato: o telefone do cliente. Retorne SÓ os dígitos, exatamente como aparecem na mensagem (com o DDD se houver). NÃO invente, complete nem remova dígitos, e NÃO force o nono dígito do celular. Ex.: se vier "62 9395-0553", retorne "6293950553". Sem +55.
 - cpf: o CPF do cliente, só se aparecer, formatado 000.000.000-00. Senão "".
 - nascimento: data de nascimento do cliente, só se aparecer, formato dd/mm/aaaa. Senão "".
 - bairro: só o bairro/vila/setor.
