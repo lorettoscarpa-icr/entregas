@@ -1854,7 +1854,10 @@ let _shadow={};                         // último estado salvo (p/ enviar só o
 function _snapShadow(){ _shadow={}; entregas.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }
 function _shadowFromArr(arr){ _shadow={}; arr.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }   // sombra = o que está REALMENTE na nuvem
 // carimbo da última transição de status (finalização / desfecho / reabertura) — usado p/ resolver conflito
-function _transStamp(e){ return Math.max(e.entregueEm||0, e.desfechoEm||0, e.reabertoEm||0, e.atualizadoEm||0); } // carimbo da última mudança relevante
+function _transStamp(e){ return Math.max(e.entregueEm||0, e.desfechoEm||0, e.reabertoEm||0, e.reagendadaEm||0, e.atualizadoEm||0); } // carimbo da última mudança relevante
+function _finalStamp(e){ return Math.max(e.entregueEm||0, e.desfechoEm||0); }                 // quando foi finalizada (entregue / não entregue / cancelado)
+function _reabreStamp(e){ return Math.max(e.reabertoEm||0, e.reagendadaEm||0); }               // reabertura EXPLÍCITA (desfazer / reagendar)
+function _finalizada(e){ const fs=_finalStamp(e); return fs>0 && _reabreStamp(e) <= fs; }       // finalizada e não reaberta depois
 // mescla a nuvem com o local, em vez de sobrescrever cego:
 function _mergeNuvem(arr){
   const cloud = arr.map(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.vendedora) e.vendedora=c; } return e; });
@@ -1864,8 +1867,14 @@ function _mergeNuvem(arr){
   const merged = cloud.map(c=>{
     cloudIds.add(String(c.id));
     const l = locais[c.id];
-    // Trava 3: vence quem finalizou/reabriu por último (protege finalizada de gravação velha, sem quebrar o "desfazer")
-    if(l && _transStamp(l) > _transStamp(c)) return l;
+    if(!l) return c;
+    // PROTEÇÃO DA FINALIZAÇÃO: uma entrega finalizada só é revertida por uma REABERTURA explícita
+    // (desfazer/reagendar) MAIS NOVA que a finalização — nunca por uma gravação velha "em rota".
+    const fl=_finalizada(l), fc=_finalizada(c);
+    if(fl && !fc) return (_reabreStamp(c) > _finalStamp(l)) ? c : l;   // c só vence se reabriu depois de l finalizar
+    if(fc && !fl) return (_reabreStamp(l) > _finalStamp(c)) ? l : c;   // l só vence se reabriu depois de c finalizar
+    // caso geral (ambas finalizadas, ou nenhuma): vence o carimbo mais novo (protege reagendamento/rota/edição)
+    if(_transStamp(l) > _transStamp(c)) return l;
     return c;
   });
   // entrega local que a nuvem não tem: mantém só se for criação local AINDA NÃO enviada (sem sombra).
@@ -4825,20 +4834,27 @@ function entAguardando(){ return entregas.filter(e=>e.status==='aguardando' && d
 function togglePegar(id){ if(pegarSel.has(id)) pegarSel.delete(id); else pegarSel.add(id); renderEntregador(); }
 function addNaMinhaRota(){
   if(!pegarSel.size) return;
-  let n=0;
-  entregas.forEach(e=>{ if(pegarSel.has(e.id) && e.status==='aguardando'){ e.status='em_rota'; e.entregador=session.entregador; e.roteadoEm=Date.now(); delete e.ordemManual; n++; } });
+  // preserva a ordem do que já estava na rota; os novos entram NA ORDEM DOS CLIQUES, no fim
+  if(minhasEntregas().length && !rotaManualAtiva()) _congelarOrdem();
+  let base=0; minhasEntregas().forEach(e=>{ if(e.ordemManual!=null && e.ordemManual>base) base=e.ordemManual; });
+  let i=0, n=0;
+  [...pegarSel].forEach(id=>{               // [...pegarSel] mantém a ordem em que ele clicou
+    const e=entregas.find(x=>x.id===id);
+    if(e && e.status==='aguardando'){ e.status='em_rota'; e.entregador=session.entregador; e.roteadoEm=Date.now(); e.ordemManual=base+(++i); n++; }
+  });
   pegarSel.clear(); persist();
   const aindaTem = entAguardando().length;
   if(!aindaTem) entTab='rota';     // pegou tudo → já mostra a rota
   renderEntregador();
-  toast(`${n} entrega${n>1?'s':''} adicionada${n>1?'s':''} na sua rota 🛵`);
+  toast(`${n} entrega${n>1?'s':''} adicionada${n>1?'s':''} na sua rota, na ordem que você marcou 🛵`);
 }
 function cardPegar(e){
   const sel=pegarSel.has(e.id);
+  const pos=sel ? ([...pegarSel].indexOf(e.id)+1) : 0;   // ordem dos cliques
   const cob = e.pagPrevisto!=='pago';
   const min=minutesSince(e.criadoEm);
   return `<div class="pegar-card ${sel?'sel':''}" onclick="togglePegar('${e.id}')">
-    <button class="ent-check ${sel?'on':''}" onclick="event.stopPropagation();togglePegar('${e.id}')" aria-label="Marcar para pegar">${sel?'✓':''}</button>
+    <button class="ent-check ${sel?'on':''}" onclick="event.stopPropagation();togglePegar('${e.id}')" aria-label="Marcar para pegar" title="${sel?'Posição '+pos+' na sua rota':'Marcar para pegar'}">${sel?pos:''}</button>
     <div class="pegar-info">
       <div class="pegar-name">${esc(e.cliente)}</div>
       <div class="pegar-badges">
@@ -4899,7 +4915,7 @@ function renderEntregador(){
     $('ent-title').innerHTML=`Aguardando rota — <span style="color:${ent.cor}">${ent.nome}</span>`;
     [...pegarSel].forEach(id=>{ if(!aguard.some(e=>e.id===id)) pegarSel.delete(id); });
     $('ent-aguard-list').innerHTML = aguard.length
-      ? `<div class="pegar-hint">Confira os pacotes separados na bancada, marque os que são seus e toque em <b>Add na minha rota</b>.</div>` + aguard.map(cardPegar).join('')
+      ? `<div class="pegar-hint">Confira os pacotes na bancada e marque os seus <b>na ordem que vai entregar</b> (1, 2, 3…) — depois toque em <b>Add na minha rota</b>.</div>` + aguard.map(cardPegar).join('')
       : `<div class="empty">Nenhuma entrega aguardando rota agora. 👍</div>`;
     // barras de baixo: esconde a da rota, mostra a de adicionar quando há seleção
     $('ent-bb-rota').style.display='none';
