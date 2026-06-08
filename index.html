@@ -1800,6 +1800,21 @@ function localizarPorEndereco(){
     else toast('Não encontrei coordenadas pra esse endereço');
   }).catch(()=>toast('Falha ao buscar (sem internet?)')).finally(()=>{ btn.textContent=old; btn.disabled=false; });
 }
+// Se NÃO houver link de localização, busca pelo endereço já preenchido e gera o link. Se já houver link, não mexe.
+async function geocodarSeSemLink(){
+  if($('f-link').value.trim()) return;                       // já tem link → preserva
+  const end=$('f-end').value.trim(), bairro=$('f-bairro').value.trim(), cidade=$('f-cidade').value.trim();
+  if(!end && !bairro) return;                                // sem endereço pra buscar
+  const q=[end,bairro,cidade||'Goiânia','GO','Brasil'].filter(Boolean).join(', ');
+  try{
+    const res = await geocodeEndereco(q);
+    if(res && !$('f-link').value.trim()){                    // confere de novo (pode ter chegado link no meio)
+      $('f-link').value = `https://www.google.com/maps?q=${res.lat},${res.lng}`;
+      if(!bairro) buscarBairroAuto({lat:res.lat,lng:res.lng}, false);
+      toast('📍 Link gerado pelo endereço');
+    }
+  }catch(_){}
+}
 
 /* ============ storage (com fallback em memória p/ preview) ============ */
 const store = {
@@ -2715,8 +2730,7 @@ async function saveEntrega(){
   // TRAVA: precisa de CONTATO ou LOCALIZAÇÃO — senão o entregador não tem como levar nem pedir o endereço
   const temLoc = !!coord || !!link || !!end || !!bairro || !!fotoLocPendente;
   if(!contato && !temLoc){ toast('Precisa de pelo menos o CONTATO ou a LOCALIZAÇÃO — senão o entregador não tem como levar'); $('f-contato').focus(); return; }
-  // TRAVA: "a cobrar" sem valor não faz sentido (cobrar o quê?)
-  if(pagPrev==='cobrar' && !valor){ toast('Pagamento "a cobrar" precisa do valor — senão não dá pra saber quanto cobrar'); $('f-valor').focus(); return; }
+  // (o valor de "a cobrar" é opcional — cada produto já leva o valor na linha e o entregador soma na hora)
   // link encurtado (pin do WhatsApp)? expande no worker pra pegar coordenada OU endereço
   if(!coord && ehLinkCurto(link)){
     const btn=$('btn-salvar'), old=btn.textContent; btn.textContent='Localizando...'; btn.disabled=true;
@@ -2865,8 +2879,9 @@ async function colarImagemTopo(){
         const blob = await it.getType(tipo);
         fotoLocPendente = await comprimirFotoLocal(blob);
         renderFotoLocPreview();
-        if(isMob()){ toast('Imagem colada 📋 — lendo…'); aiAdicionar(); }   // celular: já lê a imagem e completa
-        else toast('Imagem colada 📋');
+        toast('Imagem colada 📋 — lendo…');
+        await aiAdicionar();          // lê a imagem e completa só os campos vazios (não sobrescreve nem o link existente)
+        await geocodarSeSemLink();    // se não houver link, gera pelo endereço lido
         return;
       }
     }
@@ -3506,8 +3521,9 @@ function pickEnt(id){ entregadorEscolhido = id; renderEntPick(); }
 function renderEntPick(){
   $('ent-pick').innerHTML = ENTREGADORES.map(e=>`
     <div class="ent-opt ${entregadorEscolhido===e.id?'on':''}" onclick="pickEnt('${e.id}')"
-      style="${entregadorEscolhido===e.id?`border-color:${e.cor};background:${e.cor}22;`:''}">
+      style="display:inline-flex;align-items:center;gap:7px;${entregadorEscolhido===e.id?`border-color:${e.cor};background:${e.cor}22;`:''}">
       <span class="dot" style="width:9px;height:9px;border-radius:50%;background:${e.cor}"></span>${e.nome}
+      <button type="button" title="Copiar link de transmissão de localização de ${esc(e.nome)}" onclick="event.stopPropagation();compartilharLinkEntregador('${e.id}')" style="background:none;border:0;cursor:pointer;font-size:15px;line-height:1;padding:2px 3px;opacity:.7">📍</button>
     </div>`).join('');
 }
 function hrLabel(tipo){ return {ate:'até', apos:'a partir de', pico:'por volta de'}[tipo]||''; }
@@ -4527,6 +4543,17 @@ function _chk(id){ let n=0; const s='LSx'+id; for(let i=0;i<s.length;i++) n=(n*3
 function tokenRastreio(id){ return _b64u('LSR1|'+id+'|'+_chk(id)); }
 function idDeToken(tok){ const m=/^LSR1\|(.+)\|(\d+)$/.exec(_ub64u(tok)); if(!m) return null; return _chk(m[1])===Number(m[2]) ? m[1] : null; }
 function linkRastreio(e){ const base=(TRACK_BASE||location.href.split('?')[0].split('#')[0]).replace(/#.*$/,''); return base + '#acompanhar/' + tokenRastreio(e.id); }
+// link de TRANSMISSÃO do entregador (abre a página de rastreio em modo "compartilhar GPS")
+function _chkPayload(s){ let n=0; const x='LSx'+s; for(let i=0;i<x.length;i++) n=(n*31+x.charCodeAt(i))%100000; return n; }
+function tokenEntregador(entId){ const ent=ENT[entId]||{}; const p='LSE1|'+entId+'|'+(ent.nome||'')+'|'+(ent.cor||'#d4b45a'); return _b64u(p+'|'+_chkPayload(p)); }
+function linkRastreioEntregador(entId){ const base=(TRACK_BASE||location.href.split('?')[0].split('#')[0]).replace(/#.*$/,''); return base + '#transmitir/' + tokenEntregador(entId); }
+async function compartilharLinkEntregador(entId){
+  const ent=ENT[entId]||{}; const url=linkRastreioEntregador(entId);
+  const txt=`📍 ${ent.nome||'Entregador'} — link de transmissão de localização Loretto Scarpa.\nAbra no celular e deixe a tela aberta durante as entregas:\n${url}`;
+  try{ if(navigator.share){ await navigator.share({title:'Link de transmissão', text:txt}); return; } }catch(_){}
+  try{ await navigator.clipboard.writeText(url); toast('🔗 Link copiado — mande pro '+(ent.nome||'entregador')); }
+  catch(_){ prompt('Copie o link de transmissão:', url); }
+}
 function msgVend(e, eta){
   const primeiro = e.cliente ? esc(e.cliente.split(' ')[0]) : '';
   const ola = primeiro ? `Oi, ${primeiro}! ` : 'Oi! ';
