@@ -1368,7 +1368,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v108</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v110</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1387,15 +1387,24 @@
 <!-- reagendar -->
 <div class="modal-bg" id="reag-modal">
   <div class="modal">
-    <h3>Reagendar entrega</h3>
-    <p>Escolha a nova data da entrega.</p>
-    <input type="date" id="reag-data" oninput="reagAtualizaMsg()">
-    <label style="display:block;margin-top:13px;margin-bottom:6px;font-size:13px;color:var(--text-soft)">Mensagem pro cliente (pode editar)</label>
-    <textarea id="reag-msg" rows="6" style="width:100%;box-sizing:border-box;background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:10px;padding:11px;font-family:var(--ff-body);font-size:14px;line-height:1.45;resize:vertical"></textarea>
-    <div class="form-actions" style="flex-wrap:wrap;gap:8px;margin-top:12px">
-      <button class="btn btn-ghost" onclick="closeReag()">Cancelar</button>
-      <button class="btn" onclick="confirmarReag(false)">Somente reagendar</button>
-      <button class="btn btn-primary" onclick="confirmarReag(true)">Salvar e Avisar Cliente</button>
+    <div id="reag-step1">
+      <h3>Reagendar entrega</h3>
+      <p>Escolha a nova data da entrega.</p>
+      <input type="date" id="reag-data">
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeReag()">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarReag()">Reagendar</button>
+      </div>
+    </div>
+    <div id="reag-step2" style="display:none">
+      <h3>✓ Entrega reagendada</h3>
+      <p id="reag-conf" style="color:var(--text-soft)"></p>
+      <label style="display:block;margin-top:6px;margin-bottom:6px;font-size:13px;color:var(--text-soft)">Avisar o cliente? (pode editar a mensagem)</label>
+      <textarea id="reag-msg" rows="6" style="width:100%;box-sizing:border-box;background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:10px;padding:11px;font-family:var(--ff-body);font-size:14px;line-height:1.45;resize:vertical"></textarea>
+      <div class="form-actions" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost" onclick="closeReag()">Agora não</button>
+        <button class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px" onclick="reagAvisar()"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.55-3.7 8.24-8.25 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>Avisar Cliente</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1855,6 +1864,7 @@ async function resolverLinkCurto(url){
   return null;
 }
 let _shadow={};                         // último estado salvo (p/ enviar só o que mudou)
+let _pend={};                           // FILA DE PENDENTES: ids criados/editados NESTA sessão ainda não confirmados pelo servidor — nunca podem ser descartados
 function _snapShadow(){ _shadow={}; entregas.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }
 function _shadowFromArr(arr){ _shadow={}; arr.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }   // sombra = o que está REALMENTE na nuvem
 // carimbo da última transição de status (finalização / desfecho / reabertura) — usado p/ resolver conflito
@@ -1865,7 +1875,12 @@ function _finalizada(e){ const fs=_finalStamp(e); return fs>0 && _reabreStamp(e)
 // mescla a nuvem com o local, em vez de sobrescrever cego:
 function _mergeNuvem(arr){
   const cloud = arr.map(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.vendedora) e.vendedora=c; } return e; });
-  if(!_fbSynced) return cloud;                 // 1ª sincronização: confia na nuvem (não ressuscita excluídas)
+  if(!_fbSynced){
+    // 1ª sincronização: confia na nuvem (não ressuscita excluídas) — MAS preserva o que ESTA sessão criou/editou e ainda não foi confirmado
+    const ids=new Set(cloud.map(c=>String(c.id)));
+    const extra = entregas.filter(l=>_pend[l.id]!==undefined && !ids.has(String(l.id)));
+    return cloud.concat(extra);
+  }
   const locais={}; entregas.forEach(l=>locais[l.id]=l);
   const cloudIds=new Set();
   const merged = cloud.map(c=>{
@@ -1883,7 +1898,7 @@ function _mergeNuvem(arr){
   });
   // entrega local que a nuvem não tem: mantém só se for criação local AINDA NÃO enviada (sem sombra).
   // se já esteve na nuvem e sumiu, é exclusão de verdade → respeita.
-  entregas.forEach(l=>{ if(!cloudIds.has(String(l.id)) && _shadow[l.id]===undefined) merged.push(l); });
+  entregas.forEach(l=>{ if(!cloudIds.has(String(l.id)) && (_shadow[l.id]===undefined || _pend[l.id]!==undefined)) merged.push(l); });
   return merged;
 }
 function initFirebase(){
@@ -1897,10 +1912,11 @@ function initFirebase(){
   }catch(e){ console.warn('Firebase init falhou — seguindo com localStorage', e); FIREBASE_ON=false; return false; }
 }
 function assinarEntregas(){
-  if(!FIREBASE_ON || _fbAssinado) return; _fbAssinado=true;  fdb.collection('entregas').onSnapshot(snap=>{
-    const arr=[]; snap.forEach(d=>arr.push(d.data()));
-    // 1ª sincronização: nuvem vazia + temos dados locais → sobe os locais (migração única)
-    if(arr.length===0 && entregas.length>0 && !_fbMigrou){ _fbMigrou=true; _fbSynced=true; _subirTudo(entregas.slice()); return; }
+  if(!FIREBASE_ON || _fbAssinado) return; _fbAssinado=true;  fdb.collection('entregas').onSnapshot({includeMetadataChanges:true}, snap=>{
+    const arr=[];
+    snap.forEach(d=>{ arr.push(d.data()); if(_pend[d.id]!==undefined && !d.metadata.hasPendingWrites) delete _pend[d.id]; }); // servidor confirmou esta entrega → sai da fila de pendentes
+    // 1ª sincronização: nuvem vazia + temos dados locais → sobe os locais (migração única). Só age com a visão REAL do servidor (nunca com cache).
+    if(arr.length===0 && entregas.length>0 && !_fbMigrou && !snap.metadata.fromCache){ _fbMigrou=true; _fbSynced=true; _subirTudo(entregas.slice()); return; }
     _fbMigrou=true;
     entregas = _mergeNuvem(arr);         // mescla (não sobrescreve cego)
     sanitizeCoords(entregas);            // joga fora coordenadas impossíveis (lixo antigo)
@@ -2785,6 +2801,7 @@ async function saveEntrega(){
     status:'aguardando', entregador:null,
     criadoEm:Date.now(), entregueEm:null
   });
+  _pend[novoId]=Date.now();   // entra na fila de pendentes: garante que NÃO some no F5 nem com várias vendedoras lançando ao mesmo tempo
   if(fotoLocPendente){ salvarFotoLocal(novoId, fotoLocPendente); }
   if(dataEntrega!==diaAtivo) diaAtivo=dataEntrega; // mostra o dia onde a entrega entrou
   persist(); refreshVendChips(); clearForm(); togglePanel(false); animateNext(); render();
@@ -3035,15 +3052,19 @@ function migrarComprovantes(arr){
 function persist(){
   const okLocal = store.save(entregas);          // cache local sempre
   if(!FIREBASE_ON || !fdb) return okLocal;
-  if(!_fbSynced) return okLocal;                  // Trava 1: não sobe nada antes da 1ª sincronização (não sobrescreve a nuvem com estado velho)
   try{
     const batch=fdb.batch(); let mudou=false;
     entregas.forEach(e=>{
+      const ehPend = _pend[e.id]!==undefined;       // criada/editada NESTA sessão e ainda não confirmada pelo servidor
+      // Trava 1: antes da 1ª sincronização, não sobe o que NÃO foi tocado nesta sessão (evita sobrescrever a nuvem com estado velho).
+      // Itens novos/editados nesta sessão (ehPend) SOBEM mesmo antes do 1º sync — id é único, não há risco de sobrescrever outra entrega.
+      if(!_fbSynced && !ehPend) return;
       const j=JSON.stringify(e);
       if(_shadow[e.id]!==j){
         e.atualizadoEm=Date.now();                  // carimbo de recência: na mesclagem, a mudança mais nova vence (protege reagendamento, rota, edição)
         const j2=JSON.stringify(e);
-        batch.set(fdb.collection('entregas').doc(String(e.id)), e); _shadow[e.id]=j2; mudou=true;
+        batch.set(fdb.collection('entregas').doc(String(e.id)), e);
+        _shadow[e.id]=j2; _pend[e.id]=e.atualizadoEm; mudou=true;   // entra na fila de pendentes: não some no F5 nem em lançamento simultâneo até o servidor confirmar
       }
     });
     // Trava 2: NÃO apagar "pelo que falta". Exclusão só pela ação explícita do 🗑 (excluir()), nunca como efeito de salvar.
@@ -3097,7 +3118,7 @@ function abrirReag(id){
   reagId=id;
   const amanha=new Date(); amanha.setDate(amanha.getDate()+1);
   $('reag-data').min=todayKey(); $('reag-data').value=dateKey(amanha);
-  reagAtualizaMsg(true);
+  $('reag-step1').style.display=''; $('reag-step2').style.display='none';   // sempre começa no passo 1
   $('reag-modal').classList.add('open');
 }
 function _reagQuando(ymd){
@@ -3116,32 +3137,32 @@ function _reagMsg(e, ymd){
   const abre = nome ? ('Olá, meu nome é '+nome+', sou entregador da Loretto Scarpa.') : ('Olá, sou da equipe de entregas da Loretto Scarpa.');
   return abre+'\n\nTive um imprevisto na rota e por isso não consegui realizar sua entrega ainda. Posso reagendar para te entregar '+_reagQuando(ymd)+' ou você precisa do sapato ainda hoje?';
 }
-function reagAtualizaMsg(force){
-  const e=entregas.find(x=>x.id===reagId); if(!e) return;
-  const ta=$('reag-msg'); if(!ta) return;
-  const novo=_reagMsg(e, $('reag-data').value||todayKey());
-  if(force || ta.value==='' || ta.value===_reagAutoMsg){ ta.value=novo; _reagAutoMsg=novo; }  // não sobrescreve o que ele editou
-}
 function closeReag(){ $('reag-modal').classList.remove('open'); reagId=null; }
-function confirmarReag(avisar){
+function confirmarReag(){
   const e=entregas.find(x=>x.id===reagId); if(!e){ closeReag(); return; }
   const nova=$('reag-data').value; if(!nova||nova<todayKey()){ toast('Escolha uma data de hoje em diante'); return; }
-  const msg = (($('reag-msg')&&$('reag-msg').value)||'').trim();
-  const num = waNumero(e.contato);
   const antiga = e.dataEntrega || dataDe(e);
   if(antiga && antiga!==nova) e.reagendadaDe = antiga;          // guarda de qual dia veio
   e.reagendadaEm = Date.now();
   e.reagendadaPor = session ? (session.vendedora || (session.role==='entregador' ? ((ENT[session.entregador]||{}).nome||'entregador') : session.role)) : '';
   e.dataEntrega=nova; e.status='aguardando'; e.entregador=null; e.roteadoEm=null;
   e.motivo=''; e.desfechoEm=null;
-  persist(); closeReag(); diaAtivo=nova; animateNext(); render();
+  persist(); diaAtivo=nova; animateNext(); render();
   if(session && session.role==='entregador') renderEntregador();
-  if(avisar){
-    if(num){ window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank'); toast('Reagendada · abrindo WhatsApp do cliente'); }
-    else toast('Reagendada, mas o cliente não tem telefone pra avisar');
-  } else {
-    toast('Reagendada para '+rotuloDia(nova));
-  }
+  toast('Reagendada para '+rotuloDia(nova));
+  // passo 2: oferecer avisar o cliente
+  $('reag-conf').textContent = 'Nova data: '+rotuloDia(nova)+'.';
+  const ta=$('reag-msg'); if(ta) ta.value=_reagMsg(e, nova);
+  const av=$('reag-step2').querySelector('.btn-primary');
+  if(av){ if(waNumero(e.contato)){ av.style.display=''; } else { av.style.display='none'; $('reag-conf').textContent+=' (cliente sem telefone para avisar)'; } }
+  $('reag-step1').style.display='none'; $('reag-step2').style.display='';
+}
+function reagAvisar(){
+  const e=entregas.find(x=>x.id===reagId); if(!e){ closeReag(); return; }
+  const num=waNumero(e.contato);
+  const msg=(($('reag-msg')&&$('reag-msg').value)||'').trim();
+  if(num) window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank');
+  closeReag();
 }
 
 /* ============ vendedoras (memória de nomes) ============ */
@@ -3553,7 +3574,7 @@ function excluir(id){
   if(_bloqueado(id)) return;
   if(!confirm('Excluir esta entrega?'))return;
   entregas = entregas.filter(x=>x.id!==id); selected.delete(id); removerComprovante(id);
-  delete _shadow[id];
+  delete _shadow[id]; delete _pend[id];
   if(FIREBASE_ON && fdb){ fdb.collection('entregas').doc(String(id)).delete().catch(e=>console.warn('Firebase: exclusão falhou', e)); }  // exclusão explícita, só aqui
   persist(); render();
 }
