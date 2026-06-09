@@ -1368,7 +1368,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v112</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v113</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1906,7 +1906,6 @@ function initFirebase(){
   try{
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
-    try{ fdb.settings({ignoreUndefinedProperties:true}); }catch(_){}   // não recusa a gravação por causa de um campo undefined
     FIREBASE_ON = true;
     firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarRastreio(); } });
     return true;
@@ -5747,22 +5746,11 @@ document.addEventListener('paste', async (e)=>{
 });
 </script>
 <script>
-// PWA: registra o service worker (sempre busca a versão nova online; usa cache só offline)
+// SERVICE WORKER DESATIVADO: remove qualquer SW antigo e limpa o cache para acabar com o
+// loop de recarregar a página (tela piscando). Não registra SW novo nem recarrega sozinho.
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').then(reg=>{
-      // checa atualização toda vez que o app volta pro primeiro plano
-      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') reg.update(); });
-      reg.addEventListener('updatefound', ()=>{
-        const nv = reg.installing;
-        nv && nv.addEventListener('statechange', ()=>{
-          if(nv.state==='installed' && navigator.serviceWorker.controller){ location.reload(); } // versão nova pronta → recarrega
-        });
-      });
-    }).catch(()=>{});
-    let _swReload=false;
-    navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if(_swReload) return; _swReload=true; location.reload(); });
-  });
+  try{ navigator.serviceWorker.getRegistrations().then(rs=>{ rs.forEach(r=>r.unregister()); }).catch(()=>{}); }catch(_){}
+  try{ if(window.caches && caches.keys){ caches.keys().then(ks=>ks.forEach(k=>caches.delete(k))).catch(()=>{}); } }catch(_){}
 }
 </script>
 </body>
