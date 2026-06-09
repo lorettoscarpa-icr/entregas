@@ -1368,7 +1368,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v110</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v112</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1864,6 +1864,7 @@ async function resolverLinkCurto(url){
   return null;
 }
 let _shadow={};                         // último estado salvo (p/ enviar só o que mudou)
+let _pend={};                           // FILA DE PENDENTES: ids criados/editados NESTA sessão ainda não confirmados pelo servidor — nunca podem ser descartados
 function _snapShadow(){ _shadow={}; entregas.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }
 function _shadowFromArr(arr){ _shadow={}; arr.forEach(e=>_shadow[e.id]=JSON.stringify(e)); }   // sombra = o que está REALMENTE na nuvem
 // carimbo da última transição de status (finalização / desfecho / reabertura) — usado p/ resolver conflito
@@ -1874,7 +1875,12 @@ function _finalizada(e){ const fs=_finalStamp(e); return fs>0 && _reabreStamp(e)
 // mescla a nuvem com o local, em vez de sobrescrever cego:
 function _mergeNuvem(arr){
   const cloud = arr.map(e=>{ if(e.vendedora){ const c=canonVend(e.vendedora); if(c!==e.vendedora) e.vendedora=c; } return e; });
-  if(!_fbSynced) return cloud;                 // 1ª sincronização: confia na nuvem (não ressuscita excluídas)
+  if(!_fbSynced){
+    // 1ª sincronização: confia na nuvem (não ressuscita excluídas) — MAS preserva o que ESTA sessão criou/editou e ainda não foi confirmado
+    const ids=new Set(cloud.map(c=>String(c.id)));
+    const extra = entregas.filter(l=>_pend[l.id]!==undefined && !ids.has(String(l.id)));
+    return cloud.concat(extra);
+  }
   const locais={}; entregas.forEach(l=>locais[l.id]=l);
   const cloudIds=new Set();
   const merged = cloud.map(c=>{
@@ -1892,7 +1898,7 @@ function _mergeNuvem(arr){
   });
   // entrega local que a nuvem não tem: mantém só se for criação local AINDA NÃO enviada (sem sombra).
   // se já esteve na nuvem e sumiu, é exclusão de verdade → respeita.
-  entregas.forEach(l=>{ if(!cloudIds.has(String(l.id)) && _shadow[l.id]===undefined) merged.push(l); });
+  entregas.forEach(l=>{ if(!cloudIds.has(String(l.id)) && (_shadow[l.id]===undefined || _pend[l.id]!==undefined)) merged.push(l); });
   return merged;
 }
 function initFirebase(){
@@ -1900,6 +1906,7 @@ function initFirebase(){
   try{
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
+    try{ fdb.settings({ignoreUndefinedProperties:true}); }catch(_){}   // não recusa a gravação por causa de um campo undefined
     FIREBASE_ON = true;
     firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarRastreio(); } });
     return true;
@@ -1907,9 +1914,10 @@ function initFirebase(){
 }
 function assinarEntregas(){
   if(!FIREBASE_ON || _fbAssinado) return; _fbAssinado=true;  fdb.collection('entregas').onSnapshot(snap=>{
-    const arr=[]; snap.forEach(d=>arr.push(d.data()));
-    // 1ª sincronização: nuvem vazia + temos dados locais → sobe os locais (migração única)
-    if(arr.length===0 && entregas.length>0 && !_fbMigrou){ _fbMigrou=true; _fbSynced=true; _subirTudo(entregas.slice()); return; }
+    const arr=[];
+    snap.forEach(d=>{ arr.push(d.data()); if(_pend[d.id]!==undefined && !d.metadata.hasPendingWrites) delete _pend[d.id]; }); // servidor confirmou esta entrega → sai da fila de pendentes
+    // 1ª sincronização: nuvem vazia + temos dados locais → sobe os locais (migração única). Só age com a visão REAL do servidor (nunca com cache).
+    if(arr.length===0 && entregas.length>0 && !_fbMigrou && !snap.metadata.fromCache){ _fbMigrou=true; _fbSynced=true; _subirTudo(entregas.slice()); return; }
     _fbMigrou=true;
     entregas = _mergeNuvem(arr);         // mescla (não sobrescreve cego)
     sanitizeCoords(entregas);            // joga fora coordenadas impossíveis (lixo antigo)
@@ -1917,7 +1925,7 @@ function assinarEntregas(){
     _shadowFromArr(arr);                 // sombra = o que está REALMENTE na nuvem
     _fbSynced=true;
     store.save(entregas);               // mantém cache local
-    persist();                          // sobe só o que a mesclagem preservou (finalização nova / criação local)
+    // NÃO regravar aqui: as ações do usuário já chamam persist(). Regravar a cada snapshot causa loop (tela piscando) e gasto de cota.
     _rerenderAtual();
   }, err=>console.warn('Firebase: leitura bloqueada — verifique as regras do Firestore', err));
 }
@@ -2794,6 +2802,7 @@ async function saveEntrega(){
     status:'aguardando', entregador:null,
     criadoEm:Date.now(), entregueEm:null
   });
+  _pend[novoId]=Date.now();   // entra na fila de pendentes: garante que NÃO some no F5 nem com várias vendedoras lançando ao mesmo tempo
   if(fotoLocPendente){ salvarFotoLocal(novoId, fotoLocPendente); }
   if(dataEntrega!==diaAtivo) diaAtivo=dataEntrega; // mostra o dia onde a entrega entrou
   persist(); refreshVendChips(); clearForm(); togglePanel(false); animateNext(); render();
@@ -3044,19 +3053,23 @@ function migrarComprovantes(arr){
 function persist(){
   const okLocal = store.save(entregas);          // cache local sempre
   if(!FIREBASE_ON || !fdb) return okLocal;
-  if(!_fbSynced) return okLocal;                  // Trava 1: não sobe nada antes da 1ª sincronização (não sobrescreve a nuvem com estado velho)
   try{
-    const batch=fdb.batch(); let mudou=false;
     entregas.forEach(e=>{
+      const ehPend = _pend[e.id]!==undefined;       // criada/editada NESTA sessão e ainda não confirmada pelo servidor
+      // Trava 1: antes da 1ª sincronização, não sobe o que NÃO foi tocado nesta sessão (evita sobrescrever a nuvem com estado velho).
+      if(!_fbSynced && !ehPend) return;
       const j=JSON.stringify(e);
       if(_shadow[e.id]!==j){
-        e.atualizadoEm=Date.now();                  // carimbo de recência: na mesclagem, a mudança mais nova vence (protege reagendamento, rota, edição)
+        e.atualizadoEm=Date.now();                  // carimbo de recência: na mesclagem, a mudança mais nova vence
         const j2=JSON.stringify(e);
-        batch.set(fdb.collection('entregas').doc(String(e.id)), e); _shadow[e.id]=j2; mudou=true;
+        _shadow[e.id]=j2; _pend[e.id]=e.atualizadoEm;
+        let payload; try{ payload=JSON.parse(j2); }catch(_){ payload=e; }   // remove undefined/NaN — não trava a gravação
+        // grava POR DOCUMENTO: se um registro falhar, os outros continuam salvando
+        fdb.collection('entregas').doc(String(e.id)).set(payload)
+          .catch(err=>console.warn('Firebase: gravação falhou (id '+e.id+')', err));
       }
     });
-    // Trava 2: NÃO apagar "pelo que falta". Exclusão só pela ação explícita do 🗑 (excluir()), nunca como efeito de salvar.
-    if(mudou) batch.commit().catch(e=>console.warn('Firebase: gravação falhou', e));
+    // Trava 2: NÃO apagar "pelo que falta". Exclusão só pela ação explícita do 🗑 (excluir()).
     return true;                                   // Firebase guarda mesmo se o localStorage estiver cheio (fotos)
   }catch(e){ console.warn(e); return okLocal; }
 }
@@ -3562,7 +3575,7 @@ function excluir(id){
   if(_bloqueado(id)) return;
   if(!confirm('Excluir esta entrega?'))return;
   entregas = entregas.filter(x=>x.id!==id); selected.delete(id); removerComprovante(id);
-  delete _shadow[id];
+  delete _shadow[id]; delete _pend[id];
   if(FIREBASE_ON && fdb){ fdb.collection('entregas').doc(String(id)).delete().catch(e=>console.warn('Firebase: exclusão falhou', e)); }  // exclusão explícita, só aqui
   persist(); render();
 }
