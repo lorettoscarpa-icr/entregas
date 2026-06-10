@@ -1368,7 +1368,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v113</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v116</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -1907,7 +1907,7 @@ function initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
     FIREBASE_ON = true;
-    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarRastreio(); } });
+    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
     return true;
   }catch(e){ console.warn('Firebase init falhou — seguindo com localStorage', e); FIREBASE_ON=false; return false; }
 }
@@ -1941,19 +1941,27 @@ function _rerenderAtual(){
   else { render(); }
 }
 /* posições ao vivo dos entregadores (rastreio) — alimenta o ETA real das vendedoras */
-let liveEnt={}, _rastAssinado=false;
+let liveEnt={}, _rastAssinado=false, _rastUnsub=null;
 function assinarRastreio(){
   if(!FIREBASE_ON || _rastAssinado) return; _rastAssinado=true;
-  fdb.collection('rastreio').onSnapshot(snap=>{
+  _rastUnsub = fdb.collection('rastreio').onSnapshot(snap=>{
     const m={}; snap.forEach(d=>{ m[d.id]=d.data(); });
     liveEnt=m;
     _rerenderAtualThrottled();
   }, err=>console.warn('rastreio: leitura bloqueada', err));
 }
+function pararAssinarRastreio(){
+  if(_rastUnsub){ try{ _rastUnsub(); }catch(_){} _rastUnsub=null; }
+  _rastAssinado=false;   // libera leitura: só assina de novo quando reabrir o mapa
+}
 let _rastThrTimer=null, _rastPend=false;
 function _rerenderAtualThrottled(){
+  // Posição de GPS dos entregadores só precisa atualizar a TELA quando a aba "Mapa" está aberta.
+  // Nas demais telas (Painel, cards, gestor, entregador) isso re-renderizava tudo a cada 2,5s e
+  // fazia o dashboard "pular". A posição segue sendo recebida (liveEnt) — só não re-renderiza à toa.
+  if(typeof tabAtiva==='undefined' || tabAtiva!=='mapa') return;
   if(_rastThrTimer){ _rastPend=true; return; }
-  _rerenderAtual();
+  if(typeof renderMap==='function') renderMap();   // atualiza só os marcadores do mapa
   _rastThrTimer=setTimeout(()=>{ _rastThrTimer=null; if(_rastPend){ _rastPend=false; _rerenderAtualThrottled(); } }, 2500);
 }
 function posicaoViva(id){
@@ -3728,7 +3736,7 @@ function cardAguardando(e){
   const min=minutesSince(e.criadoEm), uc=ehFuturo?'calm':urgClass(min);
   const timerHTML = ehFuturo
     ? `<span class="badge-agendada">📅 agendada</span>`
-    : `<span class="timer ${uc}">${fmtDur(min)}</span>`;
+    : `<span class="timer ${uc}" data-ts="${e.criadoEm}">${fmtDur(min)}</span>`;
   const aberto = vAberto.has(e.id);
   return `<div data-eid="${e.id}" class="card ${aberto?'open':'mini'} ${selected.has(e.id)?'sel':''}" style="border-left-color:var(--${uc==='calm'?'calm':uc==='warn'?'warn':'urgent'})">
     <div class="card-head" onclick="toggleVcard('${e.id}')">
@@ -3776,7 +3784,7 @@ function cardRota(e){
           <span class="dot" style="width:7px;height:7px;border-radius:50%;background:${ent.cor}"></span>${ent.nome}</span>
         <div class="card-top" style="margin-bottom:6px">
           <div class="name">${esc(e.cliente)}${e.reagendadaEm?`<span class="badge-reag" title="${e.reagendadaDe?'Era '+esc(rotuloDia(e.reagendadaDe)):''}${e.reagendadaPor?' · por '+esc(e.reagendadaPor):''}">📅 Reagendada</span>`:''}</div>
-          <span class="timer ${urgClass(min)}">${fmtDur(min)}</span>
+          <span class="timer ${urgClass(min)}" data-ts="${e.criadoEm}">${fmtDur(min)}</span>
         </div>
         ${hrBadge(e)?`<div class="card-hr">${hrBadge(e)}</div>`:''}
         <div class="card-badges">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
@@ -3852,6 +3860,46 @@ function cardEntregue(e){
   </div>`;
 }
 
+/* === Itens 4 e 5: render incremental + cronômetro isolado === */
+function _cardEl(html){ const t=document.createElement('div'); t.innerHTML=html; return t.firstElementChild; }
+// reconcilia uma lista PLANA de cards (chave = data-eid): atualiza só o que mudou, sem reconstruir tudo
+function reconcile(container, items, cardFn){
+  if(!container) return;
+  const have={};
+  Array.from(container.children).forEach(n=>{ const k=n.getAttribute&&n.getAttribute('data-eid'); if(k!=null) have[k]=n; else n.remove(); });
+  const want={}; items.forEach(e=>{ want[String(e.id)]=1; });
+  Object.keys(have).forEach(k=>{ if(!want[k]){ have[k].remove(); delete have[k]; } });
+  let prev=null;
+  items.forEach(e=>{
+    const k=String(e.id); let node=have[k];
+    if(node){
+      const novo=_cardEl(cardFn(e));
+      if(novo && node.outerHTML!==novo.outerHTML){ node.replaceWith(novo); node=novo; }
+      have[k]=node;
+    } else { node=_cardEl(cardFn(e)); have[k]=node; }
+    const ref = prev ? prev.nextSibling : container.firstChild;
+    if(node!==ref) container.insertBefore(node, ref);
+    prev=node;
+  });
+}
+const _memoLista={};
+// pinta uma coluna por string, mas só toca o DOM se a string mudou (evita flicker/reconstrução à toa)
+function setLista(id, html){ const el=$(id); if(!el) return; if(_memoLista[id]===html) return; _memoLista[id]=html; el.innerHTML=html; }
+// coluna plana: usa reconcile quando tem itens; senão pinta o estado vazio
+function pintarFlat(id, items, cardFn, vazioHTML){
+  const el=$(id); if(!el) return;
+  if(!items.length){ if(_memoLista[id]!==vazioHTML){ _memoLista[id]=vazioHTML; el.innerHTML=vazioHTML; } return; }
+  reconcile(el, items, cardFn); _memoLista[id]='\u0000cards'; // invalida memo de string (DOM agora é gerido por nó)
+}
+// item 4: atualiza só o texto/classe dos cronômetros vivos, sem redesenhar os cards
+function atualizarCronometros(){
+  document.querySelectorAll('.timer[data-ts]').forEach(sp=>{
+    const ts=+sp.getAttribute('data-ts'); if(!ts) return;
+    const min=minutesSince(ts);
+    const nv=fmtDur(min); if(sp.textContent!==nv) sp.textContent=nv;
+    const cls='timer '+urgClass(min); if(sp.className!==cls) sp.className=cls;
+  });
+}
 function render(){
   const today = todayKey();
   renderReagAlerta();
@@ -3886,9 +3934,9 @@ function render(){
           <button class="btn btn-primary btn-mini" onclick="enviarSelVend()">🛵 Enviar p/ entregador</button>
         </div>
       </div>` : '';
-    $('list-aguard').innerHTML = selBar + (aguard.length ? aguard.map(e=>vcard(e,etaV)).join('') : `<div class="empty">Nenhuma entrega esperando</div>`);
+    setLista('list-aguard', selBar + (aguard.length ? aguard.map(e=>vcard(e,etaV)).join('') : `<div class="empty">Nenhuma entrega esperando</div>`));
   } else {
-    $('list-aguard').innerHTML = aguard.length ? aguard.map(cardAguardando).join('') : `<div class="empty">Nenhuma entrega esperando</div>`;
+    pintarFlat('list-aguard', aguard, cardAguardando, `<div class="empty">Nenhuma entrega esperando</div>`);
   }
   $('c-aguard').textContent = aguard.length;
 
@@ -3903,8 +3951,8 @@ function render(){
           <span class="gname" style="color:${ent.cor}"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:${ent.cor}"></span>${ent.nome} · ${its.length}</span>
         </div>${its.map(e=>vcard(e,etaV)).join('')}</div>`;
       });
-      $('list-rota').innerHTML = html;
-    } else $('list-rota').innerHTML=`<div class="empty">Nada em rota</div>`;
+      setLista('list-rota', html);
+    } else setLista('list-rota', `<div class="empty">Nada em rota</div>`);
   } else if(rota.length){
     let html='';
     ENTREGADORES.forEach(ent=>{
@@ -3919,12 +3967,13 @@ function render(){
       <div class="rota-est">≈ <b>${fmtDur(estM)}</b> de rota · término previsto <b>${finishTime(startTs,estM)}</b></div>
       ${its.map(cardRota).join('')}</div>`;
     });
-    $('list-rota').innerHTML=html;
-  } else $('list-rota').innerHTML=`<div class="empty">Nada em rota</div>`;
+    setLista('list-rota', html);
+  } else setLista('list-rota', `<div class="empty">Nada em rota</div>`);
   $('c-rota').textContent = rota.length;
 
   // entregue / finalizadas
-  $('list-entregue').innerHTML = entregue.length ? entregue.map(ehVendPessoal?(e=>vcard(e,etaV)):cardEntregue).join('') : `<div class="empty">Nenhuma entrega concluída neste dia</div>`;
+  if(ehVendPessoal) setLista('list-entregue', entregue.length ? entregue.map(e=>vcard(e,etaV)).join('') : `<div class="empty">Nenhuma entrega concluída neste dia</div>`);
+  else pintarFlat('list-entregue', entregue, cardEntregue, `<div class="empty">Nenhuma entrega concluída neste dia</div>`);
   $('c-entregue').textContent = entregue.length;
 
   // coluna pessoal "Minhas entregas" (só para vendedoras)
@@ -4072,10 +4121,8 @@ function switchTab(name){
   $('tab-ranking').classList.toggle('on', isRank);
   const dt=$('destaques-topo');
   if(dt){ if(name==='painel'){ dt.innerHTML=destaquesHTML(true); dt.style.display=''; } else dt.style.display='none'; }  // destaques só no Painel
-  if(isMapa){ ensureMap(); renderMap(); if(!suggestion && aguardandoHoje().some(e=>coordOf(e))) sugerirRotas(); }
-  else if(isFin){ renderFinalizadas(); }
-  else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); }
-  else { animateNext(); render(); }
+  if(isMapa){ assinarRastreio(); ensureMap(); renderMap(); if(!suggestion && aguardandoHoje().some(e=>coordOf(e))) sugerirRotas(); }
+  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else { animateNext(); render(); } }
 }
 function ensureMap(){
   if(mapInited){ if(map) setTimeout(()=>map.invalidateSize(),50); return; }
@@ -5706,7 +5753,7 @@ if(_trackId){
   })();
   setInterval(tick,1000);
 }
-setInterval(()=>{ render(); if(session.role==='entregador') renderEntregador(); }, 30000); // atualiza cronômetros
+setInterval(()=>{ atualizarCronometros(); if(session.role==='entregador') renderEntregador(); }, 30000); // item 4: atualiza só os cronômetros (sem redesenhar a lista)
 $('paste').addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.ctrlKey) doParse(); });
 // colar uma imagem (print da localização) no campo de mensagem → anexa como foto da localização
 $('paste').addEventListener('paste', async (e)=>{
