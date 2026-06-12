@@ -1146,13 +1146,15 @@
         <div>
           <label>Horário combinado</label>
           <div class="hr-row">
-            <select id="f-hr-tipo">
+            <select id="f-hr-tipo" onchange="toggleHrEntre()">
               <option value="">Sem horário</option>
-              <option value="ate">Até</option>
-              <option value="apos">A partir de</option>
-              <option value="pico">Por volta de</option>
+              <option value="ate">Antes de</option>
+              <option value="apos">Depois de</option>
+              <option value="entre">Entre</option>
             </select>
             <input id="f-hr-hora" type="time">
+            <span id="f-hr-e" style="display:none;align-self:center;color:var(--text-mute);font-size:13px">e</span>
+            <input id="f-hr-hora2" type="time" style="display:none">
           </div>
         </div>
         <div>
@@ -1382,7 +1384,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v125</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v126</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -2802,7 +2804,7 @@ function fmtFoneFinal(el){                                            // formata
 }
 function normFoneSalvar(raw){ const a=analisarFone(raw); return (a.ok && a.fmt) ? a.fmt : (a.d || (raw||'').trim()); }
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
-function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
+function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -2850,6 +2852,7 @@ async function saveEntrega(){
     dataEntrega,
     horarioTipo:$('f-hr-tipo').value,
     horarioHora:$('f-hr-hora').value,
+    horarioHora2:$('f-hr-hora2').value,
     tipo:$('f-tipo').value||'entrega',
     pagPrevisto:pagPrev,
     produto:$('f-prod').value.trim(),
@@ -3651,17 +3654,35 @@ function renderEntPick(){
       <button type="button" title="Copiar link de transmissão de localização de ${esc(e.nome)}" onclick="event.stopPropagation();compartilharLinkEntregador('${e.id}')" style="background:none;border:0;cursor:pointer;font-size:15px;line-height:1;padding:2px 3px;opacity:.7">📍</button>
     </div>`).join('');
 }
-function hrLabel(tipo){ return {ate:'até', apos:'a partir de', pico:'por volta de'}[tipo]||''; }
+function hrLabel(tipo){ return {ate:'antes de', apos:'depois de', pico:'por volta de', entre:'entre'}[tipo]||''; }
+function hrTxt(e){
+  if(!e || !e.horarioTipo || !e.horarioHora) return '';
+  if(e.horarioTipo==='entre') return e.horarioHora2 ? `entre ${e.horarioHora} e ${e.horarioHora2}` : `a partir de ${e.horarioHora}`;
+  return `${hrLabel(e.horarioTipo)} ${e.horarioHora}`;
+}
+function hrDeadline(e){            // horário-limite ("tem que chegar até"): 'antes de' = a hora; 'entre' = a hora final
+  if(!e) return '';
+  if(e.horarioTipo==='ate')   return e.horarioHora||'';
+  if(e.horarioTipo==='entre') return e.horarioHora2||e.horarioHora||'';
+  return '';
+}
+function toggleHrEntre(){
+  const ent = $('f-hr-tipo') && $('f-hr-tipo').value==='entre';
+  const e2=$('f-hr-hora2'), lb=$('f-hr-e');
+  if(e2) e2.style.display = ent?'':'none';
+  if(lb) lb.style.display = ent?'':'none';
+}
 function hrBadge(e){
   if(!e.horarioTipo || !e.horarioHora) return '';
-  return `<span class="badge-hr">⏰ ${hrLabel(e.horarioTipo)} ${e.horarioHora}</span>`;
+  return `<span class="badge-hr">⏰ ${hrTxt(e)}</span>`;
 }
 // entrega com horário marcado faltando 30 min ou menos (ou já passou), de hoje e ainda pendente
 function horarioUrgente(e){
   if(e.status!=='aguardando' && e.status!=='em_rota') return false;
   if(!e.horarioTipo || !e.horarioHora) return false;
   if(dataDe(e)!==todayKey()) return false;
-  const m=String(e.horarioHora).match(/(\d{1,2}):(\d{2})/); if(!m) return false;
+  const ref = e.horarioTipo==='entre' ? (e.horarioHora2||e.horarioHora) : e.horarioHora;
+  const m=String(ref).match(/(\d{1,2}):(\d{2})/); if(!m) return false;
   const alvo=new Date(); alvo.setHours(+m[1], +m[2], 0, 0);
   return (alvo - Date.now())/60000 <= 30;
 }
@@ -3670,7 +3691,7 @@ function buildRouteText(items, ent){
   let t = `🛵 ROTA — ${ent.nome}\n⏱ Estimativa: ≈ ${fmtDur(estM)} (${items.length} ${items.length===1?'entrega':'entregas'}) saindo da loja\n━━━━━━━━━━━━━━\n`;
   items.forEach((d,i)=>{
     t += `\n*${i+1}) ${d.cliente}*\n`;
-    if(d.horarioTipo && d.horarioHora) t += `⏰ Entregar ${hrLabel(d.horarioTipo)} ${d.horarioHora}\n`;
+    if(d.horarioTipo && d.horarioHora) t += `⏰ Entregar ${hrTxt(d)}\n`;
     if(d.bairro)   t += `🏘️ ${d.bairro}${d.cidade?' - '+d.cidade:''}\n`;
     else if(d.cidade) t += `🏘️ ${d.cidade}\n`;
     if(d.endereco) t += `📍 ${d.endereco}\n`;
@@ -4115,7 +4136,7 @@ function editar(id){
   $('f-cpf').value=e.cpf||''; $('f-nasc').value=e.nascimento||'';
   $('f-cidade').value=e.cidade||''; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
   $('f-prod').value=e.produto; $('f-valor').value=e.valor; $('f-obs').value=e.observacao||''; $('f-linkpag').value=e.linkPagamento||'';
-  $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||'';
+  $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||''; $('f-hr-hora2').value=e.horarioHora2||''; toggleHrEntre();
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
   if($('f-presente'))$('f-presente').checked=!!e.presente;
   setTaxaForm(e.taxaEntrega);
@@ -4136,7 +4157,7 @@ async function salvarEdicao(){
   e.cidade=$('f-cidade').value.trim(); e.vendedora=$('f-vend').value.trim(); e.endereco=$('f-end').value.trim(); e.link=$('f-link').value.trim();
   e.coord=coordFrom(e.link);
   if(!e.coord && ehLinkCurto(e.link)){ const rc=await resolverLinkCurto(e.link); if(rc && isFinite(rc.lat)&&isFinite(rc.lng)) e.coord={lat:rc.lat,lng:rc.lng}; else if(rc && rc.endereco && !e.endereco){ e.endereco=rc.endereco; } }
-  e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value;
+  e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value; e.horarioHora2=$('f-hr-hora2').value;
   e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim(); e.linkPagamento=$('f-linkpag').value.trim();
   e.tipo=$('f-tipo').value||'entrega'; e.pagPrevisto=$('f-pag-prev').value||'cobrar';
   if($('f-presente'))e.presente=$('f-presente').checked;
@@ -4219,7 +4240,7 @@ function renderMap(){
     const color = (ci!=null) ? ROUTE_COLORS[ci%ROUTE_COLORS.length] : '#9aa386';
     L.circleMarker([c.lat,c.lng],{radius:9,color:'var(--ink)',weight:2,fillColor:color,fillOpacity:.95})
       .addTo(markerLayer)
-      .bindPopup(`<b>${esc(e.cliente)}</b><br>${esc(e.bairro||'sem bairro')}${e.horarioHora?'<br>⏰ '+hrLabel(e.horarioTipo)+' '+e.horarioHora:''}${ci!=null?'<br><b>Rota '+(ci+1)+'</b>':''}`);
+      .bindPopup(`<b>${esc(e.cliente)}</b><br>${esc(e.bairro||'sem bairro')}${e.horarioHora?'<br>⏰ '+hrTxt(e):''}${ci!=null?'<br><b>Rota '+(ci+1)+'</b>':''}`);
     bounds.push([c.lat,c.lng]);
   });
   if(bounds.length) map.fitBounds(bounds,{padding:[40,40],maxZoom:14});
@@ -4373,9 +4394,10 @@ function analisarHorarios(items){
     const c=coordOf(e);
     if(cur && c){ t += legMin(cur,c)*60000; cur=c; }
     else { t += config.minPorEntrega*60000; }
-    if(e.horarioTipo==='ate' && e.horarioHora){
-      const dl=horaToTs(e.horarioHora, t);
-      if(dl && t > dl+60000) problemas.push({cliente:e.cliente, prazo:e.horarioHora, chegada:t});
+    const _dlh=hrDeadline(e);
+    if(_dlh){
+      const dl=horaToTs(_dlh, t);
+      if(dl && t > dl+60000) problemas.push({cliente:e.cliente, prazo:_dlh, chegada:t});
     }
     t += config.servicoMin*60000;
   });
@@ -4592,7 +4614,7 @@ function planRota(items, loja, startTs){
   while(rem.length){
     const cand=rem.map(e=>{
       const c=coordOf(e), leg=legMin(cur,c), arr=t+leg*60000;
-      const dl=(e.horarioTipo==='ate'&&e.horarioHora)?horaToTs(e.horarioHora,arr):null;
+      const _dlh=hrDeadline(e); const dl=_dlh?horaToTs(_dlh,arr):null;
       return {e,leg,arr,dl,slack:dl?(dl-arr)/60000:Infinity};
     });
     const atRisco=cand.filter(x=>x.dl&&x.slack<15).sort((a,b)=>a.dl-b.dl||a.leg-b.leg);
@@ -4822,7 +4844,7 @@ function vcard(e, eta){
         ${e.endereco?`<div class="row"><span class="ico">📍</span><span>${esc(e.endereco)}</span></div>`:''}
         ${e.contato?`<div class="row"><span class="ico">📞</span><span>${esc(e.contato)}</span></div>`:''}
         ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
-        ${temHora?`<div class="row"><span class="ico">⏰</span><span style="color:var(--warn)">${hrLabel(e.horarioTipo)} ${esc(e.horarioHora)}</span></div>`:''}
+        ${temHora?`<div class="row"><span class="ico">⏰</span><span style="color:var(--warn)">${esc(hrTxt(e))}</span></div>`:''}
         ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
       </div>
       <div class="vcard-acts">
@@ -4879,7 +4901,7 @@ function fcard(e){
   const somaVals = Object.values(e.pagamentoValores||{}).reduce((s,v)=>s+_num(v),0);
   const totalReceb = somaVals + _num(e.taxaEntrega);
   const totalLine = totalReceb>0 ? `<div class="frow"><span class="ico">💰</span><span>Total recebido: <b>${_brl(totalReceb)}</b></span></div>` : '';
-  const horarioTxt = (e.horarioTipo && e.horarioHora) ? `${hrLabel(e.horarioTipo)} ${e.horarioHora}` : '';
+  const horarioTxt = hrTxt(e);
   const tipoTxt = (e.tipo==='troca') ? '🔁 Troca — traz o par antigo' : (e.tipo==='coleta') ? '↩️ Coleta de devolução' : '';
   return `<div class="fcard">
     <div class="fcard-top">
@@ -5029,7 +5051,7 @@ function cardPegar(e){
         ${(e.bairro||e.cidade)?`<span class="pegar-bairro">📍 ${esc([e.bairro,e.cidade].filter(Boolean).join(' - '))}</span>`:''}
         ${cob?`<span class="pegar-cob">💵 A cobrar${e.valor?' R$ '+esc(e.valor):''}</span>`:`<span class="pegar-pago">✅ Pago</span>`}
         ${e.presente?`<span class="pegar-presente">🎁 Presente</span>`:''}
-        ${(e.horarioTipo&&e.horarioHora)?`<span class="pegar-hora">⏰ ${hrLabel(e.horarioTipo)} ${esc(e.horarioHora)}</span>`:''}
+        ${(e.horarioTipo&&e.horarioHora)?`<span class="pegar-hora">⏰ ${esc(hrTxt(e))}</span>`:''}
         <span class="pegar-vend">👤 ${esc(e.vendedora||'—')} · há ${fmtDur(min)}</span>
       </div>
       ${e.link?`<a class="pegar-mapa" href="${esc(e.link)}" target="_blank" onclick="event.stopPropagation()">🧭 Ver no mapa</a>`:''}
@@ -5115,7 +5137,7 @@ function renderEntregador(){
         : `<div class="stat empty-stat">Nenhuma entrega na sua rota agora.</div>`);
   const comHora=ordered.filter(e=>e.horarioTipo&&e.horarioHora);
   const alerta = comHora.length
-    ? `<div class="ent-alert"><b>⏰ Atenção aos horários combinados:</b><br>${comHora.map(e=>`${esc(e.cliente)} — ${hrLabel(e.horarioTipo)} <b>${e.horarioHora}</b>`).join(' · ')}</div>`
+    ? `<div class="ent-alert"><b>⏰ Atenção aos horários combinados:</b><br>${comHora.map(e=>`${esc(e.cliente)} — <b>${esc(hrTxt(e))}</b>`).join(' · ')}</div>`
     : '';
   const semLoc = ordered.filter(e=>!coordOf(e));
   const semLocHTML = semLoc.length ? `<div class="ent-noloc">
@@ -5244,7 +5266,7 @@ function cardEntregadorView(p,n,fromGps,total){
       </label>
     </div>
     <div class="name">${esc(e.cliente)}</div>
-    ${temHora?`<div class="hr-alert">⏰ ENTREGAR ${hrLabel(e.horarioTipo).toUpperCase()} ${e.horarioHora}</div>`:''}
+    ${temHora?`<div class="hr-alert">⏰ ENTREGAR ${esc(hrTxt(e)).toUpperCase()}</div>`:''}
     ${e.tipo==='troca'?`<div class="hr-alert" style="background:rgba(143,156,214,.16);color:#8e9cd6">🔁 TROCA — leve o novo e TRAGA o par antigo</div>`:''}
     ${e.tipo==='coleta'?`<div class="hr-alert" style="background:rgba(207,138,168,.16);color:#cf8aa8">↩️ COLETA — retire a devolução com o cliente</div>`:''}
     ${e.presente?`<div class="hr-alert" style="background:rgba(212,180,90,.16);color:var(--gold-lt)">🎁 LEVAR COM EMBALAGEM DE PRESENTE</div>`:''}
@@ -5355,7 +5377,7 @@ function renderMapEnt(){
     } else {
       L.circleMarker([c.lat,c.lng],{radius:11,color:'var(--ink)',weight:2,fillColor:ent.cor,fillOpacity:.95}).addTo(layerEnt)
         .bindTooltip(String(i+1),{permanent:true,direction:'center',className:'mk-num'})
-        .bindPopup(`<b>${i+1}) ${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${e.horarioHora?'<br>⏰ '+hrLabel(e.horarioTipo)+' '+e.horarioHora:''}`);
+        .bindPopup(`<b>${i+1}) ${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${e.horarioHora?'<br>⏰ '+hrTxt(e):''}`);
     }
     bounds.push([c.lat,c.lng]); path.push([c.lat,c.lng]);
   });
@@ -5393,10 +5415,9 @@ function renderMapAguard(){
   L.circleMarker([loja.lat,loja.lng],{radius:11,color:'#23311a',weight:3,fillColor:'#eef0e3',fillOpacity:1}).addTo(layerAguard).bindPopup('🏪 Loja'); bounds.push([loja.lat,loja.lng]); path.push([loja.lat,loja.lng]);
   ordered.forEach((e,i)=>{
     const c=coordOf(e), sel=pegarSel.has(e.id);
-    const nome=(e.cliente||'').trim().split(/\s+/)[0]||'Cliente';   // primeiro nome, direto no pino
     const mk=L.circleMarker([c.lat,c.lng],{radius:11,color:'#23311a',weight:2,fillColor: sel?'#7fae6b':'#e0b341',fillOpacity:.95}).addTo(layerAguard)
-      .bindTooltip(esc(nome),{permanent:true,direction:'right',offset:[8,0],className:'mk-nome'})
-      .bindPopup(`<b>${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${(e.pagPrevisto!=='pago')?'<br>💵 A cobrar':''}`);
+      .bindTooltip(String(i+1),{permanent:true,direction:'center',className:'mk-num'})
+      .bindPopup(`<b>${i+1}) ${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${(e.pagPrevisto!=='pago')?'<br>💵 A cobrar':''}`,{direction:'top'});
     _aguardMarks[i]=mk;
     bounds.push([c.lat,c.lng]); path.push([c.lat,c.lng]);
   });
