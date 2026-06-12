@@ -1384,7 +1384,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v126</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v129</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -3838,6 +3838,7 @@ function cardAguardando(e){
         ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
         ${podeMexer(e)?`
         ${waNumero(e.contato)?`<a class="lnk wa" href="https://wa.me/${waNumero(e.contato)}" target="_blank">${WA_ICON} WhatsApp</a>`:'<span class="lnk disabled">sem telefone</span>'}
+        ${waNumero(e.contato)?`<a class="lnk" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank" title="Mandar o link de acompanhamento">📍 Rastreio</a>`:''}
         <button class="iconbtn" onclick="abrirReag('${e.id}')" title="Reagendar">📅</button>
         <button class="iconbtn" onclick="abrirDesfecho('${e.id}','cancelado')" title="Não comprou">✕</button>
         <button class="iconbtn" onclick="editar('${e.id}')" title="Editar">✎</button>
@@ -3874,6 +3875,7 @@ function cardRota(e){
       </div>
       <div class="card-actions norail">
         ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
+        ${waNumero(e.contato)?`<a class="lnk" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank" title="Mandar o link de acompanhamento">📍 Rastreio</a>`:''}
         ${podeMexer(e)?`
         <button class="btn btn-ghost btn-mini" onclick="marcarEntregue('${e.id}')">✓ Entregue</button>
         <button class="iconbtn" onclick="editar('${e.id}')" title="Editar / acrescentar item">✎</button>
@@ -4737,6 +4739,10 @@ function _chk(id){ let n=0; const s='LSx'+id; for(let i=0;i<s.length;i++) n=(n*3
 function tokenRastreio(id){ return _b64u('LSR1|'+id+'|'+_chk(id)); }
 function idDeToken(tok){ const m=/^LSR1\|(.+)\|(\d+)$/.exec(_ub64u(tok)); if(!m) return null; return _chk(m[1])===Number(m[2]) ? m[1] : null; }
 function linkRastreio(e){ const base=(TRACK_BASE||location.href.split('?')[0].split('#')[0]).replace(/#.*$/,''); return base + '#acompanhar/' + tokenRastreio(e.id); }
+function msgRastreio(e){
+  const nome=(e.cliente||'').trim().split(/\s+/)[0];
+  return `${nome?nome+', o':'O'} seu pedido já foi separado e está em rota de entrega! ✔️\n\nAcompanhe o status da sua entrega em tempo real por aqui:\n${linkRastreio(e)}\n\nQualquer dúvida, entre em contato com o entregador responsável através do "Falar com o entregador", que está disponível no link.`;
+}
 // link de TRANSMISSÃO do entregador (abre a página de rastreio em modo "compartilhar GPS")
 function _chkPayload(s){ let n=0; const x='LSx'+s; for(let i=0;i<x.length;i++) n=(n*31+x.charCodeAt(i))%100000; return n; }
 function tokenEntregador(entId){ const ent=ENT[entId]||{}; const p='LSE1|'+entId+'|'+(ent.nome||'')+'|'+(ent.cor||'#d4b45a'); return _b64u(p+'|'+_chkPayload(p)); }
@@ -4854,6 +4860,7 @@ function vcard(e, eta){
           : (wa?`<a class="vbtn wa" href="${wa}" target="_blank">${WA_ICON} Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
         ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
+        ${(waNumero(e.contato)&&(e.status==='aguardando'||e.status==='em_rota'))?`<a class="vbtn ghost" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank">📍 Enviar rastreio</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
         ${(!!session.geral && podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
         ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="voltarAguardando('${e.id}')">↩ Voltar p/ aguardando</button>`:''}
