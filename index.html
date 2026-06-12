@@ -114,6 +114,9 @@
   .btn{font-family:var(--ff-body);font-size:13.5px;font-weight:500;border:none;border-radius:11px;padding:11px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:.15s;letter-spacing:.02em}
   .btn:active{transform:translateY(1px)}
   .btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-dk));color:var(--ink);font-weight:600;box-shadow:0 8px 20px -8px rgba(217,164,65,.6)}
+.fone-hint{display:block;margin-top:5px;font-size:12px;line-height:1.3;min-height:14px}
+.fone-hint.ok{color:var(--text-mute)}
+.fone-hint.warn{color:#e8b04a;font-weight:600}
   .btn-primary:hover{filter:brightness(1.06)}
   .btn-ghost{background:var(--surface-2);color:var(--text-soft);border:1px solid var(--line)}
   .btn-ghost:hover{background:var(--surface-3);color:var(--text)}
@@ -303,6 +306,8 @@
   .leaflet-popup-tip{background:var(--surface)}
   .leaflet-container{font-family:var(--ff-body)}
   .mk-num{background:transparent!important;border:none!important;box-shadow:none!important;color:var(--ink);font-weight:700;font-size:11px}
+.mk-nome{background:rgba(20,28,12,.82)!important;border:1px solid rgba(212,180,90,.34)!important;color:#fff!important;font-weight:600;font-size:11px;padding:1px 6px!important;border-radius:6px;box-shadow:none!important;white-space:nowrap}
+.mk-nome::before{display:none!important}
   .mk-num::before{display:none!important}
 
   .rotas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
@@ -453,6 +458,12 @@
   .ent-resumo{background:rgba(59,68,48,.5);border:1px solid var(--line);border-radius:14px;padding:13px 16px;margin-bottom:16px;font-size:14px;color:var(--text-soft);display:flex;gap:20px;flex-wrap:wrap}
   .ent-resumo b{font-family:var(--ff-display);font-size:22px;color:var(--text);font-weight:600;margin-right:5px}
   #map-ent,#map-aguard{height:300px;border-radius:var(--radius);border:1px solid var(--line);margin-bottom:16px;background:var(--surface-2);z-index:1}
+  .map-legenda{display:flex;flex-direction:column;gap:6px;margin:-8px 0 16px}
+  .map-legenda .leg-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;color:var(--text);font-family:var(--ff-body);font-size:13.5px;cursor:pointer}
+  .map-legenda .leg-row:active{background:var(--surface)}
+  .map-legenda .leg-num{flex:none;width:23px;height:23px;border-radius:50%;background:var(--gold);color:var(--ink);font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center}
+  .map-legenda .leg-txt{flex:1;line-height:1.25}
+  .map-legenda .leg-empty{color:var(--text-mute);font-size:12.5px;padding:3px 2px}
   .aguard-map-hint{font-size:12.5px;color:var(--text-mute);margin:-6px 2px 12px}
   .ent-fin{margin-top:20px;border-top:1px dashed var(--line);padding-top:14px}
   .ent-fin-h{font-family:var(--ff-eyebrow);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);margin-bottom:10px}
@@ -560,6 +571,8 @@
   .pegar-badges span{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:rgba(138,145,122,.16);color:var(--text-soft)}
   .pegar-bairro{background:rgba(111,176,166,.16) !important;color:var(--teal) !important}
   .pegar-cob{background:rgba(224,179,65,.16) !important;color:var(--warn) !important}
+.pegar-mapa{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 13px;border-radius:10px;background:var(--surface-3);border:1px solid var(--line-strong);color:var(--text);font-family:var(--ff-body);font-size:13.5px;font-weight:600;text-decoration:none;-webkit-tap-highlight-color:transparent}
+.pegar-mapa:active{background:var(--surface)}
   .pegar-pago{background:rgba(127,174,107,.16) !important;color:var(--calm) !important}
   .pegar-presente{background:rgba(212,180,90,.18) !important;color:var(--gold-lt) !important}
   .pegar-hora{background:rgba(224,106,82,.16) !important;color:var(--urgent) !important}
@@ -1053,7 +1066,7 @@
 
   <div class="toolbar">
     <div class="filters" id="filters"></div>
-    <button class="btn btn-primary" onclick="togglePanel(true)">＋ Nova entrega</button>
+    <button class="btn btn-primary" onclick="novaEntrega()">＋ Nova entrega</button>
   </div>
 
   <div class="filters2" id="row-vend-filter">
@@ -1082,7 +1095,7 @@
   <div class="panel" id="panel">
     <div class="panel-head">
       <h2>Cadastrar entrega</h2>
-      <button class="iconbtn" onclick="togglePanel(false)">✕</button>
+      <button class="iconbtn" onclick="fecharForm()">✕</button>
     </div>
     <div class="panel-body">
       <div class="paste-zone">
@@ -1115,7 +1128,7 @@
           <input id="f-vend" placeholder="Quem fez a venda" list="vend-list" autocomplete="off">
           <div class="vend-chips" id="vend-chips"></div>
         </div>
-        <div><label>Contato</label><input id="f-contato" type="tel" inputmode="tel" placeholder="(62) 9....-...." oninput="maskTelefone(this)"></div>
+        <div><label>Contato</label><input id="f-contato" type="tel" inputmode="tel" placeholder="(62) 9....-...." oninput="hintFone(this)" onblur="fmtFoneFinal(this)" onpaste="setTimeout(()=>fmtFoneFinal(this),0)"><small id="f-contato-hint" class="fone-hint"></small></div>
         <div><label>CPF</label><input id="f-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" oninput="maskCPF(this)"></div>
         <div><label>Nascimento</label><input id="f-nasc" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" oninput="maskData(this)"></div>
         <div>
@@ -1179,6 +1192,7 @@
       <datalist id="vend-list"></datalist>
       <div class="form-actions">
         <button class="btn btn-ghost" onclick="clearForm()">Limpar</button>
+        <button class="btn btn-ghost" id="btn-cancel-edit" onclick="cancelarEdicao()" style="display:none">Cancelar edição</button>
         <button class="btn btn-primary" id="btn-salvar" onclick="saveEntrega()">Cadastrar entrega</button>
       </div>
     </div>
@@ -1263,7 +1277,7 @@
       <button class="ent-tab on" id="ent-tab-rota" onclick="setEntTab('rota')">🛵 Minha rota<span class="ent-tab-c" id="c-tab-rota"></span></button>
     </div>
     <div id="ent-pane-aguard" style="display:none">
-      <div id="map-aguard-box"><div id="map-aguard"></div></div>
+      <div id="map-aguard-box"><div id="map-aguard"></div><div id="aguard-legenda" class="map-legenda"></div></div>
       <div id="ent-aguard-list"></div>
     </div>
     <div id="ent-pane-rota">
@@ -1368,7 +1382,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v116</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v125</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -2748,6 +2762,45 @@ function maskTelefone(el){
   else if(d.length>0)  v=`(${d}`;
   el.value=v;
 }
+/* === Telefone à prova de embaralhamento (fluxo de COLAR) ===
+   Antes a máscara reescrevia o campo a cada tecla -> no teclado do celular o cursor pula
+   e os dígitos entram trocados. Agora: durante a digitação só atualizamos o AVISO (sem
+   tocar no campo); a formatação acontece UMA vez, ao sair do campo ou colar. */
+function _foneDigits(raw){
+  let d=(raw||'').replace(/\D/g,'');
+  if(d.length>=12 && d.startsWith('55')) d=d.slice(2);   // tira o +55
+  d=d.replace(/^0+/,'');                                  // tira zero à esquerda (ex: 062)
+  return d;
+}
+function analisarFone(raw){
+  const d=_foneDigits(raw);
+  if(!d) return {d:'', tipo:'vazio', fmt:'', ok:true, msg:''};
+  if(d.length===10){
+    if('6789'.includes(d[2])){ const m=d.slice(0,2)+'9'+d.slice(2); return {d:m, tipo:'celular', fmt:`(${m.slice(0,2)}) ${m.slice(2,7)}-${m.slice(7)}`, ok:true, msg:'✓ celular (incluí o 9)'}; } // DDD + 8 começando com 6/7/8/9 = celular sem o 9 → insere o 9
+    return {d, tipo:'fixo', fmt:`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`, ok:true, msg:'✓ fixo'};
+  }
+  if(d.length===11) return d[2]==='9'
+      ? {d, tipo:'celular', fmt:`(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`, ok:true, msg:'✓ celular'}
+      : {d, tipo:'duvida', fmt:d, ok:false, msg:'⚠ 11 dígitos sem o 9 do celular — confira'};
+  if(d.length===9 && d[0]==='9') return {d:'62'+d, tipo:'celular', fmt:`(62) ${d.slice(0,5)}-${d.slice(5)}`, ok:true, msg:'sem DDD — assumi (62)'};
+  if(d.length===8) return {d:'62'+d, tipo:'fixo', fmt:`(62) ${d.slice(0,4)}-${d.slice(4)}`, ok:true, msg:'sem DDD — assumi (62)'};
+  return {d, tipo:'invalido', fmt:d, ok:false, msg:`⚠ ${d.length} dígitos — fora do padrão, confira`};
+}
+function setFoneHint(a){
+  const h=$('f-contato-hint'); if(!h) return;
+  if(!a || a.tipo==='vazio'){ h.textContent=''; h.className='fone-hint'; return; }
+  h.textContent = a.ok ? (a.msg + (a.fmt? (' · '+a.fmt) : '')) : a.msg;
+  h.className = 'fone-hint ' + (a.ok ? 'ok' : 'warn');
+}
+function hintFone(el){ setFoneHint(analisarFone(el && el.value)); }   // só o aviso — NUNCA reescreve o campo
+function fmtFoneFinal(el){                                            // formata UMA vez (sair do campo / colar)
+  if(!el) return; const a=analisarFone(el.value);
+  if(a.tipo==='vazio') el.value='';
+  else if(a.ok && (a.tipo==='celular'||a.tipo==='fixo')) el.value=a.fmt;
+  else el.value=a.d;                 // dígitos crus, pra você enxergar o que veio quando está fora do padrão
+  setFoneHint(a);
+}
+function normFoneSalvar(raw){ const a=analisarFone(raw); return (a.ok && a.fmt) ? a.fmt : (a.d || (raw||'').trim()); }
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
 function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
@@ -2761,7 +2814,7 @@ async function saveEntrega(){
   let coord = coordFrom(link);
   let end=$('f-end').value.trim();
   const bairro=$('f-bairro').value.trim(), cidade=$('f-cidade').value.trim();
-  const contato=$('f-contato').value.trim();
+  const contato=normFoneSalvar($('f-contato').value);
   const pagPrev=$('f-pag-prev').value||'cobrar';
   const valor=$('f-valor').value.trim();
   // TRAVA: precisa de CONTATO ou LOCALIZAÇÃO — senão o entregador não tem como levar nem pedir o endereço
@@ -4047,6 +4100,14 @@ function render(){
 
 /* ============ editar (simples via prompt do form) ============ */
 let editId=null;
+function sairModoEdicao(){   // zera o estado de edição: nada de editId pendente sobrando
+  editId=null;
+  const btn=$('btn-salvar'); if(btn){ btn.textContent='Cadastrar entrega'; btn.setAttribute('onclick','saveEntrega()'); }
+  const c=$('btn-cancel-edit'); if(c) c.style.display='none';
+}
+function novaEntrega(){ sairModoEdicao(); clearForm(); togglePanel(true); }   // sempre abre um formulário NOVO e limpo
+function fecharForm(){ togglePanel(false); sairModoEdicao(); }                 // fechar no ✕ não deixa edição pendente
+function cancelarEdicao(){ sairModoEdicao(); clearForm(); togglePanel(false); toast('Edição cancelada'); }
 function editar(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e)return;
@@ -4067,10 +4128,11 @@ function editar(id){
   editId=id; togglePanel(true);
   $('f-data').min = dataDe(e); $('f-data').value = dataDe(e); // mantém a data original (mesmo se já passou)
   const btn=$('btn-salvar'); btn.textContent='Salvar alterações'; btn.setAttribute('onclick','salvarEdicao()');
+  const cc=$('btn-cancel-edit'); if(cc) cc.style.display='';
 }
 async function salvarEdicao(){
   const e=entregas.find(x=>x.id===editId); if(!e)return;
-  e.cliente=$('f-cliente').value.trim(); e.contato=$('f-contato').value.trim(); e.bairro=$('f-bairro').value.trim();
+  e.cliente=$('f-cliente').value.trim(); e.contato=normFoneSalvar($('f-contato').value); e.bairro=$('f-bairro').value.trim();
   e.cidade=$('f-cidade').value.trim(); e.vendedora=$('f-vend').value.trim(); e.endereco=$('f-end').value.trim(); e.link=$('f-link').value.trim();
   e.coord=coordFrom(e.link);
   if(!e.coord && ehLinkCurto(e.link)){ const rc=await resolverLinkCurto(e.link); if(rc && isFinite(rc.lat)&&isFinite(rc.lng)) e.coord={lat:rc.lat,lng:rc.lng}; else if(rc && rc.endereco && !e.endereco){ e.endereco=rc.endereco; } }
@@ -4082,8 +4144,7 @@ async function salvarEdicao(){
   e.dataEntrega=$('f-data').value||dataDe(e);
   if(fotoLocPendente){ salvarFotoLocal(e.id, fotoLocPendente); e.temFotoLocal=true; }
   else if(e.temFotoLocal){ removerFotoLocal(e.id); e.temFotoLocal=false; }
-  persist(); clearForm(); togglePanel(false); editId=null;
-  const btn=$('btn-salvar'); btn.textContent='Cadastrar entrega'; btn.setAttribute('onclick','saveEntrega()');
+  persist(); clearForm(); togglePanel(false); sairModoEdicao();
   render(); toast('Entrega atualizada');
 }
 
@@ -4971,6 +5032,7 @@ function cardPegar(e){
         ${(e.horarioTipo&&e.horarioHora)?`<span class="pegar-hora">⏰ ${hrLabel(e.horarioTipo)} ${esc(e.horarioHora)}</span>`:''}
         <span class="pegar-vend">👤 ${esc(e.vendedora||'—')} · há ${fmtDur(min)}</span>
       </div>
+      ${e.link?`<a class="pegar-mapa" href="${esc(e.link)}" target="_blank" onclick="event.stopPropagation()">🧭 Ver no mapa</a>`:''}
     </div>
   </div>`;
 }
@@ -5200,7 +5262,7 @@ function cardEntregadorView(p,n,fromGps,total){
     <div class="ent-acts">
       ${e.link
         ? `<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`
-        : (waNumero(e.contato)?`<button class="ent-btn" onclick="pedirLocalizacao('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Solicitar localização</button>`:'')}
+        : `<button class="ent-btn" onclick="pedirLocalizacao('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Solicitar localização</button>`}
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
       ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">${WA_ICON} Avisar cliente</button>`:'<span class="ent-btn disabled">sem telefone do cliente</span>'}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
@@ -5310,7 +5372,7 @@ function _nnOrder(items, start){
   }
   return out;
 }
-let mapAguard=null, layerAguard=null, mapAguardInited=false;
+let mapAguard=null, layerAguard=null, mapAguardInited=false, _aguardMarks=[];
 function ensureMapAguard(){
   if(mapAguardInited){ if(mapAguard) setTimeout(()=>mapAguard.invalidateSize(),50); return; }
   const el=$('map-aguard'); if(!el) return;
@@ -5323,7 +5385,7 @@ function ensureMapAguard(){
 }
 function renderMapAguard(){
   if(!mapAguard||!layerAguard) return;
-  layerAguard.clearLayers();
+  layerAguard.clearLayers(); _aguardMarks=[];
   const loja=lojaCoords()||{lat:-16.68,lng:-49.26};
   const comCoord=entAguardando().filter(e=>coordOf(e));
   const ordered=_nnOrder(comCoord, loja);
@@ -5331,14 +5393,18 @@ function renderMapAguard(){
   L.circleMarker([loja.lat,loja.lng],{radius:11,color:'#23311a',weight:3,fillColor:'#eef0e3',fillOpacity:1}).addTo(layerAguard).bindPopup('🏪 Loja'); bounds.push([loja.lat,loja.lng]); path.push([loja.lat,loja.lng]);
   ordered.forEach((e,i)=>{
     const c=coordOf(e), sel=pegarSel.has(e.id);
-    L.circleMarker([c.lat,c.lng],{radius:11,color:'#23311a',weight:2,fillColor: sel?'#7fae6b':'#e0b341',fillOpacity:.95}).addTo(layerAguard)
-      .bindTooltip(String(i+1),{permanent:true,direction:'center',className:'mk-num'})
-      .bindPopup(`<b>${i+1}) ${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${(e.pagPrevisto!=='pago')?'<br>💵 A cobrar':''}`);
+    const nome=(e.cliente||'').trim().split(/\s+/)[0]||'Cliente';   // primeiro nome, direto no pino
+    const mk=L.circleMarker([c.lat,c.lng],{radius:11,color:'#23311a',weight:2,fillColor: sel?'#7fae6b':'#e0b341',fillOpacity:.95}).addTo(layerAguard)
+      .bindTooltip(esc(nome),{permanent:true,direction:'right',offset:[8,0],className:'mk-nome'})
+      .bindPopup(`<b>${esc(e.cliente)}</b><br>${esc(e.bairro||'')}${(e.pagPrevisto!=='pago')?'<br>💵 A cobrar':''}`);
+    _aguardMarks[i]=mk;
     bounds.push([c.lat,c.lng]); path.push([c.lat,c.lng]);
   });
   if(path.length>1) L.polyline(path,{color:'#d4b45a',weight:3,opacity:.5,dashArray:'6 8'}).addTo(layerAguard);
   if(bounds.length) mapAguard.fitBounds(bounds,{padding:[45,45],maxZoom:14});
+  const leg=$('aguard-legenda'); if(leg) leg.innerHTML='';   // Opção A: o nome no próprio pino já identifica — sem legenda
 }
+function focarPinoAguard(i){ const mk=_aguardMarks[i]; if(mk && mapAguard){ mapAguard.setView(mk.getLatLng(),16); mk.openPopup(); } }
 function copiarMinhaRota(){
   const items=ordemAtual();
   if(!items.length){ toast('Sem entregas na rota'); return; }
