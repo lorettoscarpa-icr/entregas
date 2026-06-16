@@ -4535,7 +4535,7 @@ function restaurarSessao(){
   session = Object.assign({role:null,entregador:null,vendedora:null,geral:false}, s);
   applyRole();
   // garante autenticação no Firebase (anônima basta pras coleções de entregas) caso a persistência tenha caído
-  if(typeof firebase!=='undefined' && FIREBASE_ON){ setTimeout(()=>{ try{ if(!firebase.auth().currentUser) firebase.auth().signInAnonymously().catch(()=>{}); }catch(_){} }, 1500); }
+  if(typeof firebase!=='undefined' && FIREBASE_ON){ setTimeout(()=>{ try{ if(window.self===window.top && !firebase.auth().currentUser) firebase.auth().signInAnonymously().catch(()=>{}); }catch(_){} }, 1500); }
   return true;
 }
 function applyRole(){
