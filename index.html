@@ -4858,10 +4858,9 @@ function vcard(e, eta){
         ${(!!session.geral && podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
         ${['entregue','nao_entregue','cancelado'].includes(e.status)
           ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
-          : (wa?`<a class="vbtn wa" href="${wa}" target="_blank">${WA_ICON} Avisar cliente</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
+          : (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank">📍 Enviar rastreio</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
         ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
-        ${(waNumero(e.contato)&&(e.status==='aguardando'||e.status==='em_rota'))?`<a class="vbtn ghost" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank">📍 Enviar rastreio</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
         ${(!!session.geral && podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
         ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="voltarAguardando('${e.id}')">↩ Voltar p/ aguardando</button>`:''}
