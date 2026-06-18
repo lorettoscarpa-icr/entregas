@@ -1202,12 +1202,15 @@
 
   <div class="tabs">
     <button class="tab on" id="tab-painel" onclick="switchTab('painel')">Painel</button>
+    <button class="tab" id="tab-pendentes" onclick="switchTab('pendentes')">⏳ Pendentes<span id="c-tab-pendentes"></span></button>
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
     <button class="tab" id="tab-ranking" onclick="switchTab('ranking')">🏅 Ranking</button>
   </div>
 
   <div id="view-ranking" style="display:none"></div>
+
+  <div id="view-pendentes" style="display:none"></div>
 
   <!-- board -->
   <div id="view-painel">
@@ -1277,6 +1280,7 @@
     <div class="ent-tabs">
       <button class="ent-tab" id="ent-tab-aguard" onclick="setEntTab('aguard')">📥 Aguardando rota<span class="ent-tab-c" id="c-tab-aguard"></span></button>
       <button class="ent-tab on" id="ent-tab-rota" onclick="setEntTab('rota')">🛵 Minha rota<span class="ent-tab-c" id="c-tab-rota"></span></button>
+      <button class="ent-tab" id="ent-tab-pend" onclick="setEntTab('pend')">⏳ Pendentes<span class="ent-tab-c" id="c-tab-pend"></span></button>
     </div>
     <div id="ent-pane-aguard" style="display:none">
       <div id="map-aguard-box"><div id="map-aguard"></div><div id="aguard-legenda" class="map-legenda"></div></div>
@@ -1286,6 +1290,9 @@
       <div id="ent-resumo" class="ent-resumo"></div>
       <div id="map-ent"></div>
       <div id="ent-list"></div>
+    </div>
+    <div id="ent-pane-pend" style="display:none">
+      <div id="ent-pend-list"></div>
     </div>
     <div class="ent-bottombar" id="ent-bb-rota">
       <button class="ent-bb-btn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px" onclick="enviarRotaWhatsapp()"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.55-3.7 8.24-8.25 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>Enviar p/ WhatsApp</button>
@@ -3571,6 +3578,42 @@ function pendList(){
   const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
   return entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e) < today && inEsc(e) && !e.pendResolvido && !e.pendDescartado);
 }
+// ---- Aba PENDENTES (vendedora/gestor): abertas de dias anteriores + as que deram problema ----
+function pendListVend(){
+  const today=todayKey();
+  const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
+  const alvo = ehVendPessoal ? norm(session.vendedora) : null;
+  const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
+  return entregas.filter(e=>['aguardando','em_rota','nao_entregue','cancelado'].includes(e.status) && dataDe(e) < today && inEsc(e) && !e.pendResolvido && !e.pendDescartado);
+}
+function renderPendentes(){
+  const box=$('view-pendentes'); if(!box) return;
+  const pend=pendListVend();
+  if(!pend.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
+  const grupos=[
+    {tit:'📥 Não saíram da loja', itens:pend.filter(e=>e.status==='aguardando')},
+    {tit:'🛵 Em rota — não finalizadas', itens:pend.filter(e=>e.status==='em_rota')},
+    {tit:'⚠️ Tiveram problema (não entregue / cancelada)', itens:pend.filter(e=>e.status==='nao_entregue'||e.status==='cancelado')}
+  ];
+  box.innerHTML = `<p class="vmin-sub" style="margin-bottom:12px">Entregas de dias anteriores que ainda precisam de atenção. Resolva, reagende ou descarte — o que você resolver sai daqui.</p>` + grupos.filter(g=>g.itens.length).map(g=>`
+    <div class="pend-grupo">
+      <div class="pend-grupo-h">${g.tit} <span>(${g.itens.length})</span></div>
+      ${g.itens.map(e=>{
+        const dias=_diasAtras(dataDe(e));
+        const ent = (e.status==='em_rota' && e.entregador) ? ` · ${esc((ENT[e.entregador]||{}).nome||e.entregador)}` : '';
+        const mot = (e.motivo && (e.status==='nao_entregue'||e.status==='cancelado')) ? ` · ${esc(e.motivo)}` : '';
+        const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
+        return `<div class="pend-row">
+          <div class="pend-info"><b>${esc(e.cliente)}</b><small>há ${dias} dia${dias>1?'s':''}${ent}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}${mot}</small></div>
+          <div class="pend-acts">
+            <button class="pend-b reag" onclick="pendReag('${e.id}')">🔁 Reagendar</button>
+            <button class="pend-b ok" onclick="pendResolver('${e.id}')">✓ Resolvido</button>
+            <button class="pend-b desc" onclick="pendDescartar('${e.id}')">Descartar</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
 function abrirPendencias(){ renderPendModal(); $('pend-modal').classList.add('open'); }
 function closePend(){ $('pend-modal').classList.remove('open'); }
 function renderPendModal(){
@@ -3614,6 +3657,12 @@ function descartarPendenciasEnt(){
   const hoje=todayKey();
   entregas.forEach(e=>{ if(e.status==='em_rota' && e.entregador===session.entregador && dataDe(e)<hoje) pendDismissed.add(e.id); });
   renderEntregador();
+}
+function trazerUmaPendEnt(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  e.dataEntrega=todayKey(); e.roteadoEm=Date.now(); delete e.ordemManual;
+  persist(); entTab='rota'; renderEntregador();
+  toast('Entrega trazida para a sua rota de hoje');
 }
 function trazerPendenciasEnt(){
   const hoje=todayKey();
@@ -4056,6 +4105,9 @@ function render(){
   // coluna pessoal "Minhas entregas" (só para vendedoras)
   renderMinhasColuna();
   if(tabAtiva==='fin') renderFinalizadas();
+  // aba Pendentes (vendedora/gestor)
+  const _cPend=$('c-tab-pendentes'); if(_cPend){ const _np=pendListVend().length; _cPend.textContent = _np ? ` ${_np}` : ''; }
+  if(tabAtiva==='pendentes') renderPendentes();
   checkNotificacoes();
 
   // KPIs (do dia em foco)
@@ -4195,19 +4247,21 @@ const ROUTE_COLORS=['#d4b45a','#6fb0a6','#c97b5a','#8e9cd6','#cf8aa8','#9bbf6f']
 
 function switchTab(name){
   tabAtiva = name;
-  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking';
-  $('view-painel').style.display = (isMapa||isFin||isRank)?'none':'';
+  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes';
+  $('view-painel').style.display = (isMapa||isFin||isRank||isPend)?'none':'';
   $('view-mapa').style.display = isMapa?'':'none';
   $('view-fin').style.display = isFin?'':'none';
   $('view-ranking').style.display = isRank?'':'none';
+  $('view-pendentes').style.display = isPend?'':'none';
   $('tab-painel').classList.toggle('on', name==='painel');
   $('tab-mapa').classList.toggle('on', isMapa);
   $('tab-fin').classList.toggle('on', isFin);
   $('tab-ranking').classList.toggle('on', isRank);
+  $('tab-pendentes').classList.toggle('on', isPend);
   const dt=$('destaques-topo');
   if(dt){ if(name==='painel'){ dt.innerHTML=destaquesHTML(true); dt.style.display=''; } else dt.style.display='none'; }  // destaques só no Painel
   if(isMapa){ assinarRastreio(); ensureMap(); renderMap(); if(!suggestion && aguardandoHoje().some(e=>coordOf(e))) sugerirRotas(); }
-  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else { animateNext(); render(); } }
+  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else { animateNext(); render(); } }
 }
 function ensureMap(){
   if(mapInited){ if(map) setTimeout(()=>map.invalidateSize(),50); return; }
@@ -4789,19 +4843,21 @@ const POSVENDA_GRUPOS = {
 function msgPosVenda(e){
   const nomeV = (canonVend(e.vendedora) || e.vendedora || '').trim();
   const assin = nomeV ? `Aqui é a ${nomeV}, da Loretto Scarpa.` : `Aqui é da Loretto Scarpa.`;
+  const pn = (e.cliente||'').trim().split(/\s+/)[0] || '';
+  const primeiro = pn ? pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase() : '';
+  const saud = primeiro ? `Oi ${primeiro}, tudo bem? 😊` : `Oi, tudo bem? 😊`;
   if(e.status==='nao_entregue'){
-    return `Oi, tudo bem? 😊\n${assin}\nSobre o seu pedido: o entregador passou hoje mas não conseguiu concluir a entrega. Como posso te ajudar a resolver? Se quiser, já remarco um novo horário pra você. 🙏`;
+    return `${saud}\n${assin}\nSobre o seu pedido: o entregador passou hoje mas não conseguiu concluir a entrega. Como posso te ajudar a resolver? Se quiser, já remarco um novo horário pra você. 🙏`;
   }
   if(e.status==='cancelado'){
-    return `Oi, tudo bem? 😊\n${assin}\nSobre o seu pedido: não deu certo desta vez, mas quero te ajudar! Quer que eu veja outra numeração, outro modelo ou um novo horário? Fico à disposição. 🙏`;
+    return `${saud}\n${assin}\nSobre o seu pedido: não deu certo desta vez, mas quero te ajudar! Quer que eu veja outra numeração, outro modelo ou um novo horário? Fico à disposição. 🙏`;
   }
-  // entregue (deu certo) -> pós-venda + convite pro grupo VIP
+  // entregue (deu certo) -> pós-venda + convite pra Comunidade VIP
   const link = POSVENDA_GRUPOS[norm(nomeV)] || '';
-  let m = `Oi, tudo bem? 😊\n${assin}\n\nMuito obrigada pela sua compra! Qualquer dúvida pode falar comigo por este número, tá?`;
+  let m = `${saud}\n${assin}\n\nMuito obrigada pela sua compra! Conte comigo sempre que você precisar ✨`;
   if(link){
-    m += `\n\nQuero aproveitar pra te convidar para nossa Comunidade VIP, onde compartilho novidades em primeira mão e oportunidades especiais somente para quem está no grupo!\n\n👉 Para participar, é só clicar neste link:\n${link}`;
+    m += `\n\nQuero aproveitar pra te convidar para nossa Comunidade VIP, onde compartilho novidades em primeira mão e oportunidades especiais somente para quem está na comunidade!\n\n👉 Para participar, é só clicar neste link:\n${link}`;
   }
-  m += `\n\nConte comigo sempre que você precisar ✨`;
   return m;
 }
 function vcard(e, eta){
@@ -5102,13 +5158,32 @@ function renderEntregador(){
     eaEl.innerHTML=ah;
   }
   // abas: rótulos, contadores e aba ativa
-  const cR=$('c-tab-rota'), cA=$('c-tab-aguard');
+  const cR=$('c-tab-rota'), cA=$('c-tab-aguard'), cP=$('c-tab-pend');
   if(cR) cR.textContent = items.length ? ` ${items.length}` : '';
   if(cA) cA.textContent = aguard.length ? ` ${aguard.length}` : '';
+  const pendEntTab = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !e.pendResolvido && !e.pendDescartado);
+  if(cP) cP.textContent = pendEntTab.length ? ` ${pendEntTab.length}` : '';
   $('ent-tab-rota').classList.toggle('on', entTab==='rota');
   $('ent-tab-aguard').classList.toggle('on', entTab==='aguard');
+  $('ent-tab-pend').classList.toggle('on', entTab==='pend');
   $('ent-pane-rota').style.display = entTab==='rota' ? '' : 'none';
   $('ent-pane-aguard').style.display = entTab==='aguard' ? '' : 'none';
+  $('ent-pane-pend').style.display = entTab==='pend' ? '' : 'none';
+  if(entTab==='pend'){
+    $('ent-title').innerHTML=`Pendentes — <span style="color:${ent.cor}">${ent.nome}</span>`;
+    const box=$('ent-pend-list');
+    box.innerHTML = pendEntTab.length
+      ? `<div class="pegar-hint">Entregas suas de dias anteriores que ficaram em rota e não foram finalizadas. Traga para hoje pra concluir.</div>` + pendEntTab.map(e=>{
+          const dias=_diasAtras(dataDe(e));
+          return `<div class="pend-row">
+            <div class="pend-info"><b>${esc(e.cliente)}</b><small>há ${dias} dia${dias>1?'s':''}${e.bairro?` · ${esc(e.bairro)}`:''}</small></div>
+            <div class="pend-acts"><button class="pend-b reag" onclick="trazerUmaPendEnt('${e.id}')">📅 Trazer p/ hoje</button></div>
+          </div>`;
+        }).join('')
+      : `<div class="empty">Nenhuma pendência sua. Tudo finalizado 👍</div>`;
+    $('ent-bb-rota').style.display='none'; $('ent-bb-add').style.display='none';
+    return;
+  }
   if(entTab==='aguard'){
     $('ent-title').innerHTML=`Aguardando rota — <span style="color:${ent.cor}">${ent.nome}</span>`;
     [...pegarSel].forEach(id=>{ if(!aguard.some(e=>e.id===id)) pegarSel.delete(id); });
