@@ -2273,6 +2273,29 @@ function fmtDur(min){
 }
 function urgClass(min){ return min>=URGENCIA.urgente?'urgent':min>=URGENCIA.atencao?'warn':'calm'; }
 function esc(s){ return (s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+// Extrai SÓ a URL de PAGAMENTO de dentro do campo, mesmo que a vendedora cole a
+// mensagem inteira e/ou junto com link de mapa, rastreio etc.
+// Evita o bug do link relativo quebrado (href sem https:// vira caminho dentro do site).
+function limparLinkPag(txt){
+  const s=(txt||'').trim();
+  if(!s) return '';
+  const tira=u=>u.replace(/[)\]>.,;"'»]+$/,''); // tira pontuação grudada no fim
+  const domPag =/(stone|ton\.com|pagar\.?me|pag\.ae|mpago|mercadopago|picpay|infinitepay|pagseguro|pagbank|getnet|cielo|\.rede\.|sumup|asaas|cora\.|iugu|paghiper|paypal|payment|checkout|cobran|invoice|fatura|boleto|\/pay[\/?]|pl_)/i;
+  const domMapa=/(maps\.|google\.[^\/]*\/maps|goo\.gl\/maps|maps\.app\.goo\.gl|\/maps\?|[?&]q=-?\d|geo:|waze\.|waze\.to|maps\.apple|what3words|w3w\.co|openstreetmap|osm\.org)/i;
+  // pega TODAS as urls do texto
+  const urls=(s.match(/https?:\/\/\S+/ig)||[]).map(tira);
+  if(urls.length){
+    const pag=urls.find(u=>domPag.test(u) && !domMapa.test(u)); // 1) a que é claramente de pagamento
+    if(pag) return pag;
+    const naoMapa=urls.find(u=>!domMapa.test(u));               // 2) qualquer uma que NÃO seja mapa
+    if(naoMapa) return naoMapa;
+    return '';                                                  // 3) só sobrou link de mapa → não é pagamento
+  }
+  // sem http(s)://, mas parece um domínio (ex.: payment-link-v3.stone.com.br/...) → prefixa https://
+  const dom=s.match(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?/i);
+  if(dom){ const u=tira(dom[0]); if(!domMapa.test(u)) return 'https://'+u; }
+  return '';
+}
 
 /* ============ parse do WhatsApp ============ */
 function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
@@ -2865,7 +2888,7 @@ async function saveEntrega(){
     pagPrevisto:pagPrev,
     produto:$('f-prod').value.trim(),
     valor,
-    linkPagamento:$('f-linkpag').value.trim(),
+    linkPagamento:limparLinkPag($('f-linkpag').value),
     observacao:$('f-obs').value.trim(),
     presente:$('f-presente') ? $('f-presente').checked : false,
     taxaEntrega:getTaxaForm(),
@@ -2922,7 +2945,7 @@ function detalhesHTML(e){
   html+=_detRow('🧾','Produto (pedido)',prodValorHtml(e));
   html+=_detRow('👟','Ficou com',esc(ficou));
   html+=_detRow('💳','Pagamento',e.pagamento?esc(pagamentoLabel(e)):'');
-  if(e.linkPagamento) html+=_detRow('🔗','Link de pagamento',`<a href="${esc(e.linkPagamento)}" target="_blank" style="color:var(--gold)">abrir link da Stone</a>`);
+  if(e.linkPagamento){ const _lp=limparLinkPag(e.linkPagamento); if(_lp) html+=_detRow('🔗','Link de pagamento',`<a href="${esc(_lp)}" target="_blank" style="color:var(--gold)">abrir link da Stone</a>`); }
   if(e.troco!=null) html+=_detRow('💰','Troco devolvido', e.troco>0?_brl(e.troco):'sem troco');
   if(taxaDe(e)>0) html+=_detRow('🏷️','Taxa de entrega',_brl(taxaDe(e)));
   html+=_detRow('📝','Obs. do pagamento',esc(e.pagamentoObs||''));
@@ -4213,7 +4236,7 @@ async function salvarEdicao(){
   e.coord=coordFrom(e.link);
   if(!e.coord && ehLinkCurto(e.link)){ const rc=await resolverLinkCurto(e.link); if(rc && isFinite(rc.lat)&&isFinite(rc.lng)) e.coord={lat:rc.lat,lng:rc.lng}; else if(rc && rc.endereco && !e.endereco){ e.endereco=rc.endereco; } }
   e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value; e.horarioHora2=$('f-hr-hora2').value;
-  e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim(); e.linkPagamento=$('f-linkpag').value.trim();
+  e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim(); e.linkPagamento=limparLinkPag($('f-linkpag').value);
   e.tipo=$('f-tipo').value||'entrega'; e.pagPrevisto=$('f-pag-prev').value||'cobrar';
   if($('f-presente'))e.presente=$('f-presente').checked;
   e.taxaEntrega=getTaxaForm();
@@ -5370,7 +5393,7 @@ function cardEntregadorView(p,n,fromGps,total){
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
       ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">${WA_ICON} Avisar cliente</button>`:'<span class="ent-btn disabled">sem telefone do cliente</span>'}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
-      ${e.linkPagamento?`<a class="ent-btn" href="${esc(e.linkPagamento)}" target="_blank" style="background:rgba(201,169,80,.14);color:var(--gold);border-color:rgba(201,169,80,.4)">🔗 Conferir pagamento</a>`:''}
+      ${limparLinkPag(e.linkPagamento)?`<a class="ent-btn" href="${esc(limparLinkPag(e.linkPagamento))}" target="_blank" style="background:rgba(201,169,80,.14);color:var(--gold);border-color:rgba(201,169,80,.4)">🔗 Conferir pagamento</a>`:''}
       <button class="ent-btn" onclick="devolverEnt('${e.id}')" style="background:rgba(201,169,80,.12);color:var(--gold);border-color:rgba(201,169,80,.4)">↩ Devolver pra fila</button>
       <button class="ent-btn primary full" onclick="entregueEnt('${e.id}')">✓ Entreguei</button>
       <button class="ent-btn full" style="background:rgba(224,106,82,.12);color:var(--urgent);border-color:rgba(224,106,82,.35)" onclick="abrirDesfechoCombo('${e.id}')">✕ Não consegui entregar / não deu certo</button>
