@@ -1087,7 +1087,7 @@
       <div class="set-line">
         <span class="settings-lbl">🚗 Velocidade média</span>
         <input type="number" id="cfg-vel" min="5" max="80" onchange="setVelocidade(this.value)"><span>km/h</span>
-        <span class="settings-hint">a estimativa parte da loja e usa a distância real de cada pin</span>
+        <span class="settings-hint">usada na previsão de chegada do painel</span>
       </div>
     </div>
   </details>
@@ -1205,7 +1205,7 @@
     <button class="tab on" id="tab-painel" onclick="switchTab('painel')">Painel</button>
     <button class="tab" id="tab-pendentes" onclick="switchTab('pendentes')">⏳ Pendentes<span id="c-tab-pendentes"></span></button>
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
-    <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none">🛵 Entregadores</button>
+    <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">🛵 Entregadores ↗</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
     <button class="tab" id="tab-ranking" onclick="switchTab('ranking')">🏅 Ranking</button>
   </div>
@@ -1313,65 +1313,12 @@
       <button class="daynav-btn" onclick="mudarMes(1)" aria-label="Próximo mês">›</button>
     </div>
     <div style="display:flex;justify-content:center;margin:2px 0 14px">
-      <button class="btn btn-primary" onclick="abrirEntregadores()" style="display:inline-flex;align-items:center;gap:8px">🛵 Ver entregadores ao vivo</button>
+      <button class="btn btn-primary" onclick="abrirEntregadores()" style="display:inline-flex;align-items:center;gap:8px" title="Abre o mapa da frota em outra aba (app separado, não pesa o painel)">🛵 Ver entregadores ao vivo ↗</button>
     </div>
     <div id="gestor-body"></div>
   </div>
 
   <!-- MINHAS ENTREGAS agora é a 1ª coluna do Painel (#col-minhas) -->
-</div>
-
-<!-- ENTREGADORES AO VIVO (gestor + operação) -->
-<style>
-  .ent-live-ov{position:fixed;inset:0;z-index:340;background:var(--bg);display:none;flex-direction:column;overscroll-behavior:contain}
-  .ent-live-ov.open{display:flex}
-  .ent-live-head{display:flex;align-items:center;gap:12px;padding:16px 18px calc(14px) 18px;border-bottom:1px solid var(--line);background:var(--bg2);position:sticky;top:0;z-index:2}
-  .ent-live-title{font-family:var(--ff-display);font-size:21px;color:var(--gold-lt);flex:1;font-weight:600}
-  .ent-live-x{margin-left:auto;background:var(--surface);color:var(--text);border:1px solid var(--line-strong);border-radius:10px;width:38px;height:38px;font-size:17px;cursor:pointer;flex:none}
-  .ent-live-x:hover{background:var(--surface-2)}
-  .ent-live-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px calc(24px + env(safe-area-inset-bottom)) 16px}
-  .ent-live-map{height:300px;border-radius:14px;overflow:hidden;border:1px solid var(--line-strong);background:var(--surface);margin-bottom:8px}
-  .ent-live-map .leaflet-container{height:100%;width:100%}
-  .ent-live-mapnote{font-size:12px;color:var(--text-mute);margin:0 2px 14px;text-align:center}
-  .ent-live-sec{font-family:var(--ff-eyebrow);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);margin:6px 2px 10px}
-  .elv-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
-  .elv-head{display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:pointer}
-  .elv-head:hover{background:var(--surface-2)}
-  .elv-dot{width:13px;height:13px;border-radius:50%;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
-  .elv-name{font-family:var(--ff-display);font-size:17px;color:var(--text);font-weight:600;flex:1;min-width:0}
-  .elv-live{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
-  .elv-live.on{color:#bfe6a8;background:rgba(127,174,107,.2)}
-  .elv-live.off{color:var(--text-mute);background:rgba(255,255,255,.05)}
-  .elv-counts{display:flex;gap:8px;font-size:12px;color:var(--text-soft);padding:0 14px 12px;flex-wrap:wrap}
-  .elv-pill{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:3px 9px}
-  .elv-pill b{color:var(--text)}
-  .elv-pill.rota b{color:var(--teal)}
-  .elv-pill.ok b{color:var(--calm)}
-  .elv-body{border-top:1px solid var(--line);padding:12px 14px;background:var(--bg2)}
-  .elv-grp{font-family:var(--ff-eyebrow);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mute);margin:8px 0 7px}
-  .elv-grp:first-child{margin-top:0}
-  .elv-row{display:flex;align-items:flex-start;gap:9px;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:7px}
-  .elv-row .num{font-family:var(--ff-eyebrow);font-size:11px;font-weight:700;color:var(--ink);background:var(--gold);min-width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
-  .elv-row .hr{font-family:var(--ff-data,monospace);font-size:11.5px;color:var(--gold-lt);background:rgba(212,180,90,.14);border:1px solid var(--line-strong);border-radius:7px;padding:1px 6px;flex:none;margin-top:1px}
-  .elv-row .info{flex:1;min-width:0}
-  .elv-row .cli{font-size:14px;color:var(--text)}
-  .elv-row .sub{font-size:11.5px;color:var(--text-mute);margin-top:1px}
-  .elv-empty{font-size:12.5px;color:var(--text-mute);padding:4px 2px 6px}
-  .elv-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-  .elv-wa{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;text-decoration:none;color:#bfe6a8;background:rgba(127,174,107,.16);border:1px solid rgba(127,174,107,.34);border-radius:9px;padding:6px 11px}
-  @media(max-width:560px){ .ent-live-map{height:240px} }
-</style>
-<div id="ent-live-ov" class="ent-live-ov" aria-hidden="true">
-  <div class="ent-live-head">
-    <div class="ent-live-title">🛵 Entregadores ao vivo</div>
-    <button class="ent-live-x" onclick="fecharEntregadores()" aria-label="Fechar">✕</button>
-  </div>
-  <div class="ent-live-body">
-    <div id="map-live" class="ent-live-map"></div>
-    <div id="ent-live-mapnote" class="ent-live-mapnote"></div>
-    <div class="ent-live-sec">Toque em um entregador para ver as entregas do dia</div>
-    <div id="ent-live-list"></div>
-  </div>
 </div>
 
 <!-- LOGIN / TELA DE ENTRADA -->
@@ -1724,8 +1671,8 @@ const CFG_KEY = 'loretto_entregas_cfg_v1';
 /* ============ config (loja de origem + estimativa por distância) ============ */
 const CFG_DEFAULT = {
   minPorEntrega: 15,            // fallback p/ entregas sem pin no mapa
-  velocidadeKmh: 22,           // velocidade média urbana em Goiânia
-  fatorRota: 1.4,              // distância em linha reta -> distância de rua
+  velocidadeKmh: 45,           // velocidade média da moto em Goiânia (usada na previsão do painel; a previsão por rua vem desligada)
+  fatorRota: 1.4,              // distância em linha reta -> distância de rua (fallback)
   servicoMin: 4,               // tempo parado por entrega (estacionar/entregar)
   raioRotaKm: 2.5,             // entregas a até X km uma da outra entram na mesma rota
   custos: {
@@ -1747,6 +1694,8 @@ function loadCfg(){
     if(saved.custos && saved.custos.fixoMensal===3000 && saved.custos.valeMensal===undefined){
       c.custos.fixoMensal=2400; c.custos.valeMensal=600;
     }
+    // migração: velocidade média antiga (22, valor padrão) sobe para 45 km/h (moto)
+    if(saved.velocidadeKmh===22) c.velocidadeKmh=45;
     return c;
   }catch(e){ return JSON.parse(JSON.stringify(CFG_DEFAULT)); }
 }
@@ -2038,13 +1987,10 @@ function pararAssinarRastreio(){
 }
 let _rastThrTimer=null, _rastPend=false;
 function _rerenderAtualThrottled(){
-  // Posição de GPS dos entregadores só precisa atualizar a TELA quando a aba "Mapa" está aberta
-  // OU quando o overlay "Entregadores ao vivo" está aberto.
-  const overlay = (typeof _entLiveOpen!=='undefined') && _entLiveOpen;
-  if((typeof tabAtiva==='undefined' || tabAtiva!=='mapa') && !overlay) return;
+  // Posição de GPS dos entregadores só precisa atualizar a TELA quando a aba "Mapa" está aberta.
+  if(typeof tabAtiva==='undefined' || tabAtiva!=='mapa') return;
   if(_rastThrTimer){ _rastPend=true; return; }
-  if(tabAtiva==='mapa' && typeof renderMap==='function') renderMap();   // atualiza só os marcadores do mapa
-  if(overlay){ if(typeof renderMapLive==='function') renderMapLive(); if(typeof renderEntLiveList==='function') renderEntLiveList(); }
+  if(typeof renderMap==='function') renderMap();   // atualiza só os marcadores do mapa
   _rastThrTimer=setTimeout(()=>{ _rastThrTimer=null; if(_rastPend){ _rastPend=false; _rerenderAtualThrottled(); } }, 2500);
 }
 function posicaoViva(id){
@@ -2672,6 +2618,7 @@ async function aiRodar(modo){
     const r = await aiParseConteudo({ text:t, dataUrl: temFoto ? fotoLocPendente : null });
     if(t){ // remetente/link saem melhor pelo método direto quando há texto
       const base = parseWhatsapp(t);
+      if(base.contato) r.contato = base.contato;   // telefone SEMPRE pelo leitor direto: a IA às vezes troca/perde dígitos
       if(!r.vendedora && base.vendedora) r.vendedora = base.vendedora;
       if(!r.link && base.link) r.link = base.link;
       if(!r.linkPagamento && base.linkPagamento) r.linkPagamento = base.linkPagamento;
@@ -5901,137 +5848,13 @@ function renderGestor(){
 function setCusto(k,v){ config.custos[k]=Number(v)||0; saveCfg(); renderGestor(); }
 function setCustoFre(k,v){ config.custos.freelance[k]=Number(v)||0; saveCfg(); renderGestor(); }
 
-/* ============ ENTREGADORES AO VIVO (gestor + operação) ============ */
-let _entLiveOpen=false, mapLive=null, mapLiveLayer=null, _mapLiveInit=false;
-const _entLiveAberto=new Set();   // entregadores expandidos na lista
-
-// entregas de HOJE de um entregador, separadas por estado
-function _entLiveDados(id){
-  const hoje=todayKey();
-  const minhas=entregas.filter(e=>e.entregador===id && dataDe(e)===hoje);
-  const rota=minhas.filter(e=>e.status==='em_rota')
-    .sort((a,b)=>((a.ordemManual??9999)-(b.ordemManual??9999)) || ((a.roteadoEm||0)-(b.roteadoEm||0)));
-  const fin=minhas.filter(e=>e.status==='entregue')
-    .sort((a,b)=>(a.entregueEm||0)-(b.entregueEm||0));   // na ordem em que ele finalizou
-  const desf=minhas.filter(e=>e.status==='nao_entregue'||e.status==='cancelado')
-    .sort((a,b)=>(a.desfechoEm||0)-(b.desfechoEm||0));
-  return {rota,fin,desf};
-}
-
-function abrirEntregadores(){
-  _entLiveOpen=true;
-  const ov=$('ent-live-ov'); if(ov){ ov.classList.add('open'); ov.setAttribute('aria-hidden','false'); }
-  assinarRastreio();                 // liga as posições ao vivo
-  renderEntLiveList();
-  ensureMapLive();
-  setTimeout(()=>{ if(mapLive) mapLive.invalidateSize(); renderMapLive(); }, 80);
-}
-function fecharEntregadores(){
-  _entLiveOpen=false;
-  const ov=$('ent-live-ov'); if(ov){ ov.classList.remove('open'); ov.setAttribute('aria-hidden','true'); }
-  if(typeof tabAtiva==='undefined' || tabAtiva!=='mapa') pararAssinarRastreio();   // só desliga se o Mapa também não estiver usando
-}
-function toggleEntLive(id){
-  if(_entLiveAberto.has(id)) _entLiveAberto.delete(id); else _entLiveAberto.add(id);
-  renderEntLiveList();
-}
-
-function ensureMapLive(){
-  if(_mapLiveInit){ if(mapLive) setTimeout(()=>mapLive.invalidateSize(),50); return; }
-  if(typeof L==='undefined'){
-    const el=$('map-live'); if(el) el.outerHTML='<div class="map-fallback" style="height:auto;padding:22px 16px">Mapa indisponível na pré-visualização aqui no chat. Funciona normalmente ao abrir o arquivo no navegador ou hospedado.</div>';
-    _mapLiveInit=true; return;
-  }
-  const loja=(typeof lojaCoords==='function' && lojaCoords())||{lat:-16.6869,lng:-49.2648};
-  mapLive=L.map('map-live',{zoomControl:true}).setView([loja.lat,loja.lng],12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(mapLive);
-  mapLiveLayer=L.layerGroup().addTo(mapLive);
-  _mapLiveInit=true;
-  setTimeout(()=>mapLive.invalidateSize(),60);
-}
-function _motoDiv(cor){
-  return L.divIcon({className:'ent-live-divicon',iconSize:[34,34],iconAnchor:[17,17],
-    html:`<div style="width:30px;height:30px;border-radius:50%;background:${cor};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:16px">🛵</div>`});
-}
-function renderMapLive(){
-  if(!mapLive || !mapLiveLayer) return;
-  mapLiveLayer.clearLayers();
-  const bounds=[];
-  const loja=(typeof lojaCoords==='function')?lojaCoords():null;
-  if(loja){
-    L.circleMarker([loja.lat,loja.lng],{radius:10,color:'var(--ink)',weight:3,fillColor:'#eef0e3',fillOpacity:1})
-      .addTo(mapLiveLayer).bindPopup('🏪 <b>Loretto Scarpa</b> (loja)');
-    bounds.push([loja.lat,loja.lng]);
-  }
-  let nVivo=0;
-  ENTREGADORES.forEach(ent=>{
-    const p=posicaoViva(ent.id); if(!p) return;
-    nVivo++;
-    const d=_entLiveDados(ent.id);
-    L.marker([p.lat,p.lng],{icon:_motoDiv(ent.cor)})
-      .addTo(mapLiveLayer)
-      .bindPopup(`<b>${esc(ent.nome)}</b><br>🛵 ${d.rota.length} em rota · ✓ ${d.fin.length} hoje`);
-    bounds.push([p.lat,p.lng]);
-  });
-  if(bounds.length>1) mapLive.fitBounds(bounds,{padding:[42,42],maxZoom:14});
-  else if(bounds.length===1) mapLive.setView(bounds[0],13);
-  const note=$('ent-live-mapnote');
-  if(note) note.textContent = nVivo ? `🟢 ${nVivo} ${nVivo===1?'entregador transmitindo':'entregadores transmitindo'} localização agora` : 'Nenhum entregador transmitindo localização no momento. A posição aparece quando ele inicia a rota no celular.';
-}
-
-function renderEntLiveList(){
-  const box=$('ent-live-list'); if(!box) return;
-  const hoje=todayKey();
-  // ordena: quem está ao vivo primeiro, depois quem tem rota, depois o resto
-  const dados=ENTREGADORES.map(ent=>({ent, vivo:!!posicaoViva(ent.id), d:_entLiveDados(ent.id)}));
-  dados.sort((a,b)=> (b.vivo-a.vivo) || (b.d.rota.length-a.d.rota.length) || (b.d.fin.length-a.d.fin.length));
-  // mostra só quem tem alguma atividade hoje OU está transmitindo; se ninguém, mostra todos
-  let mostra=dados.filter(x=>x.vivo || x.d.rota.length || x.d.fin.length || x.d.desf.length);
-  if(!mostra.length) mostra=dados;
-  box.innerHTML = mostra.map(({ent,vivo,d})=>{
-    const aberto=_entLiveAberto.has(ent.id);
-    const tel=(typeof telEnt==='function')?telEnt(ent.id):'';
-    const rotaHTML = d.rota.length
-      ? d.rota.map((e,i)=>`<div class="elv-row">
-          <span class="num">${i+1}</span>
-          <span class="info"><span class="cli">${esc(e.cliente)}</span><span class="sub">${esc([e.bairro,e.cidade].filter(Boolean).join(' - ')||'sem bairro')}${(e.horarioTipo&&e.horarioHora)?` · ⏰ ${esc(hrTxt(e))}`:''}</span></span>
-        </div>`).join('')
-      : `<div class="elv-empty">Nada em rota agora.</div>`;
-    const finHTML = d.fin.length
-      ? d.fin.map(e=>`<div class="elv-row">
-          <span class="hr">🕒 ${fmtClock(e.entregueEm)}</span>
-          <span class="info"><span class="cli">${esc(e.cliente)}</span><span class="sub">${esc([e.bairro,e.cidade].filter(Boolean).join(' - ')||'')}${e.pagamento?` · ${esc(pagamentoLabel(e))}`:''}</span></span>
-        </div>`).join('')
-      : `<div class="elv-empty">Nenhuma finalizada hoje ainda.</div>`;
-    const desfHTML = d.desf.length
-      ? `<div class="elv-grp">✕ Não concluídas hoje (${d.desf.length})</div>` + d.desf.map(e=>`<div class="elv-row">
-          <span class="hr">🕒 ${e.desfechoEm?fmtClock(e.desfechoEm):'—'}</span>
-          <span class="info"><span class="cli">${esc(e.cliente)}</span><span class="sub">${e.status==='cancelado'?'Não comprou':'Não entregue'}${e.motivo?` · ${esc(e.motivo)}`:''}</span></span>
-        </div>`).join('')
-      : '';
-    return `<div class="elv-card">
-      <div class="elv-head" onclick="toggleEntLive('${ent.id}')">
-        <span class="elv-dot" style="background:${ent.cor}"></span>
-        <span class="elv-name">${esc(ent.nome)}</span>
-        <span class="elv-live ${vivo?'on':'off'}">${vivo?'🟢 ao vivo':'⚪ sem sinal'}</span>
-        <span style="color:var(--text-mute);font-size:18px;margin-left:2px">${aberto?'▾':'▸'}</span>
-      </div>
-      <div class="elv-counts">
-        <span class="elv-pill rota">🛵 em rota: <b>${d.rota.length}</b></span>
-        <span class="elv-pill ok">✓ finalizadas hoje: <b>${d.fin.length}</b></span>
-        ${d.desf.length?`<span class="elv-pill">✕ não concluídas: <b>${d.desf.length}</b></span>`:''}
-      </div>
-      ${aberto?`<div class="elv-body">
-        <div class="elv-grp">🛵 Em rota agora (${d.rota.length})</div>
-        ${rotaHTML}
-        <div class="elv-grp">✓ Finalizadas hoje — na ordem que ele entregou (${d.fin.length})</div>
-        ${finHTML}
-        ${desfHTML}
-        ${tel?`<div class="elv-acts"><a class="elv-wa" href="https://wa.me/${tel}" target="_blank">${WA_ICON} Falar com ${esc(ent.nome.split(' ')[0])}</a></div>`:''}
-      </div>`:''}
-    </div>`;
-  }).join('');
-}
+/* ============ ENTREGADORES AO VIVO ============
+   Abre o painel de frota dedicado (repo rastreio, #equipe) em OUTRA ABA.
+   Assim o painel de entregas continua leve: o rastreamento ao vivo, o
+   roteamento de rua e a animação da moto rodam no app separado, sem
+   adicionar listeners nem render extra a este dashboard. */
+const FROTA_URL = 'https://lorettoscarpa-icr.github.io/rastreio/#equipe';
+function abrirEntregadores(){ window.open(FROTA_URL, '_blank', 'noopener'); }
 
 function tick(){
   const n=new Date();
