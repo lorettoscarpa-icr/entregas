@@ -712,7 +712,10 @@
   .pend-b.desc{background:rgba(138,145,122,.14);color:var(--text-soft);border-color:rgba(138,145,122,.42)}
   .pend-b.sis{flex:none;background:rgba(212,180,90,.18);color:var(--gold-lt);border-color:var(--line-strong);font-weight:600;padding:7px 16px}
   .pend-val{font-family:var(--ff-mono,'DM Mono',monospace);font-size:12.5px;color:var(--gold-lt);background:rgba(212,180,90,.12);border:1px solid var(--line);border-radius:7px;padding:1px 7px;white-space:nowrap}
-  .pend-part{display:flex;align-items:center;gap:11px;margin:0 0 13px;padding:11px 14px;background:linear-gradient(135deg,rgba(212,180,90,.16),rgba(212,180,90,.045));border:1px solid var(--line-strong);border-radius:13px}
+  .pend-part{display:flex;align-items:center;gap:11px;margin:0 0 13px;padding:11px 14px;background:linear-gradient(135deg,rgba(212,180,90,.16),rgba(212,180,90,.045));border:1px solid var(--line-strong);border-radius:13px;cursor:pointer;user-select:none}
+  .pend-part:hover{background:linear-gradient(135deg,rgba(212,180,90,.22),rgba(212,180,90,.07))}
+  .pend-chev{color:var(--text-soft);font-size:12px;flex:none;margin-left:2px;transition:transform .2s}
+  .pend-part.collapsed .pend-chev{transform:rotate(-90deg)}
   .pend-part .n{width:26px;height:26px;border-radius:50%;flex:none;background:var(--gold);color:var(--ink);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
   .pend-part .t{font-family:var(--ff-display);font-size:18.5px;color:var(--gold-lt);font-weight:600;line-height:1.12}
   .pend-part .t small{display:block;font-family:var(--ff-body);font-size:11.5px;color:var(--text-mute);font-weight:400;margin-top:2px}
@@ -803,14 +806,14 @@
   .rk-card{border:1px solid rgba(212,180,90,.2);border-radius:16px;padding:14px 16px 18px;background:rgba(255,255,255,.018)}
   .rk-card .rk-block{margin-top:0}
   .rk-card .rk-block-head{font-size:11px;letter-spacing:.14em}
-  .rk-card .rk-row{gap:11px;padding:11px 0}
+  .rk-card .rk-row{gap:8px;padding:11px 0}
   .rk-card .rk-pos{font-size:21px;width:20px;flex-basis:20px}
   .rk-card .dest-av{width:42px;height:42px;flex-basis:42px}
   .rk-card .dest-av.mono{font-size:17px}
   .rk-card .rk-nome{font-size:15px}
   .rk-card .rk-val{font-size:25px}
-  .rk-card .rk-val.money{font-size:16px}
-  @media(max-width:760px){ .rk-cols{grid-template-columns:1fr;gap:12px} .rk-card .rk-val{font-size:30px} .rk-card .rk-nome{font-size:18px} .rk-card .dest-av{width:50px;height:50px;flex-basis:50px} }
+  .rk-card .rk-val.money{font-size:14px;letter-spacing:-.01em}
+  @media(max-width:760px){ .rk-cols{grid-template-columns:1fr;gap:12px} .rk-card .rk-val{font-size:30px} .rk-card .rk-val.money{font-size:20px} .rk-card .rk-nome{font-size:18px} .rk-card .dest-av{width:50px;height:50px;flex-basis:50px} }
   .rk-wrap{border:1px solid rgba(212,180,90,.32);border-radius:20px;padding:24px 22px 26px;margin-bottom:18px;background:linear-gradient(160deg,rgba(255,255,255,.015),transparent)}
   .rk-block{margin-top:24px}
   .rk-block:first-of-type{margin-top:8px}
@@ -916,10 +919,11 @@
 
   /* ---- gestor ---- */
   #area-gestor{max-width:760px;margin:0 auto}
+  .g-rank-bleed{width:min(1040px,calc(100vw - 36px));margin-left:50%;transform:translateX(-50%)}
   .g-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
   .g-kpi{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--elev-1)}
   .g-kpi .lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-mute);margin-bottom:7px}
-  .g-kpi .val{font-family:var(--ff-display);font-size:30px;font-weight:600;line-height:1}
+  .g-kpi .val{font-family:var(--ff-display);font-size:30px;font-weight:600;line-height:1;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:"lnum" 1,"tnum" 1}
   .g-kpi .sub{font-size:11.5px;color:var(--text-soft);margin-top:5px}
   .g-card{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:var(--elev-1)}
   .g-card h3{font-family:var(--ff-display);font-size:21px;font-weight:600;margin-bottom:14px}
@@ -928,7 +932,7 @@
   .g-name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
   .g-name small{font-weight:400;color:var(--text-mute);font-size:11.5px}
   .g-name .dot{width:9px;height:9px;border-radius:50%}
-  .g-n{font-family:var(--ff-display);font-size:22px;font-weight:600}
+  .g-n{font-family:var(--ff-display);font-size:22px;font-weight:600;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:"lnum" 1,"tnum" 1}
   .g-bar{height:9px;background:var(--bg2);border-radius:999px;overflow:hidden}
   .g-bar span{display:block;height:100%;border-radius:999px;transition:width .5s cubic-bezier(.2,.7,.2,1)}
   .g-row-foot{font-size:12px;color:var(--text-soft);margin-top:5px}
@@ -1212,8 +1216,8 @@
     <button class="tab on" id="tab-painel" onclick="switchTab('painel')">Painel</button>
     <button class="tab" id="tab-pendentes" onclick="switchTab('pendentes')">⏳ Pendentes<span id="c-tab-pendentes"></span></button>
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
-    <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">Entregadores ↗</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
+    <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">Entregadores ↗</button>
     <button class="tab" id="tab-ranking" onclick="switchTab('ranking')">🏅 Ranking</button>
   </div>
 
@@ -3629,6 +3633,14 @@ function naoLancadasList(){
   const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
   return entregas.filter(e=> e.status==='entregue' && !e.lancado && inEsc(e));
 }
+/* estado aberto/fechado dos tópicos de Pendentes (persiste entre re-renders na sessão) */
+let _pendOpen = { nl:true, pe:true };
+function togglePend(k){
+  _pendOpen[k] = !_pendOpen[k];
+  const body=document.getElementById('pend-body-'+k), hd=document.getElementById('pend-head-'+k);
+  if(body) body.style.display = _pendOpen[k] ? '' : 'none';
+  if(hd) hd.classList.toggle('collapsed', !_pendOpen[k]);
+}
 function renderPendentes(){
   const box=$('view-pendentes'); if(!box) return;
   const naoLanc = naoLancadasList().slice().sort((a,b)=>{ const da=dataDe(a), db=dataDe(b); return da<db?-1:da>db?1:0; });
@@ -3640,15 +3652,15 @@ function renderPendentes(){
 
   // ===== PARTE 1 — Não lançadas no sistema (entregues, hoje + dias anteriores, ainda não lançadas) =====
   if(naoLanc.length){
-    html += `<div class="pend-part"><div class="n">1</div><div class="t">Não lançadas no sistema<small>Entregas concluídas que ainda faltam lançar no Kigi</small></div><div class="c">${naoLanc.length} a lançar</div></div>`;
-    html += naoLanc.map(e=>{
+    html += `<div class="pend-part${_pendOpen.nl?'':' collapsed'}" id="pend-head-nl" onclick="togglePend('nl')"><div class="n">1</div><div class="t">Não lançadas no sistema<small>Entregas concluídas que ainda faltam lançar no Kigi</small></div><div class="c">${naoLanc.length} a lançar</div><span class="pend-chev">▾</span></div>`;
+    html += `<div id="pend-body-nl"${_pendOpen.nl?'':' style="display:none"'}>` + naoLanc.map(e=>{
       const dias=_diasAtras(dataDe(e));
       const quando = dias<=0 ? 'hoje' : `há ${dias} dia${dias>1?'s':''}`;
       const vN=_vNum(e.valor);
       const valTag = vN>0 ? ` <span class="pend-val">${fmtBRL(vN)}</span>` : '';
       const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
       return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b>${valTag}<small>${quando}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}</small></div><div class="pend-acts"><button class="pend-b sis" onclick="toggleLancado('${e.id}')">☐ Marcar: lançado no sistema</button></div></div>`;
-    }).join('');
+    }).join('') + `</div>`;
   }
 
   // ===== PARTE 2 — Pendências de entrega (lógica de hoje, mantida) =====
@@ -3658,8 +3670,8 @@ function renderPendentes(){
       {tit:'🛵 Em rota — não finalizadas', itens:pend.filter(e=>e.status==='em_rota')},
       {tit:'⚠️ Tiveram problema (não entregue / cancelada)', itens:pend.filter(e=>e.status==='nao_entregue'||e.status==='cancelado')}
     ];
-    html += `<div class="pend-part" style="margin-top:22px"><div class="n">2</div><div class="t">Pendências de entrega<small>Em rota, não saíram da loja ou que não deram certo</small></div><div class="c">${pend.length} pendência${pend.length>1?'s':''}</div></div>`;
-    html += grupos.filter(g=>g.itens.length).map(g=>`
+    html += `<div class="pend-part${_pendOpen.pe?'':' collapsed'}" id="pend-head-pe" onclick="togglePend('pe')" style="margin-top:22px"><div class="n">2</div><div class="t">Pendências de entrega<small>Em rota, não saíram da loja ou que não deram certo</small></div><div class="c">${pend.length} pendência${pend.length>1?'s':''}</div><span class="pend-chev">▾</span></div>`;
+    html += `<div id="pend-body-pe"${_pendOpen.pe?'':' style="display:none"'}>` + grupos.filter(g=>g.itens.length).map(g=>`
       <div class="pend-grupo">
         <div class="pend-grupo-h">${g.tit} <span>(${g.itens.length})</span></div>
         ${g.itens.map(e=>{
@@ -3676,7 +3688,7 @@ function renderPendentes(){
             </div>
           </div>`;
         }).join('')}
-      </div>`).join('');
+      </div>`).join('') + `</div>`;
   }
 
   box.innerHTML = html;
@@ -4681,6 +4693,9 @@ function applyRole(){
     $('tab-fin').style.display='';                   // aba de finalizadas (pagamento/foto) p/ vendedoras
     $('tab-mapa').style.display = ehGeral ? '' : 'none';   // Mapa & Rotas só pra operação (vendedora não monta rota)
     { const _te=$('tab-entlive'); if(_te) _te.style.display=''; }   // Entregadores ao vivo: operação E vendedoras
+    // filtro por entregador e Configurações: só operação (vendedora não usa)
+    { const _ff=$('filters'); if(_ff) _ff.style.display = ehGeral ? '' : 'none'; }
+    { const _cfg=document.querySelector('.settings-box'); if(_cfg) _cfg.style.display = ehGeral ? '' : 'none'; }
     $('area-operacao').style.display='';
     if(_rb) _rb.style.display='';                     // operação pode montar rota
     renderFiltersVend();
@@ -5824,9 +5839,9 @@ function renderGestor(){
   let html = `
   <div style="background:linear-gradient(135deg,rgba(201,169,80,.14),rgba(201,169,80,.05));border:1px solid rgba(201,169,80,.4);border-radius:14px;padding:16px 18px;margin:0 0 14px">
     <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute,#9a9c86);margin-bottom:6px">Faturamento com entregas · ${esc(rotuloMes(mesAtivo))}</div>
-    <div style="font-family:var(--ff-display,'Playfair Display',serif);font-size:34px;font-weight:600;color:var(--gold-lt,#d8bd66);line-height:1">${brl(faturamentoMes)}</div>
+    <div style="font-family:var(--ff-display,'Playfair Display',serif);font-size:34px;font-weight:600;color:var(--gold-lt,#d8bd66);line-height:1;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:'lnum' 1,'tnum' 1">${brl(faturamentoMes)}</div>
     <div style="font-size:12.5px;color:var(--text-soft,#cfc8b2);margin-top:6px">${entreguesMes.length} ${entreguesMes.length===1?'entrega concluída':'entregas concluídas'}${entreguesMes.length?` · ticket médio ${brl(ticketMedio)}`:''}${taxasMes>0?` · inclui ${brl(taxasMes)} em taxas de entrega`:''}</div>
-  </div>` + destaquesHTML(true) + rankingHTML() + `
+  </div>` + destaquesHTML(true) + `<div class="g-rank-bleed">${rankingHTML()}</div>` + `
   <div class="g-kpis">
     <div class="g-kpi"><div class="lbl">Entregas no mês</div><div class="val">${feitas.length}</div>${pendentes?`<div class="sub">+${pendentes} aguardando</div>`:''}</div>
     <div class="g-kpi"><div class="lbl">Custo total</div><div class="val">${brl(custoTotal)}</div><div class="sub">${brl(custoPorEntrega)} por entrega</div></div>
