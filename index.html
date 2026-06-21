@@ -710,6 +710,13 @@
   .pend-b.reag{background:rgba(142,156,214,.14);color:#aab4e8;border-color:rgba(142,156,214,.42)}
   .pend-b.ok{background:rgba(127,174,107,.16);color:var(--calm);border-color:rgba(127,174,107,.42)}
   .pend-b.desc{background:rgba(138,145,122,.14);color:var(--text-soft);border-color:rgba(138,145,122,.42)}
+  .pend-b.sis{flex:none;background:rgba(212,180,90,.18);color:var(--gold-lt);border-color:var(--line-strong);font-weight:600;padding:7px 16px}
+  .pend-val{font-family:var(--ff-mono,'DM Mono',monospace);font-size:12.5px;color:var(--gold-lt);background:rgba(212,180,90,.12);border:1px solid var(--line);border-radius:7px;padding:1px 7px;white-space:nowrap}
+  .pend-part{display:flex;align-items:center;gap:11px;margin:0 0 13px;padding:11px 14px;background:linear-gradient(135deg,rgba(212,180,90,.16),rgba(212,180,90,.045));border:1px solid var(--line-strong);border-radius:13px}
+  .pend-part .n{width:26px;height:26px;border-radius:50%;flex:none;background:var(--gold);color:var(--ink);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .pend-part .t{font-family:var(--ff-display);font-size:18.5px;color:var(--gold-lt);font-weight:600;line-height:1.12}
+  .pend-part .t small{display:block;font-family:var(--ff-body);font-size:11.5px;color:var(--text-mute);font-weight:400;margin-top:2px}
+  .pend-part .c{margin-left:auto;font-size:12px;color:var(--text-soft);background:rgba(0,0,0,.18);border:1px solid var(--line);padding:3px 10px;border-radius:999px;white-space:nowrap}
   .desf-quick{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 14px}
   .desf-chip{font-family:var(--ff-body);font-size:12.5px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-soft);cursor:pointer;transition:.15s}
   .desf-chip:hover{border-color:var(--line-strong);color:var(--text)}
@@ -1205,7 +1212,7 @@
     <button class="tab on" id="tab-painel" onclick="switchTab('painel')">Painel</button>
     <button class="tab" id="tab-pendentes" onclick="switchTab('pendentes')">⏳ Pendentes<span id="c-tab-pendentes"></span></button>
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
-    <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">🛵 Entregadores ↗</button>
+    <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">Entregadores ↗</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
     <button class="tab" id="tab-ranking" onclick="switchTab('ranking')">🏅 Ranking</button>
   </div>
@@ -3615,33 +3622,64 @@ function pendListVend(){
   const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
   return entregas.filter(e=>['aguardando','em_rota','nao_entregue','cancelado'].includes(e.status) && dataDe(e) < today && inEsc(e) && !e.pendResolvido && !e.pendDescartado);
 }
+/* entregues que ainda NÃO foram lançadas no sistema (hoje + dias anteriores), no escopo da vendedora */
+function naoLancadasList(){
+  const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
+  const alvo = ehVendPessoal ? norm(session.vendedora) : null;
+  const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
+  return entregas.filter(e=> e.status==='entregue' && !e.lancado && inEsc(e));
+}
 function renderPendentes(){
   const box=$('view-pendentes'); if(!box) return;
+  const naoLanc = naoLancadasList().slice().sort((a,b)=>{ const da=dataDe(a), db=dataDe(b); return da<db?-1:da>db?1:0; });
   const pend=pendListVend();
-  if(!pend.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
-  const grupos=[
-    {tit:'📥 Não saíram da loja', itens:pend.filter(e=>e.status==='aguardando')},
-    {tit:'🛵 Em rota — não finalizadas', itens:pend.filter(e=>e.status==='em_rota')},
-    {tit:'⚠️ Tiveram problema (não entregue / cancelada)', itens:pend.filter(e=>e.status==='nao_entregue'||e.status==='cancelado')}
-  ];
-  box.innerHTML = `<p class="vmin-sub" style="margin-bottom:12px">Entregas de dias anteriores que ainda precisam de atenção. Resolva, reagende ou descarte — o que você resolver sai daqui.</p>` + grupos.filter(g=>g.itens.length).map(g=>`
-    <div class="pend-grupo">
-      <div class="pend-grupo-h">${g.tit} <span>(${g.itens.length})</span></div>
-      ${g.itens.map(e=>{
-        const dias=_diasAtras(dataDe(e));
-        const ent = (e.status==='em_rota' && e.entregador) ? ` · ${esc((ENT[e.entregador]||{}).nome||e.entregador)}` : '';
-        const mot = (e.motivo && (e.status==='nao_entregue'||e.status==='cancelado')) ? ` · ${esc(e.motivo)}` : '';
-        const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
-        return `<div class="pend-row">
-          <div class="pend-info"><b>${esc(e.cliente)}</b><small>há ${dias} dia${dias>1?'s':''}${ent}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}${mot}</small></div>
-          <div class="pend-acts">
-            <button class="pend-b reag" onclick="pendReag('${e.id}')">🔁 Reagendar</button>
-            <button class="pend-b ok" onclick="pendResolver('${e.id}')">✓ Resolvido</button>
-            <button class="pend-b desc" onclick="pendDescartar('${e.id}')">Descartar</button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`).join('');
+  if(!naoLanc.length && !pend.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
+  const fmtBRL = n => 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const _vNum = v => { if(v==null) return 0; let s=String(v).replace(/[^\d.,-]/g,'').trim(); if(s==='') return 0; if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); return Number(s)||0; };
+  let html = `<p class="vmin-sub" style="margin-bottom:14px">Tudo que precisa da sua atenção, em duas partes: o que falta <b>lançar no sistema</b> e as <b>pendências de entrega</b>.</p>`;
+
+  // ===== PARTE 1 — Não lançadas no sistema (entregues, hoje + dias anteriores, ainda não lançadas) =====
+  if(naoLanc.length){
+    html += `<div class="pend-part"><div class="n">1</div><div class="t">Não lançadas no sistema<small>Entregas concluídas que ainda faltam lançar no Kigi</small></div><div class="c">${naoLanc.length} a lançar</div></div>`;
+    html += naoLanc.map(e=>{
+      const dias=_diasAtras(dataDe(e));
+      const quando = dias<=0 ? 'hoje' : `há ${dias} dia${dias>1?'s':''}`;
+      const vN=_vNum(e.valor);
+      const valTag = vN>0 ? ` <span class="pend-val">${fmtBRL(vN)}</span>` : '';
+      const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
+      return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b>${valTag}<small>${quando}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}</small></div><div class="pend-acts"><button class="pend-b sis" onclick="toggleLancado('${e.id}')">☐ Marcar: lançado no sistema</button></div></div>`;
+    }).join('');
+  }
+
+  // ===== PARTE 2 — Pendências de entrega (lógica de hoje, mantida) =====
+  if(pend.length){
+    const grupos=[
+      {tit:'📥 Não saíram da loja', itens:pend.filter(e=>e.status==='aguardando')},
+      {tit:'🛵 Em rota — não finalizadas', itens:pend.filter(e=>e.status==='em_rota')},
+      {tit:'⚠️ Tiveram problema (não entregue / cancelada)', itens:pend.filter(e=>e.status==='nao_entregue'||e.status==='cancelado')}
+    ];
+    html += `<div class="pend-part" style="margin-top:22px"><div class="n">2</div><div class="t">Pendências de entrega<small>Em rota, não saíram da loja ou que não deram certo</small></div><div class="c">${pend.length} pendência${pend.length>1?'s':''}</div></div>`;
+    html += grupos.filter(g=>g.itens.length).map(g=>`
+      <div class="pend-grupo">
+        <div class="pend-grupo-h">${g.tit} <span>(${g.itens.length})</span></div>
+        ${g.itens.map(e=>{
+          const dias=_diasAtras(dataDe(e));
+          const ent = (e.status==='em_rota' && e.entregador) ? ` · ${esc((ENT[e.entregador]||{}).nome||e.entregador)}` : '';
+          const mot = (e.motivo && (e.status==='nao_entregue'||e.status==='cancelado')) ? ` · ${esc(e.motivo)}` : '';
+          const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
+          return `<div class="pend-row">
+            <div class="pend-info"><b>${esc(e.cliente)}</b><small>há ${dias} dia${dias>1?'s':''}${ent}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}${mot}</small></div>
+            <div class="pend-acts">
+              <button class="pend-b reag" onclick="pendReag('${e.id}')">🔁 Reagendar</button>
+              <button class="pend-b ok" onclick="pendResolver('${e.id}')">✓ Resolvido</button>
+              <button class="pend-b desc" onclick="pendDescartar('${e.id}')">Descartar</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`).join('');
+  }
+
+  box.innerHTML = html;
 }
 function abrirPendencias(){ renderPendModal(); $('pend-modal').classList.add('open'); }
 function closePend(){ $('pend-modal').classList.remove('open'); }
@@ -4135,7 +4173,7 @@ function render(){
   renderMinhasColuna();
   if(tabAtiva==='fin') renderFinalizadas();
   // aba Pendentes (vendedora/gestor)
-  const _cPend=$('c-tab-pendentes'); if(_cPend){ const _np=pendListVend().length; _cPend.textContent = _np ? ` ${_np}` : ''; }
+  const _cPend=$('c-tab-pendentes'); if(_cPend){ const _np=pendListVend().length + naoLancadasList().length; _cPend.textContent = _np ? ` ${_np}` : ''; }
   if(tabAtiva==='pendentes') renderPendentes();
   checkNotificacoes();
 
@@ -4642,7 +4680,7 @@ function applyRole(){
     if(vchips) vchips.style.display = ehGeral ? '' : 'none';
     $('tab-fin').style.display='';                   // aba de finalizadas (pagamento/foto) p/ vendedoras
     $('tab-mapa').style.display = ehGeral ? '' : 'none';   // Mapa & Rotas só pra operação (vendedora não monta rota)
-    { const _te=$('tab-entlive'); if(_te) _te.style.display = ehGeral ? '' : 'none'; }   // Entregadores ao vivo: só operação
+    { const _te=$('tab-entlive'); if(_te) _te.style.display=''; }   // Entregadores ao vivo: operação E vendedoras
     $('area-operacao').style.display='';
     if(_rb) _rb.style.display='';                     // operação pode montar rota
     renderFiltersVend();
@@ -5775,7 +5813,20 @@ function renderGestor(){
   const porReg = {}; feitas.forEach(e=>{ const r=regiaoEntrega(e); porReg[r]=(porReg[r]||0)+1; });
 
   const c=config.custos;
-  let html = destaquesHTML(true) + rankingHTML() + `
+  // ===== Faturamento do mês: soma do valor das entregas CONCLUÍDAS (status 'entregue') =====
+  const _valNum = v => { if(v==null) return 0; let s=String(v).replace(/[^\d.,-]/g,'').trim(); if(s==='') return 0; if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); return Number(s)||0; };
+  // valor de cada entrega concluída: usa o VALOR PAGO registrado (pagamentoValores) quando houver; senão cai no 'valor' da venda
+  const _valEntregue = e => { const pago = Object.values(e.pagamentoValores||{}).reduce((s,v)=>s+_num(v),0); const base = pago>0 ? pago : _valNum(e.valor); return base + _num(e.taxaEntrega); };
+  const entreguesMes = doMes.filter(e=>e.status==='entregue');
+  const faturamentoMes = entreguesMes.reduce((s,e)=>s+_valEntregue(e),0);
+  const taxasMes = entreguesMes.reduce((s,e)=>s+_num(e.taxaEntrega),0);
+  const ticketMedio = entreguesMes.length ? faturamentoMes/entreguesMes.length : 0;
+  let html = `
+  <div style="background:linear-gradient(135deg,rgba(201,169,80,.14),rgba(201,169,80,.05));border:1px solid rgba(201,169,80,.4);border-radius:14px;padding:16px 18px;margin:0 0 14px">
+    <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute,#9a9c86);margin-bottom:6px">Faturamento com entregas · ${esc(rotuloMes(mesAtivo))}</div>
+    <div style="font-family:var(--ff-display,'Playfair Display',serif);font-size:34px;font-weight:600;color:var(--gold-lt,#d8bd66);line-height:1">${brl(faturamentoMes)}</div>
+    <div style="font-size:12.5px;color:var(--text-soft,#cfc8b2);margin-top:6px">${entreguesMes.length} ${entreguesMes.length===1?'entrega concluída':'entregas concluídas'}${entreguesMes.length?` · ticket médio ${brl(ticketMedio)}`:''}${taxasMes>0?` · inclui ${brl(taxasMes)} em taxas de entrega`:''}</div>
+  </div>` + destaquesHTML(true) + rankingHTML() + `
   <div class="g-kpis">
     <div class="g-kpi"><div class="lbl">Entregas no mês</div><div class="val">${feitas.length}</div>${pendentes?`<div class="sub">+${pendentes} aguardando</div>`:''}</div>
     <div class="g-kpi"><div class="lbl">Custo total</div><div class="val">${brl(custoTotal)}</div><div class="sub">${brl(custoPorEntrega)} por entrega</div></div>
@@ -5853,7 +5904,7 @@ function setCustoFre(k,v){ config.custos.freelance[k]=Number(v)||0; saveCfg(); r
    Assim o painel de entregas continua leve: o rastreamento ao vivo, o
    roteamento de rua e a animação da moto rodam no app separado, sem
    adicionar listeners nem render extra a este dashboard. */
-const FROTA_URL = 'https://lorettoscarpa-icr.github.io/rastreio/#equipe';
+const FROTA_URL = 'https://lorettoscarpa-icr.github.io/rastreio/equipe.html';
 function abrirEntregadores(){ window.open(FROTA_URL, '_blank', 'noopener'); }
 
 function tick(){
