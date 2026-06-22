@@ -947,6 +947,8 @@
   .pa-empty{color:var(--text-mute);font-size:13px;padding:12px;text-align:center}
   .pa-hint{font-size:11px;color:var(--text-mute);margin-top:10px;line-height:1.5}
   .pa-falhas{font-size:11.5px;color:#e6a99a;padding:8px 14px;border-top:1px solid rgba(255,255,255,.05);background:rgba(224,106,82,.06)}
+  .g-name-link{cursor:pointer;transition:color .15s} .g-name-link:hover{color:var(--gold-lt)}
+  .g-name-go{font-size:11px;color:var(--gold);opacity:.85;white-space:nowrap}
   .g-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
   .g-kpi{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--elev-1)}
   .g-kpi .lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-mute);margin-bottom:7px}
@@ -5826,6 +5828,7 @@ function rankingHTML(){
 const PA_AVULSOS = ['joao','hugo','flavio','junior'];
 let _paSel = 'joao';
 let _paCompras = {};
+function _paEnt(id){ return (typeof ENTREGADORES!=='undefined'?ENTREGADORES:[]).find(function(e){return e.id===id;})||{}; }
 function _brlPA(n){ return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function _paRate(cidade){
   const f=(config.custos&&config.custos.freelance)||{};
@@ -5882,7 +5885,7 @@ function _paRelatorio(courierId, semanas){
 }
 function _paDM(dt){ return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0'); }
 function _paResumoTxt(courierId){
-  const nome=(ENT_BY_ID[courierId]||{}).nome||courierId;
+  const nome=_paEnt(courierId).nome||courierId;
   const rel=_paRelatorio(courierId, _paSemanas());
   let out='Loretto — '+nome+'\n', totalMes=0;
   rel.forEach(s=>{
@@ -5903,6 +5906,7 @@ function _paCopiar(courierId){
   else { try{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Resumo copiado ✓'); }catch(e){ alert(txt); } }
 }
 function _paSetCourier(id){ _paSel=id; _paRender(); }
+function _paAbrir(id){ _paSel=id; _paRender(); var el=document.getElementById('pa-card'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
 function _paSetCompras(id,v){ _paCompras[id]=_num(v); _paRender(); }
 function _paRender(){
   const box=$('pa-card'); if(!box) return;
@@ -5912,9 +5916,9 @@ function _paRender(){
   const nomeMes=(typeof rotuloMes==='function' && typeof mesAtivo!=='undefined') ? rotuloMes(mesAtivo) : '';
   const comprou=_paCompras[_paSel]||0;
   const saldo=totalMes-comprou;
-  const sel = PA_AVULSOS.map(id=>{ const e=ENT_BY_ID[id]||{}; return '<button class="pa-tab'+(id===_paSel?' on':'')+'" onclick="_paSetCourier(\''+id+'\')">'+esc(e.nome||id)+'</button>'; }).join('');
+  const sel = PA_AVULSOS.map(id=>{ const e=_paEnt(id); return '<button class="pa-tab'+(id===_paSel?' on':'')+'" onclick="_paSetCourier(\''+id+'\')">'+esc(e.nome||id)+'</button>'; }).join('');
   let semHtml;
-  if(!rel.length){ semHtml='<div class="pa-empty">Nenhuma entrega concluída neste mês para '+esc((ENT_BY_ID[_paSel]||{}).nome||_paSel)+'.</div>'; }
+  if(!rel.length){ semHtml='<div class="pa-empty">Nenhuma entrega concluída neste mês para '+esc(_paEnt(_paSel).nome||_paSel)+'.</div>'; }
   else semHtml = rel.map(s=>{
     const dias=s.dias.map(d=>{
       const parts=d.grupos.map(g=>'<span class="pa-loc">'+esc(g.label)+' <b>'+g.n+'</b> ×'+g.rate+' = '+_brlPA(g.n*g.rate)+'</span>').join('');
@@ -5993,9 +5997,11 @@ function renderGestor(){
         const custoMes = p.ent.tipo==='freelance'?p.custoVar:(p.ent.tipo==='fixo'?custoFixo:0);
         const custoTxt = p.ent.tipo==='freelance'?brl(p.custoVar):(p.ent.tipo==='fixo'?brl(custoFixo)+'/mês':'R$ 0,00');
         const porEnt1 = p.n ? brl(custoMes/p.n) : null;
+        const _av = PA_AVULSOS.indexOf(p.ent.id)>=0;
+        const _nameHtml = '<span class="g-name'+(_av?' g-name-link':'')+'"'+(_av?' onclick="_paAbrir(\''+p.ent.id+'\')" title="Ver relatório de pagamento"':'')+'><span class="dot" style="background:'+p.ent.cor+'"></span>'+esc(p.ent.nome)+' <small>'+tag+'</small>'+(_av?' <span class="g-name-go">💸 ›</span>':'')+'</span>';
         return `<div class="g-row">
           <div class="g-row-top">
-            <span class="g-name"><span class="dot" style="background:${p.ent.cor}"></span>${esc(p.ent.nome)} <small>${tag}</small></span>
+            ${_nameHtml}
             <span class="g-n">${p.n}</span>
           </div>
           <div class="g-bar"><span style="width:${Math.round(p.n/topN*100)}%;background:${p.ent.cor}"></span></div>
