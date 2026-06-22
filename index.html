@@ -973,6 +973,9 @@
   .btn-meu-pag{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
   .pa-ent-h{font-family:var(--ff-display,'Playfair Display',serif);font-size:18px;color:var(--gold-lt);font-weight:600;margin-bottom:14px}
   #pa-ent-modal .modal{max-width:520px}
+  .pa-sem-acts{display:flex;gap:8px;padding:10px 14px;border-top:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.02)}
+  .pa-mini{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;flex:1}
+  .pa-mini:active{transform:scale(.97)}
   .g-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
   .g-kpi{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--elev-1)}
   .g-kpi .lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-mute);margin-bottom:7px}
@@ -5971,11 +5974,19 @@ function _paResumoTxt(courierId){
   out+='\nTotal do mês: '+_brlPA(totalMes);
   return out;
 }
-function _paCopiar(courierId){
-  const txt=_paResumoTxt(courierId);
-  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(()=>toast('Resumo copiado ✓')).catch(()=>alert(txt)); }
-  else { try{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Resumo copiado ✓'); }catch(e){ alert(txt); } }
+function _paCopiarTexto(txt){
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(()=>toast('Copiado ✓')).catch(()=>alert(txt)); }
+  else { try{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Copiado ✓'); }catch(e){ alert(txt); } }
 }
+function _paCopiar(courierId){ _paCopiarTexto(_paResumoTxt(courierId)); }
+function _paWeekTxt(id,s){
+  let out='Loretto — '+((_paEnt(id).nome)||id)+'\n';
+  out+='Semana '+_paDM(s.ini)+' a '+_paDM(s.fim)+'\n';
+  s.dias.forEach(d=>{ const parts=d.grupos.map(g=>g.label+' '+g.n+' = '+(g.n*g.rate)); out+=_paDM(d.data)+'  '+parts.join('  ')+(d.grupos.length>1?'  (total '+d.total+')':'')+'\n'; });
+  out+='Total da semana: '+_brlPA(s.total)+(s.falhas>0?' (inclui '+s.falhas+' não comprou)':'');
+  return out;
+}
+function _paCopiarSemana(id,idx){ const rel=_paRelatorio(id,_paSemanas()); const s=rel[idx]; if(s) _paCopiarTexto(_paWeekTxt(id,s)); }
 function _paSetCourier(id){ _paSel=id; _paRender(); }
 function _paAbrir(id){ _paSel=id; _paRender(); var el=document.getElementById('pa-card'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
 function _paCorpoHTML(id){
@@ -5985,28 +5996,31 @@ function _paCorpoHTML(id){
   const nomeMes=(typeof rotuloMes==='function' && typeof mesAtivo!=='undefined')?rotuloMes(mesAtivo):'';
   let corpo;
   if(!rel.length){ corpo='<div class="pa-empty">Nenhuma entrega concluída neste mês.</div>'; }
-  else corpo=rel.map(s=>{
+  else corpo=rel.map((s,i)=>{
     const dias=s.dias.map(d=>{
       const parts=d.grupos.map(g=>'<span class="pa-loc">'+esc(g.label)+' <b>'+g.n+'</b> ×'+g.rate+' = '+_brlPA(g.n*g.rate)+'</span>').join('');
       return '<div class="pa-dia"><span class="pa-data">'+_paDM(d.data)+'</span><span class="pa-locs">'+parts+'</span><span class="pa-dtot">'+_brlPA(d.total)+'</span></div>';
     }).join('');
-    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' "não comprou" (cobradas)</div>':'')+'</div>';
+    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' "não comprou" (cobradas)</div>':'')+'<div class="pa-sem-acts"><button class="pa-mini" onclick="_paCopiarSemana(\''+id+'\','+i+')">⧉ Copiar esta semana</button><button class="pa-mini" onclick="gerarPDF(\''+id+'\','+i+')">📄 PDF desta semana</button></div></div>';
   }).join('');
   return '<div class="pa-top"><div><div class="pa-top-lbl">'+esc(nomeMes)+' · até hoje</div><div class="pa-top-val">'+_brlPA(totalMes)+'</div><div class="pa-top-sub">'+nEnt+' entregas concluídas</div></div></div>'+corpo;
 }
 function abrirMeuPagamento(){
   const id=session&&session.entregador; if(!id) return;
   $('pa-ent-body').innerHTML='<div class="pa-ent-h">💸 Meu pagamento — '+esc((_paEnt(id).nome)||id)+'</div>'+_paCorpoHTML(id)
-    +'<div class="pa-hint">Mês até hoje, por semana. Toque em "Copiar resumo" e mande pro Gregory no WhatsApp.</div>';
+    +'<div class="pa-hint">Cada semana tem seu botão <b>⧉ Copiar</b> e <b>📄 PDF</b> — é só mandar a semana que você está fechando pro Gregory. Os botões lá embaixo geram o mês inteiro.</div>';
   $('pa-ent-modal').classList.add('open');
 }
 function fecharMeuPagamento(){ $('pa-ent-modal').classList.remove('open'); }
-function _paPdfHTML(id){
+function _paPdfHTML(id, soIdx){
   const nome=(_paEnt(id).nome)||id;
-  const rel=_paRelatorio(id, _paSemanas());
+  let rel=_paRelatorio(id, _paSemanas());
+  const umaSemana=(soIdx!=null && rel[soIdx]); if(umaSemana) rel=[rel[soIdx]];
   const totalMes=rel.reduce((t,s)=>t+s.total,0);
   const nEnt=rel.reduce((t,s)=>t+s.n,0);
   const nomeMes=(typeof rotuloMes==='function'&&typeof mesAtivo!=='undefined')?rotuloMes(mesAtivo):'';
+  const periodoLbl=umaSemana?('Semana '+_paDM(rel[0].ini)+' a '+_paDM(rel[0].fim)):(esc(nomeMes)+' (at\u00e9 hoje)');
+  const totLbl=umaSemana?'Total da semana':'Total do m\u00eas';
   const hoje=new Date().toLocaleDateString('pt-BR');
   const semHtml = rel.length ? rel.map(s=>{
     const linhas=s.dias.map(d=>{
@@ -6026,18 +6040,18 @@ function _paPdfHTML(id){
     +'.obs{font-size:11px;color:#a05a3c;padding:6px 12px;background:#fbf3ef;border-top:1px solid #eee}.foot{margin-top:22px;font-size:10.5px;color:#999;border-top:1px solid #eee;padding-top:10px;line-height:1.6}.vazio{color:#888;padding:20px 0}'
     +'@page{margin:16mm}@media print{body{padding:0}}'
     +'</style></head><body>'
-    +'<div class="head"><div class="brand">Loretto Scarpa</div><h1>Relat\u00f3rio de pagamento \u2014 '+esc(nome)+'</h1><div class="meta">'+esc(nomeMes)+' (at\u00e9 hoje) \u00b7 '+nEnt+' entregas conclu\u00eddas \u00b7 gerado em '+hoje+'</div></div>'
-    +'<div class="total-box"><span class="lbl">Total do m\u00eas</span><span class="val">'+_brlPA(totalMes)+'</span></div>'
+    +'<div class="head"><div class="brand">Loretto Scarpa</div><h1>Relat\u00f3rio de pagamento \u2014 '+esc(nome)+'</h1><div class="meta">'+periodoLbl+' \u00b7 '+nEnt+' entregas conclu\u00eddas \u00b7 gerado em '+hoje+'</div></div>'
+    +'<div class="total-box"><span class="lbl">'+totLbl+'</span><span class="val">'+_brlPA(totalMes)+'</span></div>'
     +semHtml
     +'<div class="foot">Tarifas por regi\u00e3o: Goi\u00e2nia '+_brlPA(_paRate(''))+' \u00b7 Aparecida '+_brlPA(_paRate('aparecida'))+' \u00b7 Trindade '+_brlPA(_paRate('trindade'))+' \u00b7 Senador Canedo '+_brlPA(_paRate('senador'))+' \u00b7 Goianira '+_brlPA(_paRate('goianira'))+' \u00b7 outras '+_brlPA(_paRate('outracidade'))+'. Conta entregas conclu\u00eddas + "n\u00e3o comprou". N\u00e3o conta "n\u00e3o entregue" nem agendadas.</div>'
     +'<scr'+'ipt>window.addEventListener("load",function(){setTimeout(function(){window.focus();window.print();},350);});</scr'+'ipt>'
     +'</body></html>';
 }
-function gerarPDF(id){
+function gerarPDF(id, idx){
   id = id || (session&&session.entregador) || _paSel;
   const win=window.open('','_blank');
   if(!win){ if(typeof toast==='function') toast('Permita pop-ups para gerar o PDF'); else alert('Permita pop-ups para gerar o PDF'); return; }
-  win.document.open(); win.document.write(_paPdfHTML(id)); win.document.close();
+  win.document.open(); win.document.write(_paPdfHTML(id, idx)); win.document.close();
 }
 function _paSetCompras(id,v){ _paCompras[id]=_num(v); _paRender(); }
 function _paRender(){
@@ -6051,12 +6065,12 @@ function _paRender(){
   const sel = PA_AVULSOS.map(id=>{ const e=_paEnt(id); return '<button class="pa-tab'+(id===_paSel?' on':'')+'" onclick="_paSetCourier(\''+id+'\')">'+esc(e.nome||id)+'</button>'; }).join('');
   let semHtml;
   if(!rel.length){ semHtml='<div class="pa-empty">Nenhuma entrega concluída neste mês para '+esc(_paEnt(_paSel).nome||_paSel)+'.</div>'; }
-  else semHtml = rel.map(s=>{
+  else semHtml = rel.map((s,i)=>{
     const dias=s.dias.map(d=>{
       const parts=d.grupos.map(g=>'<span class="pa-loc">'+esc(g.label)+' <b>'+g.n+'</b> ×'+g.rate+' = '+_brlPA(g.n*g.rate)+'</span>').join('');
       return '<div class="pa-dia"><span class="pa-data">'+_paDM(d.data)+'</span><span class="pa-locs">'+parts+'</span><span class="pa-dtot">'+_brlPA(d.total)+'</span></div>';
     }).join('');
-    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' "não comprou" (cobradas — o entregador foi até o cliente)</div>':'')+'</div>';
+    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' "não comprou" (cobradas — o entregador foi até o cliente)</div>':'')+'<div class="pa-sem-acts"><button class="pa-mini" onclick="_paCopiarSemana(\''+_paSel+'\','+i+')">⧉ Copiar</button><button class="pa-mini" onclick="gerarPDF(\''+_paSel+'\','+i+')">📄 PDF</button></div></div>';
   }).join('');
   box.innerHTML =
     '<div class="pa-head"><div class="pa-title">💸 Pagamento — entregadores avulsos</div><button class="pa-copy" onclick="gerarPDF(_paSel)">📄 PDF</button><button class="pa-copy" onclick="_paCopiar(\''+_paSel+'\')">⧉ Copiar resumo</button></div>'
