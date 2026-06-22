@@ -970,6 +970,9 @@
   .av-exp .wa svg{width:16px;height:16px}
   .av-exp .mini{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:600;white-space:nowrap;cursor:pointer}
   .av-exp .mini.prim{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+  .btn-meu-pag{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .pa-ent-h{font-family:var(--ff-display,'Playfair Display',serif);font-size:18px;color:var(--gold-lt);font-weight:600;margin-bottom:14px}
+  #pa-ent-modal .modal{max-width:520px}
   .g-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
   .g-kpi{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--elev-1)}
   .g-kpi .lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-mute);margin-bottom:7px}
@@ -1324,6 +1327,7 @@
   <div id="area-entregador" style="display:none">
     <div class="ent-head">
       <h2 id="ent-title">Minha rota</h2>
+      <button id="btn-meu-pag" class="btn-meu-pag" style="display:none" onclick="abrirMeuPagamento()">💸 Meu pagamento</button>
     </div>
     <div class="daynav">
       <button class="daynav-btn" onclick="mudarDiaEnt(-1)" aria-label="Dia anterior">‹</button>
@@ -1457,6 +1461,18 @@
 </div>
 
 <div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v130</div>
+
+<!-- meu pagamento (entregador avulso) -->
+<div class="modal-bg" id="pa-ent-modal">
+  <div class="modal">
+    <div id="pa-ent-body"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="fecharMeuPagamento()">Fechar</button>
+      <button class="btn" onclick="gerarPDF(session.entregador)">📄 Salvar PDF</button>
+      <button class="btn btn-primary" onclick="_paCopiar(session.entregador)">⧉ Copiar resumo</button>
+    </div>
+  </div>
+</div>
 
 <!-- desfecho: não entregue / não comprou -->
 <div class="modal-bg" id="desf-modal">
@@ -5289,6 +5305,7 @@ function cardPegar(e){
 }
 function renderEntregador(){
   const ent=ENT[session.entregador]; if(!ent) return;
+  { const _bmp=$('btn-meu-pag'); if(_bmp) _bmp.style.display = (typeof PA_AVULSOS!=='undefined' && PA_AVULSOS.indexOf(session.entregador)>=0) ? '' : 'none'; }
   renderDayNavEnt();
   const items=minhasEntregas();
   const aguard=entAguardando();
@@ -5961,6 +5978,67 @@ function _paCopiar(courierId){
 }
 function _paSetCourier(id){ _paSel=id; _paRender(); }
 function _paAbrir(id){ _paSel=id; _paRender(); var el=document.getElementById('pa-card'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
+function _paCorpoHTML(id){
+  const rel=_paRelatorio(id, _paSemanas());
+  const totalMes=rel.reduce((t,s)=>t+s.total,0);
+  const nEnt=rel.reduce((t,s)=>t+s.n,0);
+  const nomeMes=(typeof rotuloMes==='function' && typeof mesAtivo!=='undefined')?rotuloMes(mesAtivo):'';
+  let corpo;
+  if(!rel.length){ corpo='<div class="pa-empty">Nenhuma entrega concluída neste mês.</div>'; }
+  else corpo=rel.map(s=>{
+    const dias=s.dias.map(d=>{
+      const parts=d.grupos.map(g=>'<span class="pa-loc">'+esc(g.label)+' <b>'+g.n+'</b> ×'+g.rate+' = '+_brlPA(g.n*g.rate)+'</span>').join('');
+      return '<div class="pa-dia"><span class="pa-data">'+_paDM(d.data)+'</span><span class="pa-locs">'+parts+'</span><span class="pa-dtot">'+_brlPA(d.total)+'</span></div>';
+    }).join('');
+    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' "não comprou" (cobradas)</div>':'')+'</div>';
+  }).join('');
+  return '<div class="pa-top"><div><div class="pa-top-lbl">'+esc(nomeMes)+' · até hoje</div><div class="pa-top-val">'+_brlPA(totalMes)+'</div><div class="pa-top-sub">'+nEnt+' entregas concluídas</div></div></div>'+corpo;
+}
+function abrirMeuPagamento(){
+  const id=session&&session.entregador; if(!id) return;
+  $('pa-ent-body').innerHTML='<div class="pa-ent-h">💸 Meu pagamento — '+esc((_paEnt(id).nome)||id)+'</div>'+_paCorpoHTML(id)
+    +'<div class="pa-hint">Mês até hoje, por semana. Toque em "Copiar resumo" e mande pro Gregory no WhatsApp.</div>';
+  $('pa-ent-modal').classList.add('open');
+}
+function fecharMeuPagamento(){ $('pa-ent-modal').classList.remove('open'); }
+function _paPdfHTML(id){
+  const nome=(_paEnt(id).nome)||id;
+  const rel=_paRelatorio(id, _paSemanas());
+  const totalMes=rel.reduce((t,s)=>t+s.total,0);
+  const nEnt=rel.reduce((t,s)=>t+s.n,0);
+  const nomeMes=(typeof rotuloMes==='function'&&typeof mesAtivo!=='undefined')?rotuloMes(mesAtivo):'';
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const semHtml = rel.length ? rel.map(s=>{
+    const linhas=s.dias.map(d=>{
+      const locs=d.grupos.map(g=>esc(g.label)+' '+g.n+' \u00d7'+g.rate+' = '+_brlPA(g.n*g.rate)).join(' \u00b7 ');
+      return '<tr><td class="dt">'+_paDM(d.data)+'</td><td>'+locs+'</td><td class="tot">'+_brlPA(d.total)+'</td></tr>';
+    }).join('');
+    return '<div class="sem"><div class="sem-h"><span>Semana '+_paDM(s.ini)+' a '+_paDM(s.fim)+'</span><span>'+s.n+' entregas \u00b7 '+_brlPA(s.total)+'</span></div><table>'+linhas+'</table>'+(s.falhas>0?'<div class="obs">Inclui '+s.falhas+' "n\u00e3o comprou" (cobradas \u2014 o entregador foi at\u00e9 o cliente).</div>':'')+'</div>';
+  }).join('') : '<p class="vazio">Nenhuma entrega conclu\u00edda neste m\u00eas.</p>';
+  return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pagamento '+esc(nome)+'</title><style>'
+    +'*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#243a14;padding:30px;background:#fff}'
+    +'.head{border-bottom:3px solid #c9a950;padding-bottom:14px;margin-bottom:20px}.brand{font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:#4a5c2a;font-weight:700}'
+    +'h1{font-size:21px;color:#283d1a;margin-top:5px}.meta{font-size:12px;color:#777;margin-top:6px}'
+    +'.total-box{background:#f4efdd;border:1px solid #d9c97e;border-radius:10px;padding:14px 18px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center}'
+    +'.total-box .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#6a7a4a}.total-box .val{font-size:26px;font-weight:800;color:#283d1a}'
+    +'.sem{margin-bottom:16px;border:1px solid #ddd;border-radius:8px;overflow:hidden}.sem-h{display:flex;justify-content:space-between;background:#283d1a;color:#ebd48a;padding:8px 12px;font-size:13px;font-weight:700}'
+    +'table{width:100%;border-collapse:collapse}td{padding:7px 12px;border-top:1px solid #eee;font-size:13px;vertical-align:top}td.dt{width:54px;color:#888}td.tot{width:96px;text-align:right;font-weight:700;color:#283d1a;white-space:nowrap}'
+    +'.obs{font-size:11px;color:#a05a3c;padding:6px 12px;background:#fbf3ef;border-top:1px solid #eee}.foot{margin-top:22px;font-size:10.5px;color:#999;border-top:1px solid #eee;padding-top:10px;line-height:1.6}.vazio{color:#888;padding:20px 0}'
+    +'@page{margin:16mm}@media print{body{padding:0}}'
+    +'</style></head><body>'
+    +'<div class="head"><div class="brand">Loretto Scarpa</div><h1>Relat\u00f3rio de pagamento \u2014 '+esc(nome)+'</h1><div class="meta">'+esc(nomeMes)+' (at\u00e9 hoje) \u00b7 '+nEnt+' entregas conclu\u00eddas \u00b7 gerado em '+hoje+'</div></div>'
+    +'<div class="total-box"><span class="lbl">Total do m\u00eas</span><span class="val">'+_brlPA(totalMes)+'</span></div>'
+    +semHtml
+    +'<div class="foot">Tarifas por regi\u00e3o: Goi\u00e2nia '+_brlPA(_paRate(''))+' \u00b7 Aparecida '+_brlPA(_paRate('aparecida'))+' \u00b7 Trindade '+_brlPA(_paRate('trindade'))+' \u00b7 Senador Canedo '+_brlPA(_paRate('senador'))+' \u00b7 Goianira '+_brlPA(_paRate('goianira'))+' \u00b7 outras '+_brlPA(_paRate('outracidade'))+'. Conta entregas conclu\u00eddas + "n\u00e3o comprou". N\u00e3o conta "n\u00e3o entregue" nem agendadas.</div>'
+    +'<scr'+'ipt>window.addEventListener("load",function(){setTimeout(function(){window.focus();window.print();},350);});</scr'+'ipt>'
+    +'</body></html>';
+}
+function gerarPDF(id){
+  id = id || (session&&session.entregador) || _paSel;
+  const win=window.open('','_blank');
+  if(!win){ if(typeof toast==='function') toast('Permita pop-ups para gerar o PDF'); else alert('Permita pop-ups para gerar o PDF'); return; }
+  win.document.open(); win.document.write(_paPdfHTML(id)); win.document.close();
+}
 function _paSetCompras(id,v){ _paCompras[id]=_num(v); _paRender(); }
 function _paRender(){
   const box=$('pa-card'); if(!box) return;
@@ -5981,7 +6059,7 @@ function _paRender(){
     return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' "não comprou" (cobradas — o entregador foi até o cliente)</div>':'')+'</div>';
   }).join('');
   box.innerHTML =
-    '<div class="pa-head"><div class="pa-title">💸 Pagamento — entregadores avulsos</div><button class="pa-copy" onclick="_paCopiar(\''+_paSel+'\')">⧉ Copiar resumo</button></div>'
+    '<div class="pa-head"><div class="pa-title">💸 Pagamento — entregadores avulsos</div><button class="pa-copy" onclick="gerarPDF(_paSel)">📄 PDF</button><button class="pa-copy" onclick="_paCopiar(\''+_paSel+'\')">⧉ Copiar resumo</button></div>'
     +'<div class="pa-tabs">'+sel+'</div>'
     +'<div class="pa-top"><div><div class="pa-top-lbl">'+esc(nomeMes)+' · até hoje</div><div class="pa-top-val">'+_brlPA(totalMes)+'</div><div class="pa-top-sub">'+nEnt+' entregas concluídas</div></div>'
       +'<div class="pa-net"><label>Comprou no mês <input type="number" inputmode="decimal" value="'+(comprou||'')+'" placeholder="0,00" onchange="_paSetCompras(\''+_paSel+'\',this.value)"></label>'
