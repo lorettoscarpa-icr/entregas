@@ -949,6 +949,27 @@
   .pa-falhas{font-size:11.5px;color:#e6a99a;padding:8px 14px;border-top:1px solid rgba(255,255,255,.05);background:rgba(224,106,82,.06)}
   .g-name-link{cursor:pointer;transition:color .15s} .g-name-link:hover{color:var(--gold-lt)}
   .g-name-go{font-size:11px;color:var(--gold);opacity:.85;white-space:nowrap}
+  .av{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:16px}
+  .av-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .av-head b{font-family:var(--ff-display,'Playfair Display',serif);font-size:17px;color:var(--gold-lt);font-weight:600;flex:1}
+  .av-cnt{background:var(--gold);color:var(--ink);font-weight:800;font-size:12px;min-width:24px;height:24px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 7px}
+  .av-row{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;border-left:3px solid transparent}
+  .av-row:last-child{border-bottom:none}
+  .av-row.blue{border-left-color:#8f9cd6} .av-row.pink{border-left-color:#cf8aa8} .av-row.teal{border-left-color:#6fc0b0} .av-row.amber{border-left-color:#e0b341}
+  .av-ic{font-size:18px;width:22px;text-align:center;flex:none}
+  .av-lbl{flex:1;font-size:14px;color:var(--text-soft)}
+  .av-rcnt{font-weight:700;font-size:13px;color:var(--text)}
+  .av-chev{color:var(--text-mute);font-size:15px;flex:none;transition:transform .15s}
+  .av-exp{background:rgba(0,0,0,.16);padding:2px 16px 12px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .av-note{font-size:12px;color:var(--text-mute);padding:9px 0 4px}
+  .av-exp .exp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .av-exp .exp-row:last-child{border-bottom:none}
+  .av-exp .exp-cli{font-size:13px;color:var(--text)} .av-exp .exp-cli small{display:block;color:var(--text-mute);font-size:11px;margin-top:1px}
+  .av-exp .acts{display:flex;gap:6px;flex-shrink:0;align-items:center}
+  .av-exp .wa{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--calm,#7fae6b),#5f9152);display:flex;align-items:center;justify-content:center}
+  .av-exp .wa svg{width:16px;height:16px}
+  .av-exp .mini{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:600;white-space:nowrap;cursor:pointer}
+  .av-exp .mini.prim{background:var(--gold);color:var(--ink);border-color:var(--gold)}
   .g-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
   .g-kpi{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--elev-1)}
   .g-kpi .lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-mute);margin-bottom:7px}
@@ -1095,8 +1116,7 @@
     <div id="busca-res"></div>
   </div>
 
-  <div id="reag-alerta"></div>
-  <div id="link-alerta"></div>
+  <div id="avisos"></div>
 
   <div class="kpis">
     <div class="kpi k-warn"><span class="kpi-ico">⏳</span><div class="lbl">Aguardando rota</div><div class="val" id="k-aguard">0</div></div>
@@ -2211,6 +2231,40 @@ function irParaEntrega(dia,id){
     const el = document.querySelector('[data-eid="'+id+'"]') || document.querySelector('[data-detfotos="'+id+'"]');
     if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); const card=el.closest('.card,.vcard')||el; card.style.transition='box-shadow .25s'; card.style.boxShadow='0 0 0 2px var(--gold)'; setTimeout(()=>{ card.style.boxShadow=''; },2200); }
   }, 380); }
+}
+/* ===== card único de Avisos (resumido, colapsável) — topo do painel ===== */
+let _avOpen={};
+function _avToggle(t){ _avOpen[t]=!_avOpen[t]; renderAvisos(); }
+function _avLinha(tipo,ic,cor,lbl,n,exp){
+  const open=!!_avOpen[tipo];
+  return '<div class="av-row '+cor+'" onclick="_avToggle(\''+tipo+'\')"><span class="av-ic">'+ic+'</span><span class="av-lbl">'+lbl+'</span><span class="av-rcnt">'+n+'</span><span class="av-chev"'+(open?' style="transform:rotate(90deg)"':'')+'>\u203a</span></div>'+(open?exp:'');
+}
+function renderAvisos(){
+  const box=$('avisos'); if(!box) return;
+  if(session && session.role==='entregador'){ box.innerHTML=''; return; }
+  const hoje=dateKey(), lim48=Date.now()-48*3600*1000;
+  const pend=entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e)<hoje && _podeVerBusca(e) && !e.pendResolvido && !e.pendDescartado && !pendDismissed.has(e.id));
+  const resolver=entregas.filter(e=>['nao_entregue','cancelado'].includes(e.status) && _podeVerBusca(e) && !e.alertaResolverVisto && (Date.now()-(e.desfechoEm||0)<4*864e5)).sort((a,b)=>(b.desfechoEm||0)-(a.desfechoEm||0));
+  const link=entregas.filter(e=>e.status==='entregue' && !e.linkConferido && (e.pagamento==='link'||e.pagamento2==='link') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+  const reag=entregas.filter(e=>e.reagendadaEm && e.reagendadaEm>lim48 && e.status!=='entregue' && e.status!=='cancelado' && _podeVerBusca(e)).sort((a,b)=>b.reagendadaEm-a.reagendadaEm);
+  const total=pend.length+resolver.length+link.length+reag.length;
+  if(!total){ box.innerHTML=''; return; }
+  let rows='';
+  if(pend.length) rows+=_avLinha('pend','\u26a0\ufe0f','blue','Entregas de dias anteriores sem resolver',pend.length,
+    '<div class="av-exp"><div class="av-note">Não foram entregues nem colocadas em rota.</div><button class="mini prim" onclick="abrirPendencias()">\ud83d\udd0d Verificar uma a uma</button></div>');
+  if(resolver.length){
+    const li=resolver.map(e=>'<div class="exp-row"><span class="exp-cli">'+esc(e.cliente||'(sem nome)')+'<small>'+(e.status==='cancelado'?'não comprou':'não entregue')+(e.motivo?' · '+esc(e.motivo):'')+'</small></span><span class="acts">'+(waNumero(e.contato)?'<a class="wa" href="https://wa.me/'+waNumero(e.contato)+'" target="_blank" onclick="event.stopPropagation()">'+WA_ICON+'</a>':'')+'<button class="mini" onclick="marcarResolvido(\''+e.id+'\')">\u2713 resolvi</button></span></div>').join('');
+    rows+=_avLinha('resolver','\ud83d\udcde','pink','Entregas que não deram certo',resolver.length,'<div class="av-exp">'+li+'</div>');
+  }
+  if(link.length){
+    const li=link.map(e=>{ const v=(e.pagamentoValores&&e.pagamentoValores.link)?_brl(e.pagamentoValores.link):(e.valor?('R$ '+e.valor):''); return '<div class="exp-row"><span class="exp-cli" onclick="irParaEntrega(\''+dataDe(e)+'\')" style="cursor:pointer">'+esc(e.cliente||'(sem nome)')+'<small>'+esc(rotuloDia(dataDe(e)))+(v?' · '+v:'')+' · confira se caiu</small></span><span class="acts"><button class="mini prim" onclick="confirmarLink(\''+e.id+'\')">\u2713 confirmar</button></span></div>'; }).join('');
+    rows+=_avLinha('link','\ud83d\udd17','teal','Pagamentos via link para conferir',link.length,'<div class="av-exp">'+li+'</div>');
+  }
+  if(reag.length){
+    const li=reag.map(e=>'<div class="exp-row" onclick="irParaEntrega(\''+dataDe(e)+'\')" style="cursor:pointer"><span class="exp-cli">'+esc(e.cliente||'(sem nome)')+'<small>'+(e.reagendadaDe?('era '+esc(rotuloDia(e.reagendadaDe))+' \u2192 '):'')+esc(rotuloDia(dataDe(e)))+(e.reagendadaPor?' · por '+esc(e.reagendadaPor):'')+'</small></span></div>').join('');
+    rows+=_avLinha('reag','\ud83d\udcc5','amber','Entregas reagendadas nas últimas 48h',reag.length,'<div class="av-exp">'+li+'</div>');
+  }
+  box.innerHTML='<div class="av"><div class="av-head"><b>\ud83d\udd14 Avisos</b><span class="av-cnt">'+total+'</span></div>'+rows+'</div>';
 }
 /* aviso pra vendedora conferir pagamentos feitos via link */
 function renderLinkAlerta(){
@@ -4272,7 +4326,7 @@ function render(){
       </div>
     </div>`;
   }
-  $('alertas').innerHTML = alertasHTML;
+  $('alertas').innerHTML = ''; renderAvisos();
 
   // mantém o mapa em sincronia
   if(mapInited && $('view-mapa').style.display!=='none') renderMap();
