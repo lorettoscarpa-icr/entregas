@@ -3314,6 +3314,11 @@ function persist(){
       if(!_fbSynced && !ehPend) return;
       const j=JSON.stringify(e);
       if(_shadow[e.id]!==j){
+        // GUARDA ANTI-REGRESSÃO: não rebaixar p/ em_rota/aguardando uma entrega que a NUVEM já tinha como finalizada,
+        // a não ser que tenha havido reabertura/reagendamento explícito MAIS NOVO que a finalização.
+        try{ const cloudPrev = _shadow[e.id] ? JSON.parse(_shadow[e.id]) : null;
+          if(cloudPrev && _finalizada(cloudPrev) && !_finalizada(e) && _reabreStamp(e) <= _finalStamp(cloudPrev)) return;
+        }catch(_){}
         e.atualizadoEm=Date.now();                  // carimbo de recência: na mesclagem, a mudança mais nova vence
         const j2=JSON.stringify(e);
         _shadow[e.id]=j2; _pend[e.id]=e.atualizadoEm;
