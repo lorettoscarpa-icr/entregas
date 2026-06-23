@@ -977,6 +977,16 @@
   .pa-mini{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;flex:1}
   .pa-mini:active{transform:scale(.97)}
   .pegar-atrasada{background:rgba(224,179,65,.18);color:#e8c766;border:1px solid rgba(224,179,65,.45);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700}
+  .ag{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:16px}
+  .ag-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);border-left:3px solid #8f9cd6}
+  .ag-head b{font-family:var(--ff-display,'Playfair Display',serif);font-size:17px;color:var(--gold-lt);font-weight:600;flex:1}
+  .ag-cnt{background:rgba(143,156,214,.9);color:#10160a;font-weight:800;font-size:12px;min-width:24px;height:24px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 7px}
+  .ag-day{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#a9c0e6;font-weight:700;padding:11px 16px 5px;background:rgba(143,156,214,.06)}
+  .ag-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid rgba(255,255,255,.05);cursor:pointer}
+  .ag-dot{width:8px;height:8px;border-radius:50%;background:#8f9cd6;flex:none}
+  .ag-info{flex:1}.ag-cli{font-size:14px;color:var(--text)}.ag-meta{font-size:11.5px;color:var(--text-mute);margin-top:1px}
+  .ag-tag{font-size:10.5px;font-weight:700;color:#cdb65f;background:rgba(212,180,90,.14);border:1px solid var(--line-strong);border-radius:6px;padding:2px 7px;white-space:nowrap}
+  .ag-tag.rem{color:#a9c0e6;background:rgba(143,156,214,.14);border-color:rgba(143,156,214,.4)}
   .g-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
   .g-kpi{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--elev-1)}
   .g-kpi .lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-mute);margin-bottom:7px}
@@ -1124,6 +1134,7 @@
   </div>
 
   <div id="avisos"></div>
+  <div id="agendadas"></div>
 
   <div class="kpis">
     <div class="kpi k-warn"><span class="kpi-ico">⏳</span><div class="lbl">Aguardando rota</div><div class="val" id="k-aguard">0</div></div>
@@ -1347,6 +1358,7 @@
       <div id="busca-res-ent"></div>
     </div>
     <div id="ent-alertas"></div>
+    <div id="ent-agendadas"></div>
     <div class="ent-tabs">
       <button class="ent-tab" id="ent-tab-aguard" onclick="setEntTab('aguard')">📥 Aguardando rota<span class="ent-tab-c" id="c-tab-aguard"></span></button>
       <button class="ent-tab on" id="ent-tab-rota" onclick="setEntTab('rota')">🛵 Minha rota<span class="ent-tab-c" id="c-tab-rota"></span></button>
@@ -2251,6 +2263,34 @@ function irParaEntrega(dia,id){
     const el = document.querySelector('[data-eid="'+id+'"]') || document.querySelector('[data-detfotos="'+id+'"]');
     if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); const card=el.closest('.card,.vcard')||el; card.style.transition='box-shadow .25s'; card.style.boxShadow='0 0 0 2px var(--gold)'; setTimeout(()=>{ card.style.boxShadow=''; },2200); }
   }, 380); }
+}
+/* ===== card "Entregas agendadas" (próximos 7 dias) — vendedora vê as dela, entregador as reservadas pra ele, gestor todas ===== */
+function renderAgendadas(){
+  const ehEnt = !!(session && session.role==='entregador');
+  const box = ehEnt ? $('ent-agendadas') : $('agendadas');
+  const other = ehEnt ? $('agendadas') : $('ent-agendadas');
+  if(other) other.innerHTML='';
+  if(!box) return;
+  const hoje=todayKey();
+  const lim=dateKey(new Date(Date.now()+7*864e5));
+  const ag = entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e)>hoje && dataDe(e)<=lim && _podeVerBusca(e))
+    .sort((a,b)=>{ const da=dataDe(a),db=dataDe(b); return da<db?-1:da>db?1:(a.criadoEm||0)-(b.criadoEm||0); });
+  if(!ag.length){ box.innerHTML=''; return; }
+  const grupos={}; ag.forEach(e=>{ const k=dataDe(e); (grupos[k]=grupos[k]||[]).push(e); });
+  const dias=Object.keys(grupos).sort();
+  const corpo = dias.map(k=>{
+    const linhas = grupos[k].map(e=>{
+      const remarcada = !!e.reagendadaEm;
+      const tag = remarcada ? '<span class="ag-tag rem">🔁 '+(ehEnt?'você remarcou':'remarcada')+'</span>' : '';
+      const addr=[e.bairro,e.cidade].filter(Boolean).join(' - ');
+      const hor=(e.horarioTipo&&e.horarioHora)?('⏰ '+hrTxt(e)):'';
+      const meta=[addr?esc(addr):'', hor?esc(hor):''].filter(Boolean).join(' · ');
+      const nav = ehEnt ? ("setDiaEnt('"+k+"')") : ("irParaEntrega('"+k+"')");
+      return '<div class="ag-row" onclick="'+nav+'"><span class="ag-dot"></span><div class="ag-info"><div class="ag-cli">'+esc(e.cliente||'(sem nome)')+'</div>'+(meta?'<div class="ag-meta">'+meta+'</div>':'')+'</div>'+tag+'</div>';
+    }).join('');
+    return '<div class="ag-day">'+esc(rotuloDia(k))+'</div>'+linhas;
+  }).join('');
+  box.innerHTML = '<div class="ag"><div class="ag-head"><b>📅 Entregas agendadas</b><span class="ag-cnt">'+ag.length+'</span></div>'+corpo+'</div>';
 }
 /* ===== card único de Avisos (resumido, colapsável) — topo do painel ===== */
 let _avOpen={};
@@ -3360,7 +3400,9 @@ function confirmarReag(){
   if(antiga && antiga!==nova) e.reagendadaDe = antiga;          // guarda de qual dia veio
   e.reagendadaEm = Date.now();
   e.reagendadaPor = session ? (session.vendedora || (session.role==='entregador' ? ((ENT[session.entregador]||{}).nome||'entregador') : session.role)) : '';
-  e.dataEntrega=nova; e.status='aguardando'; e.entregador=null; e.roteadoEm=null;
+  e.dataEntrega=nova;
+  if(session && session.role==='entregador'){ e.status='em_rota'; e.entregador=session.entregador; e.roteadoEm=Date.now(); }
+  else { e.status='aguardando'; e.entregador=null; e.roteadoEm=null; }
   e.motivo=''; e.desfechoEm=null;
   persist(); diaAtivo=nova; animateNext(); render();
   if(session && session.role==='entregador') renderEntregador();
@@ -4346,7 +4388,7 @@ function render(){
       </div>
     </div>`;
   }
-  $('alertas').innerHTML = ''; renderAvisos();
+  $('alertas').innerHTML = ''; renderAvisos(); renderAgendadas();
 
   // mantém o mapa em sincronia
   if(mapInited && $('view-mapa').style.display!=='none') renderMap();
@@ -5311,6 +5353,7 @@ function cardPegar(e){
 function renderEntregador(){
   const ent=ENT[session.entregador]; if(!ent) return;
   { const _bmp=$('btn-meu-pag'); if(_bmp) _bmp.style.display = (typeof PA_AVULSOS!=='undefined' && PA_AVULSOS.indexOf(session.entregador)>=0) ? '' : 'none'; }
+  renderAgendadas();
   renderDayNavEnt();
   const items=minhasEntregas();
   const aguard=entAguardando();
