@@ -3906,11 +3906,11 @@ function trazerUmaPendEnt(id){
 }
 function concluirTodasPendEnt(){
   const _hoje=todayKey();
-  const pend = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !e.pendResolvido && !e.pendDescartado && (typeof pendDismissed==='undefined' || !pendDismissed.has(e.id)));
+  const pend = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && (typeof pendDismissed==='undefined' || !pendDismissed.has(e.id)));
   if(!pend.length){ toast('Nenhuma pendência pra concluir'); return; }
   if(!confirm(`Concluir ${pend.length} entrega(s) antiga(s) como ENTREGUES?\n\nUse só pras que você já entregou de verdade.`)) return;
   const agora=Date.now();
-  pend.forEach(e=>{ e.status='entregue'; if(!e.entregueEm) e.entregueEm=agora; e.reabertoEm=null; e.aCaminhoDe=null; });
+  pend.forEach(e=>{ e.status='entregue'; if(!e.entregueEm) e.entregueEm=agora; e.reabertoEm=null; e.aCaminhoDe=null; e.pendResolvido=false; e.pendDescartado=false; });
   persist(); renderEntregador();
   toast(`${pend.length} entrega(s) concluída(s) ✓`);
 }
