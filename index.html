@@ -5418,7 +5418,7 @@ function renderEntregador(){
   const cR=$('c-tab-rota'), cA=$('c-tab-aguard'), cP=$('c-tab-pend');
   if(cR) cR.textContent = items.length ? ` ${items.length}` : '';
   if(cA) cA.textContent = aguard.length ? ` ${aguard.length}` : '';
-  const pendEntTab = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !e.pendResolvido && !e.pendDescartado);
+  const pendEntTab = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !pendDismissed.has(e.id));
   if(cP) cP.textContent = pendEntTab.length ? ` ${pendEntTab.length}` : '';
   $('ent-tab-rota').classList.toggle('on', entTab==='rota');
   $('ent-tab-aguard').classList.toggle('on', entTab==='aguard');
