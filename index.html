@@ -713,6 +713,18 @@
   .pend-b.sis{flex:none;background:rgba(212,180,90,.18);color:var(--gold-lt);border-color:var(--line-strong);font-weight:600;padding:7px 16px}
   .pend-b.no{background:rgba(224,106,82,.14);color:#e6a99a;border-color:rgba(224,106,82,.42)}
   .pend-concluir{display:block;width:100%;margin:4px 0 12px;padding:11px;border-radius:11px;background:rgba(127,174,107,.2);color:var(--calm);border:1px solid rgba(127,174,107,.5);font-weight:700;font-size:14px;cursor:pointer;font-family:var(--ff-body)}
+  .gps-bar{display:flex;align-items:center;gap:10px;border-radius:11px;padding:10px 13px;margin:0 0 11px;font-size:13.5px;font-family:var(--ff-body)}
+  .gps-bar .gps-dot{width:11px;height:11px;border-radius:50%;flex:none}
+  .gps-bar .gps-tx{flex:1;line-height:1.34}
+  .gps-bar .gps-tx b{display:block}
+  .gps-bar .gps-tx small{color:var(--text-soft);font-size:11.5px;display:block;margin-top:1px}
+  .gps-bar button{flex:none;border:none;border-radius:9px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--ff-body)}
+  .gps-bar.on{background:rgba(127,174,107,.13);border:1px solid rgba(127,174,107,.4)}
+  .gps-bar.on .gps-dot{background:#7fae6b;animation:gpspulse 1.8s infinite}
+  .gps-bar.off{background:rgba(224,106,82,.12);border:1px solid rgba(224,106,82,.42)}
+  .gps-bar.off .gps-dot{background:#e06a52}
+  .gps-bar.off button{background:#e06a52;color:#fff}
+  @keyframes gpspulse{0%,100%{opacity:1}50%{opacity:.3}}
   .pend-val{font-family:var(--ff-mono,'DM Mono',monospace);font-size:12.5px;color:var(--gold-lt);background:rgba(212,180,90,.12);border:1px solid var(--line);border-radius:7px;padding:1px 7px;white-space:nowrap}
   .pend-part{display:flex;align-items:center;gap:11px;margin:0 0 13px;padding:11px 14px;background:linear-gradient(135deg,rgba(212,180,90,.16),rgba(212,180,90,.045));border:1px solid var(--line-strong);border-radius:13px;cursor:pointer;user-select:none}
   .pend-part:hover{background:linear-gradient(135deg,rgba(212,180,90,.22),rgba(212,180,90,.07))}
@@ -1360,6 +1372,7 @@
       <div id="busca-res-ent"></div>
     </div>
     <div id="ent-alertas"></div>
+    <div id="ent-gps-bar"></div>
     <div id="ent-agendadas"></div>
     <div class="ent-tabs">
       <button class="ent-tab" id="ent-tab-aguard" onclick="setEntTab('aguard')">📥 Aguardando rota<span class="ent-tab-c" id="c-tab-aguard"></span></button>
@@ -2408,6 +2421,9 @@ function formatPhone(d){
   if(d.length===10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
   return d;
 }
+// DDDs brasileiros que realmente existem (recusa números com DDD inventado, ex: 25)
+const DDDS_BR = new Set(['11','12','13','14','15','16','17','18','19','21','22','24','27','28','31','32','33','34','35','37','38','41','42','43','44','45','46','47','48','49','51','53','54','55','61','62','63','64','65','66','67','68','69','71','73','74','75','77','79','81','82','83','84','85','86','87','88','89','91','92','93','94','95','96','97','98','99']);
+function dddValido(d2){ return DDDS_BR.has(d2); }
 // monta o número p/ link do WhatsApp: tira o 55, insere o 9 do celular se faltar (detecta pela qtd de dígitos)
 function waNumero(raw){
   let d=(raw||'').replace(/\D/g,'');
@@ -2416,7 +2432,10 @@ function waNumero(raw){
   d=d.replace(/^0+/,'');                                  // remove zeros à esquerda (ex: 062)
   if(d.length===8 || d.length===9) d='62'+d;             // veio sem DDD → assume Goiânia (62)
   if(d.length===10) d=d.slice(0,2)+'9'+d.slice(2);        // DDD + 8 dígitos → falta o 9 do celular, insere
-  return d.length===11 ? '55'+d : '';                     // só gera link quando o número está completo
+  if(d.length!==11) return '';                            // fora do padrão → não gera link
+  if(!dddValido(d.slice(0,2))) return '';                 // DDD inexistente → recusa (evita número quebrado)
+  if(d[2]!=='9') return '';                               // celular válido tem o 9 → senão recusa
+  return '55'+d;
 }
 function looksPhone(raw){
   let d=(raw||'').replace(/\D/g,'');
@@ -2979,6 +2998,8 @@ function _foneDigits(raw){
 function analisarFone(raw){
   const d=_foneDigits(raw);
   if(!d) return {d:'', tipo:'vazio', fmt:'', ok:true, msg:''};
+  if((d.length===10 || d.length===11) && !dddValido(d.slice(0,2)))
+    return {d, tipo:'invalido', fmt:d, ok:false, msg:`⚠ DDD ${d.slice(0,2)} não existe — confira o número`};
   if(d.length===10){
     if('6789'.includes(d[2])){ const m=d.slice(0,2)+'9'+d.slice(2); return {d:m, tipo:'celular', fmt:`(${m.slice(0,2)}) ${m.slice(2,7)}-${m.slice(7)}`, ok:true, msg:'✓ celular (incluí o 9)'}; } // DDD + 8 começando com 6/7/8/9 = celular sem o 9 → insere o 9
     return {d, tipo:'fixo', fmt:`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`, ok:true, msg:'✓ fixo'};
@@ -5248,6 +5269,7 @@ function fcard(e){
         ? `<div class="frow"><span class="ico">🎁</span><span><b>Presente</b>${e.produtoEntregue?` — ${esc(e.produtoEntregue)}`:''}</span></div>`
         : (e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
       ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
+      ${e.obsProduto?`<div class="frow"><span class="ico">📝</span><span><b>Obs. do entregador:</b> ${esc(e.obsProduto)}</span></div>`:''}
     </div></div>
 
     <div class="fcard-sec-h">💳 Pagamento</div>
@@ -5271,7 +5293,22 @@ function fcard(e){
 
 let entCoord=null; // localização atual do entregador (GPS), quando disponível
 /* ===== rastreio ao vivo: o entregador transmite a posição pro Firebase ===== */
-let _watchId=null, _wakeLock=null, _lastBroadcast=0;
+let _watchId=null, _wakeLock=null, _lastBroadcast=0, _gpsEstado='idle';
+function renderGpsBar(){
+  const el=$('ent-gps-bar'); if(!el) return;
+  if(!session || session.role!=='entregador'){ el.className=''; el.innerHTML=''; return; }
+  if(_gpsEstado==='sem-rota'){ el.className=''; el.innerHTML=''; return; }   // sem rota hoje: não precisa transmitir
+  if(_gpsEstado==='on'){
+    el.className='gps-bar on';
+    el.innerHTML='<span class="gps-dot"></span><div class="gps-tx"><b>📍 Localização ligada</b><small>Você aparece no mapa ao vivo pra loja e pros clientes.</small></div>';
+    return;
+  }
+  el.className='gps-bar off';
+  const msg = _gpsEstado==='negado'
+    ? 'A permissão está bloqueada. Toque no 🔒 ao lado do endereço do site → Localização → Permitir, e recarregue a página.'
+    : 'Você não aparece no mapa pra loja. Toque em Ativar pra começar a transmitir.';
+  el.innerHTML='<span class="gps-dot"></span><div class="gps-tx"><b>⚠️ Localização desligada</b><small>'+msg+'</small></div><button onclick="usarMinhaLocalizacao(false)">Ativar</button>';
+}
 async function pedirWakeLock(){
   try{ if('wakeLock' in navigator && !_wakeLock){ _wakeLock=await navigator.wakeLock.request('screen'); _wakeLock.addEventListener('release',()=>{ _wakeLock=null; }); } }catch(e){}
 }
@@ -5287,20 +5324,22 @@ function transmitirPosicao(c){
 }
 function iniciarRastreio(){
   if(session.role!=='entregador' || !navigator.geolocation) return;
-  if(rotaEntHoje().length===0){ pararRastreio(); return; }   // sem rota hoje → não transmite
+  if(rotaEntHoje().length===0){ _gpsEstado='sem-rota'; renderGpsBar(); pararRastreio(); return; }   // sem rota hoje → não transmite
   pedirWakeLock();
   if(_watchId!=null) return;                                     // já está transmitindo
   _watchId = navigator.geolocation.watchPosition(
     pos=>{
       entCoord={lat:pos.coords.latitude, lng:pos.coords.longitude};
+      _gpsEstado='on';
       const agora=Date.now();
       if(agora-_lastBroadcast >= 60000){      // transmite a cada ~1 min (leve, sem pesar o site)
         _lastBroadcast=agora;
         transmitirPosicao(pos.coords);
         renderEntregador();                    // atualiza ordem/ETA dele
       }
+      renderGpsBar();
     },
-    err=>{ /* permissão negada/sem sinal — segue sem rastreio ao vivo */ },
+    err=>{ _gpsEstado=(err && err.code===1)?'negado':'erro'; renderGpsBar(); },   // permissão negada/sem sinal — avisa o entregador
     {enableHighAccuracy:true, maximumAge:30000, timeout:20000}
   );
 }
@@ -5525,6 +5564,7 @@ function renderEntregador(){
   $('ent-list').innerHTML=alerta + semLocHTML + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
+  renderGpsBar();
 }
 function msgPadrao(){
   const ent=ENT[session.entregador]; const nome=ent?ent.nome:'';
