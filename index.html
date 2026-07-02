@@ -3563,12 +3563,7 @@ function renderPayOpts(){
 }
 function renderCartaoTipo(){
   const wrap=$('pay-cartao'); if(!wrap) return;
-  if(!paySel.includes('cartao')){ wrap.innerHTML=''; return; }
-  wrap.innerHTML = `<label class="pay-val-lbl">💳 Cartão — crédito ou débito? *</label>
-    <div class="cartao-tipo">
-      <button type="button" class="ctp ${payCartaoTipo==='credito'?'on':''}" onclick="setCartaoTipo('credito')">Crédito</button>
-      <button type="button" class="ctp ${payCartaoTipo==='debito'?'on':''}" onclick="setCartaoTipo('debito')">Débito</button>
-    </div>`;
+  wrap.innerHTML='';   // crédito/débito removido da tela — a vendedora confere o tipo pela foto do comprovante
 }
 function setCartaoTipo(t){ payCartaoTipo = (payCartaoTipo===t)?null:t; renderCartaoTipo(); }
 function renderTaxa(){
@@ -3738,7 +3733,7 @@ function confirmarPagamento(){
     else if(cobrandoAlgo) faltaPag.push('Forma de pagamento (você marcou um valor a cobrar)');
     // troca/coleta sem cobrança → não exige forma
   }
-  if(paySel.includes('cartao') && !payCartaoTipo) faltaPag.push('No cartão: marcar crédito ou débito');
+  if(paySel.includes('cartao') && !payCartaoTipo) { /* crédito/débito não é obrigatório: a vendedora confere pela foto do comprovante */ }
   if(prodModo==='manual'){
     if(!prodItens.length){ if(!payTroca) faltaProd.push('Produto que o cliente ficou'); }   // troca/coleta: produto opcional
     else prodItens.forEach((it,i)=>{
