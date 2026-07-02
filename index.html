@@ -594,6 +594,13 @@
   .pay-taxa-row.on{background:rgba(224,179,65,.14);border-color:var(--warn)}
   .pay-taxa-box{flex:0 0 auto;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--bg)}
   .pay-taxa-row.on .pay-taxa-box{background:var(--warn);border-color:var(--warn)}
+  .pay-troca{display:flex;align-items:center;gap:11px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px;cursor:pointer;transition:.15s;margin-bottom:14px}
+  .pay-troca:hover{border-color:var(--line-strong)}
+  .pay-troca.on{background:rgba(143,156,214,.14);border-color:#8f9cd6}
+  .pay-troca-box{flex:0 0 auto;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
+  .pay-troca.on .pay-troca-box{background:#8f9cd6;border-color:#8f9cd6}
+  .pay-troca-tx{display:flex;flex-direction:column;line-height:1.3}
+  .pay-troca-tx small{color:var(--text-mute);font-size:11.5px;margin-top:2px}
   .pay-taxa-txt{flex:1;font-size:13px;color:var(--text-soft);line-height:1.3}
   .pay-taxa-txt b{color:var(--text)}
   .pay-taxa-val{flex:0 0 auto;font-family:var(--ff-eyebrow);font-weight:600;color:var(--warn)}
@@ -1580,6 +1587,10 @@
 <div class="modal-bg" id="pay-modal">
   <div class="modal">
     <h3>Finalizar entrega</h3>
+    <div class="pay-troca" id="pay-troca" onclick="togglePayTroca()">
+      <span class="pay-troca-box" id="pay-troca-box"></span>
+      <span class="pay-troca-tx"><b>🔁 Troca/Coleta</b><small>Produto e comprovante ficam opcionais. Só escolha a forma de pagamento se cobrar a taxa.</small></span>
+    </div>
     <div class="fin-bloco">
       <div class="fin-bloco-h">💳 Pagamento</div>
       <p class="fin-bloco-sub">Como o cliente pagou? <span style="color:var(--text-mute);font-size:12px">— pode marcar até 2 formas</span></p>
@@ -1590,10 +1601,11 @@
       <div id="pay-total"></div>
       <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:14px 0 6px" id="pay-foto-lbl">Foto do pagamento</label>
       <input type="file" id="pay-foto" accept="image/*" capture="environment" onchange="carregarComprovante(this)" style="display:none">
-      <input type="file" id="pay-foto-arq" accept="image/*" onchange="carregarComprovante(this)" style="display:none">
+      <input type="file" id="pay-foto-arq" accept="image/*" multiple onchange="carregarComprovante(this)" style="display:none">
       <div class="pay-foto-btns">
         <button type="button" class="btn pay-cam-btn" id="pay-cam-btn" onclick="document.getElementById('pay-foto').click()">📷 Tirar foto</button>
         <button type="button" class="btn pay-cam-btn" id="pay-arq-btn" onclick="document.getElementById('pay-foto-arq').click()">🖼️ Galeria</button>
+        <button type="button" class="btn pay-cam-btn" id="pay-colar-btn" onclick="colarComprovante()">📋 Colar</button>
       </div>
       <div id="pay-foto-prev"></div>
       <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:16px 0 6px">Observação do pagamento (opcional)</label>
@@ -3485,7 +3497,7 @@ function toggleSel(id){
   if(selected.has(id)) selected.delete(id); else selected.add(id);
   render();
 }
-let payId=null, paySel=[], payFotos=[], payVal={}, payCartaoTipo=null, payTaxa=false, payTaxaVal=0;
+let payId=null, paySel=[], payFotos=[], payVal={}, payCartaoTipo=null, payTaxa=false, payTaxaVal=0, payTroca=false;
 let payTrocoTeve=null, payTrocoVal='';   // dinheiro: teve troco? quanto foi devolvido
 function _num(v){ v=String(v||'').replace(/[^\d.,]/g,''); if(v.includes(',')) v=v.replace(/\./g,'').replace(',', '.'); const n=parseFloat(v); return isNaN(n)?0:n; }
 // máscara de dinheiro: os 2 últimos dígitos viram centavos automaticamente (digita 28990 -> 289,90)
@@ -3517,6 +3529,7 @@ function abrirPagamento(id){
     payTaxaVal = taxaDe(e) || 0;               // sugere o do cadastro/cidade; senão, fica em branco p/ digitar
     payTaxa = taxaDe(e) > 0;                    // já marca a taxa quando a venda foi cadastrada com taxa
   }
+  payTroca = !!(e && (e.tipo==='troca' || e.tipo==='coleta'));   // troca/coleta: produto e comprovante ficam opcionais
   // bloco "produto que ficou": começa vazio (o entregador escreve; não puxa da vendedora)
   prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0;
   prodCadastro = (e && e.produto) || '';
@@ -3529,6 +3542,7 @@ function abrirPagamento(id){
   }
   renderProdItens();
   renderProdModo();
+  renderPayTroca();
   $('pay-note').value = (e && e.pagamentoObs) || '';
   { const pn=$('prod-note'); if(pn) pn.value = (e && e.obsProduto) || ''; }
   payTrocoTeve = (e && e.troco!=null) ? true : null;
@@ -3571,6 +3585,13 @@ function renderTaxa(){
 }
 function toggleTaxa(){ payTaxa=!payTaxa; renderTaxa(); renderTotal(); }
 function setPayTaxaVal(v){ payTaxaVal = _num(v); renderTotal(); }   // edição livre do valor, sem re-render do campo (não perde o foco)
+function renderPayTroca(){
+  const w=$('pay-troca'), b=$('pay-troca-box'); if(!w) return;
+  w.classList.toggle('on', !!payTroca);
+  if(b) b.textContent = payTroca ? '✓' : '';
+  const lbl=$('pay-foto-lbl'); if(lbl) lbl.textContent = payTroca ? 'Foto do pagamento (opcional na troca)' : 'Foto do pagamento';
+}
+function togglePayTroca(){ payTroca=!payTroca; renderPayTroca(); }
 function escolherPag(m){
   if(PAG_SEM_COBRANCA.includes(m)){ paySel = paySel.includes(m) ? [] : [m]; }   // exclusiva
   else {
@@ -3666,9 +3687,10 @@ async function comprimirComprovante(file){
   return ultimo;
 }
 function carregarComprovante(input){
-  const f=input.files && input.files[0]; if(!f) return;
-  comprimirComprovante(f).then(b64=>{ payFotos.push(b64); renderPayFotos(); }).catch(()=>toast('Não consegui ler a imagem'));
-  input.value='';   // permite escolher/tirar outra em seguida
+  const files = input.files ? Array.from(input.files) : [];
+  if(!files.length) return;
+  files.forEach(f=>{ comprimirComprovante(f).then(b64=>{ payFotos.push(b64); renderPayFotos(); }).catch(()=>toast('Não consegui ler a imagem')); });
+  input.value='';   // permite escolher/tirar outras em seguida
 }
 // colar o comprovante direto da área de transferência (ex: print do WhatsApp copiado)
 async function colarComprovante(){
@@ -3709,10 +3731,16 @@ function confirmarPagamento(){
   const e=entregas.find(x=>x.id===payId); if(!e){ closePay(); return; }
   // junta o que falta, separado em PAGAMENTO e PRODUTO, e mostra de uma vez no pop-up
   const faltaPag=[], faltaProd=[];
-  if(!paySel.length) faltaPag.push('Forma de pagamento');
+  // troca/coleta: cobrando algo? (taxa ou algum valor por forma) — só aí exige forma de pagamento
+  const cobrandoAlgo = (payTaxa && _num(payTaxaVal)>0) || Object.values(payVal||{}).some(v=>_num(v)>0);
+  if(!paySel.length){
+    if(!payTroca) faltaPag.push('Forma de pagamento');
+    else if(cobrandoAlgo) faltaPag.push('Forma de pagamento (você marcou um valor a cobrar)');
+    // troca/coleta sem cobrança → não exige forma
+  }
   if(paySel.includes('cartao') && !payCartaoTipo) faltaPag.push('No cartão: marcar crédito ou débito');
   if(prodModo==='manual'){
-    if(!prodItens.length) faltaProd.push('Produto que o cliente ficou');
+    if(!prodItens.length){ if(!payTroca) faltaProd.push('Produto que o cliente ficou'); }   // troca/coleta: produto opcional
     else prodItens.forEach((it,i)=>{
       if(!it.num) faltaProd.push(`Produto ${i+1}: numeração`);
       if(!it.foto && !(it.legenda||'').trim()) faltaProd.push(`Produto ${i+1}: descrição ou foto`);
@@ -3722,10 +3750,11 @@ function confirmarPagamento(){
   // muitas vezes o entregador só entregou (ex.: já estava pago) e não sabe o item.
   const semCob = paySel.length>0 && paySel.every(m=>PAG_SEM_COBRANCA.includes(m));
   const semFoto = paySel.length>0 && paySel.every(m=>PAG_SEM_FOTO.includes(m));
-  if(!semFoto && !payFotos.length && !e.temComprovante) faltaPag.push('Foto do pagamento (comprovante)');
+  if(!semFoto && !payFotos.length && !e.temComprovante && !payTroca) faltaPag.push('Foto do pagamento (comprovante)');   // troca/coleta: comprovante opcional
   if(faltaPag.length || faltaProd.length){ mostrarFaltando(faltaPag, faltaProd); return; }
   const corrigindo = e.status==='entregue';
   e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now(); e.reabertoEm=null; e.aCaminhoDe=null;
+  if(payTroca && e.tipo!=='troca' && e.tipo!=='coleta') e.tipo='troca';   // marcado como troca na finalização
   e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
   e.obsProduto = ($('prod-note')?$('prod-note').value.trim():'') || '';
   e.troco = (paySel.includes('dinheiro') && payTrocoTeve===true) ? (_num(payTrocoVal)||0) : null;
