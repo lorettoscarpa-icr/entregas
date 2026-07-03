@@ -715,6 +715,8 @@
   .pend-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
   .pend-b{flex:1;min-width:96px;border-radius:9px;padding:7px 8px;font-size:12.5px;font-family:var(--ff-body);cursor:pointer;border:1px solid var(--line-strong);background:var(--surface-3);color:var(--text-soft);transition:.15s}
   .pend-b.reag{background:rgba(142,156,214,.14);color:#aab4e8;border-color:rgba(142,156,214,.42)}
+  .pend-b.wa{flex:none;background:linear-gradient(135deg,#7fae6b,#5f9152);color:#16210f;border-color:rgba(127,174,107,.5);font-weight:600;padding:7px 12px}
+  .pend-b.wa svg{width:14px;height:14px;vertical-align:-2px;margin-right:4px}
   .pend-b.ok{background:rgba(127,174,107,.16);color:var(--calm);border-color:rgba(127,174,107,.42)}
   .pend-b.desc{background:rgba(138,145,122,.14);color:var(--text-soft);border-color:rgba(138,145,122,.42)}
   .pend-b.sis{flex:none;background:rgba(212,180,90,.18);color:var(--gold-lt);border-color:var(--line-strong);font-weight:600;padding:7px 16px}
@@ -3888,6 +3890,7 @@ function renderPendentes(){
           return `<div class="pend-row">
             <div class="pend-info"><b>${esc(e.cliente)}</b><small>há ${dias} dia${dias>1?'s':''}${ent}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}${mot}</small></div>
             <div class="pend-acts">
+              ${pendWaBtns(e)}
               <button class="pend-b reag" onclick="pendReag('${e.id}')">🔁 Reagendar</button>
               <button class="pend-b ok" onclick="pendResolver('${e.id}')">✓ Resolvido</button>
               <button class="pend-b desc" onclick="pendDescartar('${e.id}')">Descartar</button>
@@ -3918,6 +3921,7 @@ function renderPendModal(){
         return `<div class="pend-row">
           <div class="pend-info"><b>${esc(e.cliente)}</b><small>há ${dias} dia${dias>1?'s':''}${ent}${e.bairro?` · ${esc(e.bairro)}`:''}</small></div>
           <div class="pend-acts">
+            ${pendWaBtns(e)}
             <button class="pend-b reag" onclick="pendReag('${e.id}')">🔁 Reagendar</button>
             <button class="pend-b ok" onclick="pendResolver('${e.id}')">✓ Resolvido</button>
             <button class="pend-b desc" onclick="pendDescartar('${e.id}')">Descartar</button>
@@ -5619,20 +5623,50 @@ function telEnt(id){
   if(t.length<=11) t='55'+t;
   return t;
 }
+// frase de contexto do problema da pendência (motivo/status), pra usar nas mensagens automáticas
+function _ctxPend(e){
+  const m=(e.motivo||'').trim();
+  if(e.status==='nao_entregue') return m ? `que não deu certo (${m})` : 'que não deu certo';
+  if(e.status==='cancelado')    return m ? `que foi cancelada (${m})` : 'que foi cancelada';
+  if(e.status==='em_rota')      return 'que ainda está pendente';
+  if(e.status==='aguardando')   return 'que ainda não saiu pra entrega';
+  return '';
+}
 // "Falar com o entregador" → abre o WhatsApp direto
 function falarEntregador(id){
   const e=entregas.find(x=>x.id===id); if(!e) return;
   const tel=telEnt(e.entregador); if(!tel) return;
   const ent=ENT[e.entregador]||{};
   const nomeE = ent.nome ? ent.nome.split(' ')[0] : '';
-  const finalizada = ['entregue','nao_entregue','cancelado'].includes(e.status);
-  const msg = finalizada
-    ? 'Oi'+(nomeE?' '+nomeE:'')+', tudo bem? Quero tirar uma dúvida sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. '
-    : 'Oi'+(nomeE?' '+nomeE:'')+'! Sobre a entrega'+(e.cliente?' do(a) '+e.cliente:'')+'. ';
+  const cli = e.cliente ? ' do(a) '+e.cliente : '';
+  const ctx = _ctxPend(e);
+  const problema = (e.status==='nao_entregue'||e.status==='cancelado');
+  const msg = ctx
+    ? 'Oi'+(nomeE?' '+nomeE:'')+', tudo bem? Sobre a entrega'+cli+' '+ctx+'. '+(problema?'Vamos resolver? ':'')
+    : 'Oi'+(nomeE?' '+nomeE:'')+'! Sobre a entrega'+cli+'. ';
   const wa = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
   window.open(wa, '_blank');
 }
-// "Avisar cliente" → escolher entre WhatsApp (com link de rastreio) ou Ligar
+// "Falar com o cliente" → abre o WhatsApp direto no número do cliente
+function falarCliente(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  const num=waNumero(e.contato); if(!num){ toast('Sem número de WhatsApp válido pra esse cliente'); return; }
+  const nome=(e.cliente||'').split(' ')[0];
+  const m=(e.motivo||'').trim();
+  let msg;
+  if(e.status==='nao_entregue') msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa. Passando sobre a sua entrega que não conseguimos concluir'+(m?` (${m})`:'')+'. Queria acertar isso com você. ';
+  else if(e.status==='cancelado') msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa, sobre o seu pedido'+(m?` (${m})`:'')+'. Queria conversar com você. ';
+  else if(e.status==='em_rota'||e.status==='aguardando') msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa, sobre o seu pedido que está a caminho. ';
+  else msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa, sobre o seu pedido. ';
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+// monta os botões de WhatsApp (cliente + entregador) usados nos cards de pendência
+function pendWaBtns(e){
+  let b='';
+  if(waNumero(e.contato)) b+=`<button class="pend-b wa" onclick="event.stopPropagation();falarCliente('${e.id}')">${WA_ICON} Cliente</button>`;
+  if(telEnt(e.entregador)) b+=`<button class="pend-b wa" onclick="event.stopPropagation();falarEntregador('${e.id}')">${WA_ICON} Entregador</button>`;
+  return b;
+}
 function avisarCliente(id){
   const e=entregas.find(x=>x.id===id); if(!e) return;
   const num=waNumero(e.contato); if(!num) return;
