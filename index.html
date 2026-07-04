@@ -715,8 +715,10 @@
   .pend-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
   .pend-b{flex:1;min-width:96px;border-radius:9px;padding:7px 8px;font-size:12.5px;font-family:var(--ff-body);cursor:pointer;border:1px solid var(--line-strong);background:var(--surface-3);color:var(--text-soft);transition:.15s}
   .pend-b.reag{background:rgba(142,156,214,.14);color:#aab4e8;border-color:rgba(142,156,214,.42)}
-  .pend-b.wa{flex:none;background:linear-gradient(135deg,#7fae6b,#5f9152);color:#16210f;border-color:rgba(127,174,107,.5);font-weight:600;padding:7px 12px}
+  .pend-b.wa{flex:1;background:linear-gradient(135deg,#7fae6b,#5f9152);color:#16210f;border-color:rgba(127,174,107,.5);font-weight:600}
   .pend-b.wa svg{width:14px;height:14px;vertical-align:-2px;margin-right:4px}
+  .pend-wa-row{display:flex;gap:7px;width:100%;margin-bottom:7px}
+  @media(min-width:761px){ .pend-wa-row{display:contents} }   /* desktop: os 5 botões numa linha só, todos iguais */
   .pend-b.ok{background:rgba(127,174,107,.16);color:var(--calm);border-color:rgba(127,174,107,.42)}
   .pend-b.desc{background:rgba(138,145,122,.14);color:var(--text-soft);border-color:rgba(138,145,122,.42)}
   .pend-b.sis{flex:none;background:rgba(212,180,90,.18);color:var(--gold-lt);border-color:var(--line-strong);font-weight:600;padding:7px 16px}
@@ -925,6 +927,7 @@
   .btn.btn-sis-on{background:rgba(91,140,200,.18);color:#7fb0e0;border-color:rgba(91,140,200,.45)}
   .vbtn.wa:hover{filter:brightness(1.06)}
   .vbtn.ghost{background:var(--surface-2);color:var(--text-soft);flex:0 1 auto;padding:0 16px}
+  .vbtn.relancar{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);font-weight:600}
   .vbtn.ghost:hover{color:var(--text);border-color:var(--line-strong)}
   .vbtn.ghost.danger{color:var(--urgent)}
   .vbtn.ghost.danger:hover{border-color:var(--urgent);background:rgba(224,106,82,.1)}
@@ -4483,6 +4486,30 @@ function sairModoEdicao(){   // zera o estado de edição: nada de editId penden
 function novaEntrega(){ sairModoEdicao(); clearForm(); togglePanel(true); }   // sempre abre um formulário NOVO e limpo
 function fecharForm(){ togglePanel(false); sairModoEdicao(); }                 // fechar no ✕ não deixa edição pendente
 function cancelarEdicao(){ sairModoEdicao(); clearForm(); togglePanel(false); toast('Edição cancelada'); }
+function relancar(id){                          // cria uma entrega NOVA a partir de outra (mesmo cliente/endereço) — só revisar e trocar o produto
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  sairModoEdicao(); clearForm();               // garante entrada nova (saveEntrega), sem editId pendente
+  $('f-cliente').value=e.cliente||'';
+  $('f-contato').value=formatPhone(e.contato||'');
+  $('f-bairro').value=e.bairro||'';
+  $('f-cpf').value=e.cpf||''; $('f-nasc').value=e.nascimento||'';
+  $('f-cidade').value=e.cidade||'';
+  $('f-vend').value=e.vendedora||'';
+  $('f-end').value=e.endereco||'';
+  $('f-link').value=e.link||'';
+  $('f-prod').value=e.produto||'';             // vem preenchido; ela troca o produto/numeração
+  $('f-valor').value=e.valor||'';
+  $('f-obs').value=e.observacao||'';
+  $('f-linkpag').value=e.linkPagamento||'';
+  if($('f-tipo')) $('f-tipo').value=e.tipo||'entrega';
+  if($('f-pag-prev')) $('f-pag-prev').value=e.pagPrevisto||'cobrar';
+  if($('f-presente')) $('f-presente').checked=!!e.presente;
+  setTaxaForm(e.taxaEntrega);
+  if($('f-data')){ $('f-data').min=todayKey(); $('f-data').value=todayKey(); }   // entrega nova = hoje
+  togglePanel(true);
+  try{ window.scrollTo(0,0); }catch(_){}
+  toast('Relançando pra '+((e.cliente||'').split(' ')[0]||'cliente')+' — revise os dados e ajuste o produto');
+}
 function editar(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e)return;
@@ -5312,6 +5339,7 @@ function fcard(e){
         : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
     <div class="vcard-acts">
+      <button class="vbtn relancar" onclick="relancar('${e.id}')">🔁 Relançar entrega</button>
       <button class="vbtn ${e.lancado?'sis-on':'sis-off'}" onclick="toggleLancado('${e.id}')">${e.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>
       ${waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>'}
       ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
@@ -5640,10 +5668,7 @@ function falarEntregador(id){
   const nomeE = ent.nome ? ent.nome.split(' ')[0] : '';
   const cli = e.cliente ? ' do(a) '+e.cliente : '';
   const ctx = _ctxPend(e);
-  const problema = (e.status==='nao_entregue'||e.status==='cancelado');
-  const msg = ctx
-    ? 'Oi'+(nomeE?' '+nomeE:'')+', tudo bem? Sobre a entrega'+cli+' '+ctx+'. '+(problema?'Vamos resolver? ':'')
-    : 'Oi'+(nomeE?' '+nomeE:'')+'! Sobre a entrega'+cli+'. ';
+  const msg = 'Oi'+(nomeE?' '+nomeE:'')+', tudo bem? Quero tirar uma dúvida com você sobre a entrega'+cli+(ctx?' '+ctx:'')+'. ';
   const wa = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
   window.open(wa, '_blank');
 }
@@ -5652,12 +5677,13 @@ function falarCliente(id){
   const e=entregas.find(x=>x.id===id); if(!e) return;
   const num=waNumero(e.contato); if(!num){ toast('Sem número de WhatsApp válido pra esse cliente'); return; }
   const nome=(e.cliente||'').split(' ')[0];
-  const m=(e.motivo||'').trim();
   let msg;
-  if(e.status==='nao_entregue') msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa. Passando sobre a sua entrega que não conseguimos concluir'+(m?` (${m})`:'')+'. Queria acertar isso com você. ';
-  else if(e.status==='cancelado') msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa, sobre o seu pedido'+(m?` (${m})`:'')+'. Queria conversar com você. ';
-  else if(e.status==='em_rota'||e.status==='aguardando') msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa, sobre o seu pedido que está a caminho. ';
-  else msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa, sobre o seu pedido. ';
+  if(e.status==='nao_entregue' || e.status==='cancelado')
+    msg='Oi'+(nome?' '+nome:'')+', tudo bem? O entregador me informou que a entrega do seu pedido não deu certo. ';
+  else if(e.status==='em_rota' || e.status==='aguardando')
+    msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa, sobre o seu pedido que está a caminho. ';
+  else
+    msg='Oi'+(nome?' '+nome:'')+', tudo bem? Aqui é da Loretto Scarpa, sobre o seu pedido. ';
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 // monta os botões de WhatsApp (cliente + entregador) usados nos cards de pendência
@@ -5665,7 +5691,7 @@ function pendWaBtns(e){
   let b='';
   if(waNumero(e.contato)) b+=`<button class="pend-b wa" onclick="event.stopPropagation();falarCliente('${e.id}')">${WA_ICON} Cliente</button>`;
   if(telEnt(e.entregador)) b+=`<button class="pend-b wa" onclick="event.stopPropagation();falarEntregador('${e.id}')">${WA_ICON} Entregador</button>`;
-  return b;
+  return b ? `<div class="pend-wa-row">${b}</div>` : '';
 }
 function avisarCliente(id){
   const e=entregas.find(x=>x.id===id); if(!e) return;
