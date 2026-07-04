@@ -724,6 +724,13 @@
   .pend-b.sis{flex:none;background:rgba(212,180,90,.18);color:var(--gold-lt);border-color:var(--line-strong);font-weight:600;padding:7px 16px}
   .pend-b.no{background:rgba(224,106,82,.14);color:#e6a99a;border-color:rgba(224,106,82,.42)}
   .pend-concluir{display:block;width:100%;margin:4px 0 12px;padding:11px;border-radius:11px;background:rgba(127,174,107,.2);color:var(--calm);border:1px solid rgba(127,174,107,.5);font-weight:700;font-size:14px;cursor:pointer;font-family:var(--ff-body)}
+  .dinheiro-ent-box{background:rgba(127,174,107,.1);border:1px solid rgba(127,174,107,.4);border-radius:13px;padding:12px 14px;margin-bottom:14px}
+  .dinheiro-ent-h{color:var(--calm);font-weight:700;font-size:14px}
+  .dinheiro-ent-sub{color:var(--text-soft);font-size:12px;margin:3px 0 9px;line-height:1.4}
+  .dinheiro-ent-row{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:8px 0;border-top:1px solid rgba(127,174,107,.2)}
+  .dinheiro-ent-cli{display:flex;flex-direction:column;font-size:14px}
+  .dinheiro-ent-cli small{color:var(--text-mute);font-size:11.5px;margin-top:1px}
+  .dinheiro-ent-row .pend-b{flex:0 0 auto;min-width:0;padding:7px 14px}
   .gps-bar{display:flex;align-items:center;gap:10px;border-radius:11px;padding:10px 13px;margin:0 0 11px;font-size:13.5px;font-family:var(--ff-body)}
   .gps-bar .gps-dot{width:11px;height:11px;border-radius:50%;flex:none}
   .gps-bar .gps-tx{flex:1;line-height:1.34}
@@ -755,6 +762,8 @@
   .fcard{background:rgba(255,255,255,.04);border:1px solid var(--line);border-left:4px solid var(--calm);border-radius:var(--radius);padding:14px 15px;margin-bottom:12px;box-shadow:var(--elev-1)}
   .fcard-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
   .fcard-pag{font-family:var(--ff-body);font-size:14px;font-weight:600;color:var(--gold-lt)}
+  .frow.dinheiro-pend{background:rgba(224,179,65,.12);border:1px solid rgba(224,179,65,.35);border-radius:9px;padding:7px 9px;margin-top:5px;flex-wrap:wrap}
+  .frow.dinheiro-pend .mini{margin-left:6px}
   .fcard-sec-h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:11px 0 6px;padding-top:10px;border-top:1px solid var(--line)}
   .fcard-body{display:flex;gap:14px;align-items:flex-start}
   .fcard-info{flex:1;min-width:0}
@@ -794,6 +803,14 @@
   .vbadge.aguard{background:rgba(224,179,65,.16);color:var(--warn)}
   .vbadge.rota{background:rgba(111,176,166,.16);color:var(--teal)}
   .vbadge.ok{background:rgba(127,174,107,.16);color:var(--calm)}
+  .vbadge.lock{background:rgba(224,179,65,.16);color:#e6c964}
+  .fcard.fcard-locked{border-left-color:#e0b341;opacity:.96}
+  .fcard-lock{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(224,179,65,.09);border:1px dashed rgba(224,179,65,.4);border-radius:12px;padding:14px;margin-top:6px}
+  .fcard-lock-ic{font-size:26px;flex:none}
+  .fcard-lock-tx{flex:1;min-width:180px}
+  .fcard-lock-tx b{display:block;color:#e6c964;font-size:14px;margin-bottom:3px}
+  .fcard-lock-tx p{margin:0;font-size:12.5px;color:var(--text-soft);line-height:1.45}
+  .fcard-lock .vbtn{flex:1 1 100%;margin-top:2px}
   .vbadge.falha{background:rgba(224,106,82,.18);color:var(--urgent)}
   .vbadge.cancel{background:rgba(138,145,122,.2);color:var(--text-mute)}
   .vbadge.presente{background:rgba(212,180,90,.18);color:var(--gold-lt)}
@@ -981,7 +998,7 @@
   .av-cnt{background:var(--gold);color:var(--ink);font-weight:800;font-size:12px;min-width:24px;height:24px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 7px}
   .av-row{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;border-left:3px solid transparent}
   .av-row:last-child{border-bottom:none}
-  .av-row.blue{border-left-color:#8f9cd6} .av-row.pink{border-left-color:#cf8aa8} .av-row.teal{border-left-color:#6fc0b0} .av-row.amber{border-left-color:#e0b341}
+  .av-row.blue{border-left-color:#8f9cd6} .av-row.pink{border-left-color:#cf8aa8} .av-row.teal{border-left-color:#6fc0b0} .av-row.green{border-left-color:#7fae6b} .av-row.amber{border-left-color:#e0b341}
   .av-ic{font-size:18px;width:22px;text-align:center;flex:none}
   .av-lbl{flex:1;font-size:14px;color:var(--text-soft)}
   .av-rcnt{font-weight:700;font-size:13px;color:var(--text)}
@@ -2347,10 +2364,20 @@ function renderAvisos(){
   const pend=entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e)<hoje && _podeVerBusca(e) && !e.pendResolvido && !e.pendDescartado && !pendDismissed.has(e.id));
   const resolver=entregas.filter(e=>['nao_entregue','cancelado'].includes(e.status) && _podeVerBusca(e) && !e.alertaResolverVisto && (Date.now()-(e.desfechoEm||0)<4*864e5)).sort((a,b)=>(b.desfechoEm||0)-(a.desfechoEm||0));
   const link=entregas.filter(e=>e.status==='entregue' && !e.linkConferido && (e.pagamento==='link'||e.pagamento2==='link') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+  const dinheiro=entregas.filter(e=>e.status==='entregue' && !e.dinheiroRecebido && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
   const reag=entregas.filter(e=>e.reagendadaEm && e.reagendadaEm>lim48 && e.status!=='entregue' && e.status!=='cancelado' && _podeVerBusca(e)).sort((a,b)=>b.reagendadaEm-a.reagendadaEm);
-  const total=pend.length+resolver.length+link.length+reag.length;
+  const total=pend.length+resolver.length+link.length+dinheiro.length+reag.length;
   if(!total){ box.innerHTML=''; return; }
   let rows='';
+  if(dinheiro.length){
+    const li=dinheiro.map(e=>{
+      const v=(e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?_brl(e.pagamentoValores.dinheiro):(e.valor?('R$ '+e.valor):'');
+      const entNome=e.entregador?esc((ENT[e.entregador]||{}).nome||e.entregador):'—';
+      const waBtn=telEnt(e.entregador)?'<button class="wa" onclick="event.stopPropagation();falarEntregador(\''+e.id+'\')" title="Falar com o entregador">'+WA_ICON+'</button>':'';
+      return '<div class="exp-row"><span class="exp-cli" onclick="irParaEntrega(\''+dataDe(e)+'\')" style="cursor:pointer">'+esc(e.cliente||'(sem nome)')+'<small>'+esc(rotuloDia(dataDe(e)))+(v?' · '+v:'')+' · com '+entNome+(e.dinheiroEntregueLoja?' · \u2705 entregador diz que trouxe':'')+'</small></span><span class="acts">'+waBtn+'<button class="mini prim" onclick="event.stopPropagation();confirmarDinheiro(\''+e.id+'\')">\u2713 recebi</button></span></div>';
+    }).join('');
+    rows+=_avLinha('dinheiro','\ud83d\udcb5','green','Dinheiro a receber do entregador',dinheiro.length,'<div class="av-exp"><div class="av-note">Combine com o entregador e confirme <b>só quando o dinheiro estiver no caixa</b>.</div>'+li+'</div>');
+  }
   if(pend.length) rows+=_avLinha('pend','\u26a0\ufe0f','blue','Entregas de dias anteriores sem resolver',pend.length,
     '<div class="av-exp"><div class="av-note">Não foram entregues nem colocadas em rota.</div><button class="mini prim" onclick="abrirPendencias()">\ud83d\udd0d Verificar uma a uma</button></div>');
   if(resolver.length){
@@ -2391,6 +2418,29 @@ function confirmarLink(id){
   e.linkConferidoPor = session ? (session.vendedora||session.role) : '';
   persist(); render();
   toast('Pagamento via link confirmado ✓');
+}
+function confirmarDinheiro(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  e.dinheiroRecebido=true; e.dinheiroRecebidoEm=Date.now();
+  e.dinheiroRecebidoPor = session ? (session.vendedora||session.role) : '';
+  persist(); render();
+  toast('Dinheiro confirmado no caixa ✓');
+}
+// lado do ENTREGADOR: ele confirma que já entregou o dinheiro na loja
+function confirmarDinheiroEntregue(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  e.dinheiroEntregueLoja=true; e.dinheiroEntregueLojaEm=Date.now();
+  persist(); if(typeof renderEntregador==='function') renderEntregador();
+  toast('Confirmado: dinheiro entregue na loja ✓');
+}
+function confirmarTodoDinheiroEntregue(){
+  const meus=entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && !e.dinheiroEntregueLoja);
+  if(!meus.length){ toast('Nada em aberto'); return; }
+  if(!confirm(`Confirmar que você entregou na loja o dinheiro de ${meus.length} entrega(s)?`)) return;
+  const agora=Date.now();
+  meus.forEach(e=>{ e.dinheiroEntregueLoja=true; e.dinheiroEntregueLojaEm=agora; });
+  persist(); if(typeof renderEntregador==='function') renderEntregador();
+  toast(`${meus.length} confirmada(s) — dinheiro entregue na loja ✓`);
 }
 function toggleLancado(id){
   const e=entregas.find(x=>x.id===id); if(!e||!podeMexer(e)) return;
@@ -5290,6 +5340,21 @@ function renderFinalizadas(){
 }
 function fcard(e){
   const hora = e.entregueEm?fmtClock(e.entregueEm):'';
+  // Trava da Larissa: venda em DINHEIRO fica bloqueada pra vendedora até o entregador confirmar que entregou o dinheiro na loja
+  const _ehDin = (e.pagamento==='dinheiro' || e.pagamento2==='dinheiro');
+  const _bloq = _ehDin && !e.dinheiroEntregueLoja && session && session.role==='vendedora';
+  if(_bloq){
+    const entBadge = (e.entregador && (ENT[e.entregador]||{}).nome)?`<span class="vbadge" style="background:${(ENT[e.entregador]||{}).cor||'#888'}22;color:${(ENT[e.entregador]||{}).cor||'#ccc'}">${esc((ENT[e.entregador]||{}).nome)}</span>`:'';
+    return `<div class="fcard fcard-locked">
+      <div class="fcard-top"><span class="vbadge ok">✓ Entregue${hora?' · '+hora:''}</span>${entBadge}<span class="vbadge lock">🔒 Aguardando dinheiro</span></div>
+      <div class="fcard-name">${esc(e.cliente)}</div>
+      <div class="fcard-lock">
+        <div class="fcard-lock-ic">🔒</div>
+        <div class="fcard-lock-tx"><b>Detalhes bloqueados</b><p><span style="color:var(--gold-lt)">Esta venda foi paga em <b>dinheiro</b>.</span> Os detalhes liberam assim que o entregador confirmar que <b>entregou o dinheiro na loja</b>.</p></div>
+        ${telEnt(e.entregador)?`<button class="vbtn wa" onclick="falarEntregador('${e.id}')">${WA_ICON} Cobrar o entregador</button>`:''}
+      </div>
+    </div>`;
+  }
   const obsPag = e.pagamentoObs?`<div class="frow"><span class="ico">📝</span><span>${esc(e.pagamentoObs)}</span></div>`:'';
   const somaVals = Object.values(e.pagamentoValores||{}).reduce((s,v)=>s+_num(v),0);
   const totalReceb = somaVals + _num(e.taxaEntrega);
@@ -5332,6 +5397,9 @@ function fcard(e){
       <div class="fcard-info">
         <div class="fcard-pag">${esc(pagamentoLabel(e))}</div>
         ${totalLine}
+        ${(e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') ? (e.dinheiroRecebido
+            ? `<div class="frow"><span class="ico">💵</span><span style="color:var(--calm)">Dinheiro recebido no caixa ✓${e.dinheiroRecebidoPor?` · ${esc(e.dinheiroRecebidoPor)}`:''}</span></div>`
+            : `<div class="frow dinheiro-pend"><span class="ico">💵</span><span>Dinheiro ainda com o entregador — <button class="mini prim" onclick="confirmarDinheiro('${e.id}')">✓ confirmar recebimento</button></span></div>`) : ''}
         ${obsPag}
       </div>
       ${e.temComprovante
@@ -5514,7 +5582,8 @@ function renderEntregador(){
   if(cR) cR.textContent = items.length ? ` ${items.length}` : '';
   if(cA) cA.textContent = aguard.length ? ` ${aguard.length}` : '';
   const pendEntTab = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !pendDismissed.has(e.id));
-  if(cP) cP.textContent = pendEntTab.length ? ` ${pendEntTab.length}` : '';
+  const meuDinheiro = entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && !e.dinheiroEntregueLoja).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+  if(cP) cP.textContent = (pendEntTab.length+meuDinheiro.length) ? ` ${pendEntTab.length+meuDinheiro.length}` : '';
   $('ent-tab-rota').classList.toggle('on', entTab==='rota');
   $('ent-tab-aguard').classList.toggle('on', entTab==='aguard');
   $('ent-tab-pend').classList.toggle('on', entTab==='pend');
@@ -5524,7 +5593,17 @@ function renderEntregador(){
   if(entTab==='pend'){
     $('ent-title').innerHTML=`Pendentes — <span style="color:${ent.cor}">${ent.nome}</span>`;
     const box=$('ent-pend-list');
-    box.innerHTML = pendEntTab.length
+    const totalMeuDin = meuDinheiro.reduce((s,e)=>s+((e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?_num(e.pagamentoValores.dinheiro):_num(e.valor)),0);
+    const dinBloco = meuDinheiro.length ? `<div class="dinheiro-ent-box">
+        <div class="dinheiro-ent-h">💵 Dinheiro a entregar na loja</div>
+        <div class="dinheiro-ent-sub">Confirme o que você <b>já entregou na loja</b>. Total em aberto: <b>${_brl(totalMeuDin)}</b></div>
+        ${meuDinheiro.map(e=>{
+          const v=(e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?_brl(e.pagamentoValores.dinheiro):(e.valor?('R$ '+e.valor):'');
+          return `<div class="dinheiro-ent-row"><span class="dinheiro-ent-cli"><b>${esc(e.cliente||'(sem nome)')}</b><small>${esc(rotuloDia(dataDe(e)))}${v?' · '+v:''}</small></span><button class="pend-b ok" onclick="confirmarDinheiroEntregue('${e.id}')">✓ Entreguei</button></div>`;
+        }).join('')}
+        <button class="pend-concluir" onclick="confirmarTodoDinheiroEntregue()">✓ Entreguei tudo na loja (${meuDinheiro.length})</button>
+      </div>` : '';
+    box.innerHTML = dinBloco + (pendEntTab.length
       ? `<div class="pegar-hint">Entregas suas de dias anteriores que ficaram em rota. Finalize aqui mesmo (Entreguei / Não deu certo) pra elas saírem do sistema.</div>`
         + `<button class="pend-concluir" onclick="concluirTodasPendEnt()">✓ Concluir todas como entregues (${pendEntTab.length})</button>`
         + pendEntTab.map(e=>{
@@ -5538,7 +5617,7 @@ function renderEntregador(){
             </div>
           </div>`;
         }).join('')
-      : `<div class="empty">Nenhuma pendência sua. Tudo finalizado 👍</div>`;
+      : (meuDinheiro.length ? '' : `<div class="empty">Nenhuma pendência sua. Tudo finalizado 👍</div>`));
     $('ent-bb-rota').style.display='none'; $('ent-bb-add').style.display='none';
     return;
   }
