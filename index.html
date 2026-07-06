@@ -2330,14 +2330,17 @@ function irParaEntrega(dia,id){
   ['busca-entrega','busca-ent'].forEach(i=>{ const el=$(i); if(el) el.value=''; });
   ['busca-res','busca-res-ent'].forEach(i=>{ const b=$(i); if(b) b.innerHTML=''; });
   const e = id ? entregas.find(x=>x.id===id) : null;
+  const ehEntregador = !!(session && session.role==='entregador');
   const fin = e && ['entregue','nao_entregue','cancelado'].includes(e.status);
+  const vaiFinalizadas = e && e.status==='entregue' && !ehEntregador;   // entregue → cai direto na aba Finalizadas (detalhes de fechamento + Relançar)
   if(e){ if(fin) detAberto.add(id); else vAberto.add(id); }   // já abre o card / os detalhes
-  if(dia){ if(session && session.role==='entregador') setDiaEnt(dia); else setDia(dia); }
+  if(dia){ if(ehEntregador) setDiaEnt(dia); else setDia(dia); }
+  if(vaiFinalizadas && typeof switchTab==='function') switchTab('fin');  // troca pra aba Finalizadas do dia certo
   if(e && fin) carregarFotosDet(id);
   if(id){ setTimeout(()=>{                                     // rola até a entrega e destaca
     const el = document.querySelector('[data-eid="'+id+'"]') || document.querySelector('[data-detfotos="'+id+'"]');
-    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); const card=el.closest('.card,.vcard')||el; card.style.transition='box-shadow .25s'; card.style.boxShadow='0 0 0 2px var(--gold)'; setTimeout(()=>{ card.style.boxShadow=''; },2200); }
-  }, 380); }
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); const card=el.closest('.card,.vcard,.fcard')||el; card.style.transition='box-shadow .25s'; card.style.boxShadow='0 0 0 2px var(--gold)'; setTimeout(()=>{ card.style.boxShadow=''; },2200); }
+  }, 420); }
 }
 /* ===== card "Entregas agendadas" (próximos 7 dias) — vendedora vê as dela, entregador as reservadas pra ele, gestor todas ===== */
 function renderAgendadas(){
@@ -5389,7 +5392,7 @@ function fcard(e){
   const _bloq = _ehDin && !e.dinheiroEntregueLoja && session && session.role==='vendedora';
   if(_bloq){
     const entBadge = (e.entregador && (ENT[e.entregador]||{}).nome)?`<span class="vbadge" style="background:${(ENT[e.entregador]||{}).cor||'#888'}22;color:${(ENT[e.entregador]||{}).cor||'#ccc'}">${esc((ENT[e.entregador]||{}).nome)}</span>`:'';
-    return `<div class="fcard fcard-locked">
+    return `<div class="fcard fcard-locked" data-eid="${e.id}">
       <div class="fcard-top"><span class="vbadge ok">✓ Entregue${hora?' · '+hora:''}</span>${entBadge}<span class="vbadge lock">🔒 Aguardando dinheiro</span></div>
       <div class="fcard-name">${esc(e.cliente)}</div>
       <div class="fcard-lock">
@@ -5405,7 +5408,7 @@ function fcard(e){
   const totalLine = totalReceb>0 ? `<div class="frow"><span class="ico">💰</span><span>Total recebido: <b>${_brl(totalReceb)}</b></span></div>` : '';
   const horarioTxt = hrTxt(e);
   const tipoTxt = (e.tipo==='troca') ? '🔁 Troca — traz o par antigo' : (e.tipo==='coleta') ? '↩️ Coleta de devolução' : '';
-  return `<div class="fcard">
+  return `<div class="fcard" data-eid="${e.id}">
     <div class="fcard-top">
       <span class="vbadge ok">✓ Entregue${hora?' · '+hora:''}</span>
       ${e.entregador && (ENT[e.entregador]||{}).nome?`<span class="vbadge" style="background:${(ENT[e.entregador]||{}).cor||'#888'}22;color:${(ENT[e.entregador]||{}).cor||'#888'}">🛵 ${esc((ENT[e.entregador]||{}).nome)}</span>`:''}
