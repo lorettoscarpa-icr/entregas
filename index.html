@@ -258,6 +258,12 @@
   .foto-loc-x{background:none;border:none;color:var(--urgent);font-size:13px;cursor:pointer;padding:6px}
   .modal{background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius);max-width:480px;width:100%;padding:20px;box-shadow:var(--elev-2);margin:auto}
   .modal h3{font-family:var(--ff-display);font-size:24px;margin-bottom:6px}
+  .modal.modal-sm{max-width:390px}
+  .relancar-pop{text-align:center}
+  .relancar-pop-ic{font-size:46px;line-height:1;margin-bottom:6px}
+  .relancar-pop h3{margin:0 0 10px}
+  .relancar-pop p{font-size:13.5px;color:var(--text-soft);line-height:1.5;margin:0 0 18px}
+  .relancar-pop .btn{width:100%}
   .modal p{font-size:13px;color:var(--text-soft);margin-bottom:13px}
   .modal textarea{min-height:200px;font-size:13px;line-height:1.5}
   .modal .form-actions{margin-top:14px}
@@ -1571,6 +1577,16 @@
         <button class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px" onclick="reagAvisar()"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.55-3.7 8.24-8.25 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>Avisar Cliente</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- popup: entrega relançada -->
+<div class="modal-bg" id="relancar-popup">
+  <div class="modal modal-sm relancar-pop">
+    <div class="relancar-pop-ic">🔁</div>
+    <h3>Entrega relançada</h3>
+    <p>Mantivemos o <b>nome</b>, o <b>contato</b> e a <b>localização</b> de <b id="relancar-popup-nome">o cliente</b>. Agora é só <b style="color:var(--gold-lt)">preencher o produto</b> que vai ser levado.</p>
+    <button class="btn btn-primary" onclick="fecharRelancarPopup()">Entendi, vou preencher o produto</button>
   </div>
 </div>
 
@@ -4569,8 +4585,8 @@ function relancar(id){                          // cria uma entrega NOVA a parti
   $('f-vend').value=e.vendedora||'';
   $('f-end').value=e.endereco||'';
   $('f-link').value=e.link||'';
-  $('f-prod').value=e.produto||'';             // vem preenchido; ela troca o produto/numeração
-  $('f-valor').value=e.valor||'';
+  $('f-prod').value='';                        // produto NÃO vem preenchido: quase sempre muda no relançamento
+  $('f-valor').value='';                        // valor também em branco (muda com o produto)
   $('f-obs').value=e.observacao||'';
   $('f-linkpag').value=e.linkPagamento||'';
   if($('f-tipo')) $('f-tipo').value=e.tipo||'entrega';
@@ -4580,8 +4596,14 @@ function relancar(id){                          // cria uma entrega NOVA a parti
   if($('f-data')){ $('f-data').min=todayKey(); $('f-data').value=todayKey(); }   // entrega nova = hoje
   togglePanel(true);
   try{ window.scrollTo(0,0); }catch(_){}
-  toast('Relançando pra '+((e.cliente||'').split(' ')[0]||'cliente')+' — revise os dados e ajuste o produto');
+  abrirRelancarPopup(e.cliente||'');            // avisa que foi relançado e que precisa preencher o produto
 }
+function abrirRelancarPopup(nome){
+  const p=$('relancar-popup'); if(!p){ toast('Entrega relançada — preencha o produto que vai levar'); return; }
+  const n=$('relancar-popup-nome'); if(n) n.textContent = nome ? nome.split(' ')[0] : 'o cliente';
+  p.classList.add('open');
+}
+function fecharRelancarPopup(){ const p=$('relancar-popup'); if(p) p.classList.remove('open'); const f=$('f-prod'); if(f){ try{ f.focus(); }catch(_){} } }
 function editar(id){
   if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e)return;
