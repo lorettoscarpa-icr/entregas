@@ -5454,10 +5454,10 @@ function fcard(e){
         : `<div class="fcard-nofoto">📷<br>sem comprovante</div>`}
     </div>
     <div class="vcard-acts">
-      <button class="vbtn relancar" onclick="relancar('${e.id}')">🔁 Relançar entrega</button>
       <button class="vbtn ${e.lancado?'sis-on':'sis-off'}" onclick="toggleLancado('${e.id}')">${e.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>
       ${waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>'}
       ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
+      <button class="vbtn relancar" onclick="relancar('${e.id}')">🔁 Relançar entrega</button>
     </div>
   </div>`;
 }
