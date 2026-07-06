@@ -696,6 +696,7 @@
   .alerta-card.pend{background:rgba(143,156,214,.13);border:1px solid rgba(143,156,214,.4)}
   .alerta-card.espera{background:rgba(224,179,65,.12);border:1px solid rgba(224,179,65,.38)}
   .alerta-card.horario{background:rgba(224,106,82,.13);border:1px solid rgba(224,106,82,.42)}
+  .alerta-card.dinheiro{background:rgba(127,174,107,.13);border:1px solid rgba(127,174,107,.42)}
   .alerta-card.resolver{background:rgba(207,138,168,.13);border:1px solid rgba(207,138,168,.45);align-items:flex-start}
   .resolver-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
   .resolver-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(0,0,0,.10);border-radius:9px;padding:7px 10px}
@@ -3895,7 +3896,14 @@ function naoLancadasList(){
   return entregas.filter(e=> e.status==='entregue' && !e.lancado && inEsc(e));
 }
 /* estado aberto/fechado dos tópicos de Pendentes (persiste entre re-renders na sessão) */
-let _pendOpen = { nl:true, pe:true };
+let _pendOpen = { nl:true, pe:true, dr:true };
+/* entregues em DINHEIRO ainda não confirmadas no caixa (persiste até confirmar), no escopo da vendedora */
+function dinheiroReceberList(){
+  const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
+  const alvo = ehVendPessoal ? norm(session.vendedora) : null;
+  const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
+  return entregas.filter(e=> e.status==='entregue' && !e.dinheiroRecebido && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && inEsc(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+}
 function togglePend(k){
   _pendOpen[k] = !_pendOpen[k];
   const body=document.getElementById('pend-body-'+k), hd=document.getElementById('pend-head-'+k);
@@ -3906,10 +3914,11 @@ function renderPendentes(){
   const box=$('view-pendentes'); if(!box) return;
   const naoLanc = naoLancadasList().slice().sort((a,b)=>{ const da=dataDe(a), db=dataDe(b); return da<db?-1:da>db?1:0; });
   const pend=pendListVend();
-  if(!naoLanc.length && !pend.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
+  const dinRec=dinheiroReceberList();
+  if(!naoLanc.length && !pend.length && !dinRec.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
   const fmtBRL = n => 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const _vNum = v => { if(v==null) return 0; let s=String(v).replace(/[^\d.,-]/g,'').trim(); if(s==='') return 0; if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); return Number(s)||0; };
-  let html = `<p class="vmin-sub" style="margin-bottom:14px">Tudo que precisa da sua atenção, em duas partes: o que falta <b>lançar no sistema</b> e as <b>pendências de entrega</b>.</p>`;
+  let html = `<p class="vmin-sub" style="margin-bottom:14px">Tudo que precisa da sua atenção: o que falta <b>lançar no sistema</b>, as <b>pendências de entrega</b> e o <b>dinheiro a receber</b>.</p>`;
 
   // ===== PARTE 1 — Não lançadas no sistema (entregues, hoje + dias anteriores, ainda não lançadas) =====
   if(naoLanc.length){
@@ -3951,6 +3960,19 @@ function renderPendentes(){
           </div>`;
         }).join('')}
       </div>`).join('') + `</div>`;
+  }
+
+  // ===== PARTE 3 — Dinheiro a receber do entregador (persiste até confirmar no caixa) =====
+  if(dinRec.length){
+    const totDR = dinRec.reduce((s,e)=>s+((e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?_vNum(e.pagamentoValores.dinheiro):_vNum(e.valor)),0);
+    html += `<div class="pend-part${_pendOpen.dr?'':' collapsed'}" id="pend-head-dr" onclick="togglePend('dr')" style="margin-top:22px"><div class="n">💵</div><div class="t">Dinheiro a receber do entregador<small>Confirme só quando o dinheiro estiver no caixa</small></div><div class="c">${fmtBRL(totDR)}</div><span class="pend-chev">▾</span></div>`;
+    html += `<div id="pend-body-dr"${_pendOpen.dr?'':' style="display:none"'}>` + dinRec.map(e=>{
+      const v=(e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?fmtBRL(_vNum(e.pagamentoValores.dinheiro)):(e.valor?fmtBRL(_vNum(e.valor)):'');
+      const entNome = e.entregador ? esc((ENT[e.entregador]||{}).nome||e.entregador) : '—';
+      const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
+      const jaTrouxe = e.dinheiroEntregueLoja ? ' · ✅ entregador confirmou que trouxe' : '';
+      return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b> <span class="pend-val">${v}</span><small>${esc(rotuloDia(dataDe(e)))} · com ${entNome}${vnd}${jaTrouxe}</small></div><div class="pend-acts">${telEnt(e.entregador)?`<button class="pend-b wa" onclick="falarEntregador('${e.id}')">${WA_ICON} Entregador</button>`:''}<button class="pend-b ok" onclick="confirmarDinheiro('${e.id}')">✓ Recebi o dinheiro</button></div></div>`;
+    }).join('') + `</div>`;
   }
 
   box.innerHTML = html;
@@ -5575,6 +5597,15 @@ function renderEntregador(){
       <div class="al-txt"><b>${esperaEnt.length} ${esperaEnt.length===1?'entrega esperando':'entregas esperando'} há mais de ${URGENCIA.urgente} min</b><span>Pegue na aba “Aguardando rota” pra não atrasar o cliente.</span></div>
       ${entTab!=='aguard'?`<button class="btn btn-primary btn-mini" onclick="setEntTab('aguard')">Ver disponíveis</button>`:''}
     </div>`;
+    const meuDinAl = entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && !e.dinheiroEntregueLoja);
+    if(meuDinAl.length){
+      const totAl=meuDinAl.reduce((s,e)=>s+((e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?_num(e.pagamentoValores.dinheiro):_num(e.valor)),0);
+      ah += `<div class="alerta-card dinheiro">
+        <div class="al-ico">💵</div>
+        <div class="al-txt"><b>${_brl(totAl)} em dinheiro pra entregar na loja</b><span>${meuDinAl.length} ${meuDinAl.length===1?'entrega':'entregas'}. Deixe o dinheiro na loja e confirme na aba Pendentes.</span></div>
+        ${entTab!=='pend'?`<button class="btn btn-primary btn-mini" onclick="setEntTab('pend')">Ver e confirmar</button>`:''}
+      </div>`;
+    }
     eaEl.innerHTML=ah;
   }
   // abas: rótulos, contadores e aba ativa
@@ -5599,7 +5630,7 @@ function renderEntregador(){
         <div class="dinheiro-ent-sub">Confirme o que você <b>já entregou na loja</b>. Total em aberto: <b>${_brl(totalMeuDin)}</b></div>
         ${meuDinheiro.map(e=>{
           const v=(e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?_brl(e.pagamentoValores.dinheiro):(e.valor?('R$ '+e.valor):'');
-          return `<div class="dinheiro-ent-row"><span class="dinheiro-ent-cli"><b>${esc(e.cliente||'(sem nome)')}</b><small>${esc(rotuloDia(dataDe(e)))}${v?' · '+v:''}</small></span><button class="pend-b ok" onclick="confirmarDinheiroEntregue('${e.id}')">✓ Entreguei</button></div>`;
+          return `<div class="dinheiro-ent-row"><span class="dinheiro-ent-cli"><b>${esc(e.cliente||'(sem nome)')}</b><small>${esc(rotuloDia(dataDe(e)))}${v?' · '+v:''}${e.vendedora?' · entregar p/ '+esc(e.vendedora):''}</small></span><button class="pend-b ok" onclick="confirmarDinheiroEntregue('${e.id}')">✓ Entreguei</button></div>`;
         }).join('')}
         <button class="pend-concluir" onclick="confirmarTodoDinheiroEntregue()">✓ Entreguei tudo na loja (${meuDinheiro.length})</button>
       </div>` : '';
