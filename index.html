@@ -1887,13 +1887,14 @@ function rotuloDia(ymd){
 function normTxt(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 function regiaoEntrega(e){
   const c=normTxt(e.cidade);
+  if(c.includes('goianira')) return 'goianira';       // antes de Goiânia
   if(c.includes('trindade')) return 'trindade';
   if(c.includes('senador')) return 'senador';        // Senador Canedo
   if(c.includes('aparecida')) return 'aparecida';     // Aparecida de Goiânia
   if(c.includes('goiania')||!c) return 'goiania';     // padrão: Goiânia
   return 'outro';
 }
-const REGIAO_LABEL={goiania:'Goiânia',aparecida:'Aparecida',trindade:'Trindade',senador:'Senador Canedo',outro:'Outra'};
+const REGIAO_LABEL={goiania:'Goiânia',aparecida:'Aparecida',trindade:'Trindade',senador:'Senador Canedo',goianira:'Goianira',outro:'Outra'};
 function custoEntrega(e){
   const ent=ENT[e.entregador]; if(!ent) return 0;
   if(ent.tipo==='gratis'||ent.tipo==='fixo') return 0;  // grátis (pai) e fixo (salário mensal) não têm custo por entrega
@@ -6254,19 +6255,19 @@ function _paRate(cidade){
   const f=(config.custos&&config.custos.freelance)||{};
   const c=normTxt(cidade);
   if(c.includes('goianira')) return Number(f.goianira)||0;
-  if(!c || c.includes('goiania')) return Number(f.goiania)||0;
-  if(c.includes('aparecida')) return Number(f.aparecida)||0;
+  if(c.includes('aparecida')) return Number(f.aparecida)||0;   // ANTES de goiania: "Aparecida de Goiânia" contém "goiania"
   if(c.includes('trindade')) return Number(f.trindade)||0;
   if(c.includes('senador')) return Number(f.senador)||0;
+  if(!c || c.includes('goiania')) return Number(f.goiania)||0;
   return Number(f.outro)||0;
 }
 function _paCidadeLabel(cidade){
   const c=normTxt(cidade);
-  if(!c || c.includes('goiania')) return 'Goiânia';
+  if(c.includes('goianira')) return 'Goianira';
   if(c.includes('aparecida')) return 'Aparecida';
   if(c.includes('trindade')) return 'Trindade';
   if(c.includes('senador')) return 'Senador Canedo';
-  if(c.includes('goianira')) return 'Goianira';
+  if(!c || c.includes('goiania')) return 'Goiânia';
   return String(cidade||'Outra').trim().replace(/\b[\wà-ú]/g,m=>m.toUpperCase());
 }
 function _paSemanas(mesK){
