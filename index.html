@@ -851,6 +851,55 @@
   .dest-wrap.compact .dest-un{font-size:12.5px;margin-left:5px}
   /* Ranking */
   #view-ranking{max-width:1040px;margin:4px auto 0}
+
+  /* ---- envios ---- */
+  #view-envios{max-width:1040px;margin:4px auto 0}
+  .env-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .env-top h2{font-family:var(--ff-display);font-size:26px;font-weight:600;letter-spacing:.4px}
+  .env-top p{color:var(--text-mute);font-size:12.5px;margin-top:2px}
+  .env-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+  @media(max-width:700px){.env-kpis{grid-template-columns:repeat(2,1fr)}}
+  .env-kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 13px;box-shadow:var(--elev-1)}
+  .env-kpi .lbl{font-family:var(--ff-eyebrow);font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--text-mute)}
+  .env-kpi .val{font-family:var(--ff-display);font-size:25px;font-weight:600;margin-top:2px}
+  .env-sec{margin-bottom:22px}
+  .env-sec > h3{font-family:var(--ff-eyebrow);font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--gold);
+    margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .env-sec > h3 .n{background:rgba(212,180,90,.16);border:1px solid var(--line-strong);border-radius:20px;padding:1px 8px;font-size:10.5px;color:var(--gold-lt)}
+  .env-card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--surface-3);border-radius:var(--radius-sm);
+    padding:12px 14px;margin-bottom:9px;box-shadow:var(--elev-1)}
+  .env-card.pronto{border-left-color:var(--gold)}
+  .env-card.rota{border-left-color:var(--teal)}
+  .env-card.ok{border-left-color:var(--calm);opacity:.72}
+  .env-card h4{font-family:var(--ff-grand);font-size:17px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .env-dest{color:var(--text-soft);font-size:12.5px;margin-top:3px;line-height:1.5}
+  .env-dest b{color:var(--text)}
+  .env-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--text-mute);align-items:center}
+  .env-tag{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:2px 9px}
+  .env-tag.tr{background:rgba(212,180,90,.14);border-color:var(--line-strong);color:var(--gold-lt)}
+  .env-tag.coleta{background:rgba(111,176,166,.14);border-color:rgba(111,176,166,.4);color:var(--teal)}
+  .env-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;align-items:center}
+  .env-acts select{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:9px;
+    padding:8px 10px;font-family:inherit;font-size:13px;min-width:170px}
+  .env-vazio{color:var(--text-mute);font-size:13px;background:var(--surface);border:1px dashed var(--line);
+    border-radius:var(--radius-sm);padding:18px;text-align:center}
+  /* roteiro sugerido */
+  .env-rot{background:linear-gradient(135deg,rgba(212,180,90,.11),rgba(212,180,90,.03));border:1px solid var(--line-strong);
+    border-radius:var(--radius);padding:15px 17px;margin-bottom:22px;box-shadow:var(--elev-2)}
+  .env-rot h3{font-family:var(--ff-display);font-size:20px;font-weight:600;color:var(--gold-lt);margin-bottom:3px}
+  .env-rot .sub{color:var(--text-soft);font-size:12.5px;margin-bottom:12px}
+  .env-parada{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 13px;margin-bottom:9px}
+  .env-parada .pn{font-family:var(--ff-grand);font-size:16.5px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .env-parada .pl{color:var(--gold);font-size:12px;text-decoration:none}
+  .env-parada ul{list-style:none;margin-top:8px;display:flex;flex-direction:column;gap:4px}
+  .env-parada li{font-size:12.5px;color:var(--text-soft);display:flex;justify-content:space-between;gap:10px;
+    border-top:1px solid var(--line);padding-top:4px}
+  .env-parada li .t{color:var(--text-mute)}
+  /* paradas na tela do entregador */
+  .ent-envios{background:linear-gradient(135deg,rgba(212,180,90,.13),rgba(212,180,90,.03));border:1px solid var(--line-strong);
+    border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
+  .ent-envios h3{font-family:var(--ff-display);font-size:19px;font-weight:600;color:var(--gold-lt);margin-bottom:2px}
+  .ent-envios .sub{color:var(--text-soft);font-size:12px;margin-bottom:11px}
   .rk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
   .rk-card{border:1px solid rgba(212,180,90,.2);border-radius:16px;padding:14px 16px 18px;background:rgba(255,255,255,.018)}
   .rk-card .rk-block{margin-top:0}
@@ -1335,6 +1384,7 @@
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
     <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">Entregadores ↗</button>
+    <button class="tab" id="tab-envios" onclick="switchTab('envios')">📮 Envios<span id="c-tab-envios"></span></button>
     <button class="tab" id="tab-ranking" onclick="switchTab('ranking')">🏅 Ranking</button>
   </div>
 
@@ -1386,6 +1436,8 @@
     <p class="vmin-sub" id="fin-sub">—</p>
     <div id="fin-list"></div>
   </div>
+
+  <div id="view-envios" style="display:none"></div>
   </div><!-- /area-operacao -->
 
   <!-- ENTREGADOR -->
@@ -1527,7 +1579,45 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v130</div>
+<!-- cadastro / edição de ENVIO -->
+<div class="modal-bg" id="env-modal" onclick="fecharEnvio()">
+  <div class="modal" style="max-width:620px" onclick="event.stopPropagation()">
+    <h3 id="env-modal-title" style="margin-bottom:14px">Novo envio</h3>
+    <div class="paste-zone">
+      <label>Preencher pela mensagem do WhatsApp <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(nome, CPF, nascimento, telefone, endereço, cidade/UF e CEP)</span></label>
+      <div class="paste-actions">
+        <button class="btn btn-ghost" onclick="envColar()">📋 Colar mensagem</button>
+      </div>
+      <textarea id="env-paste" oninput="autoGrow(this)" placeholder="Cole aqui o bloco que a cliente mandou (toque e segure → Colar)"></textarea>
+      <div class="paste-actions paste-ai" style="margin-top:10px">
+        <button class="btn btn-primary" id="btn-env-ai" onclick="envPreencherIA()">✨ Preencher com IA</button>
+      </div>
+    </div>
+    <div class="fields">
+      <div class="full"><label>Cliente *</label><input id="env-cliente" placeholder="Nome completo de quem recebe"></div>
+      <div><label>CPF</label><input id="env-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" oninput="maskCPF(this)"></div>
+      <div><label>Nascimento</label><input id="env-nasc" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" oninput="maskData(this)"></div>
+      <div><label>Contato</label><input id="env-contato" type="tel" inputmode="tel" placeholder="(11) 9....-...."></div>
+      <div><label>CEP</label><input id="env-cep" inputmode="numeric" maxlength="9" placeholder="00000-000" oninput="maskCEP(this)"></div>
+      <div class="full"><label>Endereço</label><input id="env-end" placeholder="Rua, número, complemento"></div>
+      <div><label>Bairro</label><input id="env-bairro" placeholder="Bairro"></div>
+      <div><label>Cidade *</label><input id="env-cidade" placeholder="Cidade de destino"></div>
+      <div><label>UF</label><input id="env-uf" maxlength="2" placeholder="SP" style="text-transform:uppercase"></div>
+      <div><label>Vendedora</label><input id="env-vend" placeholder="Quem fez a venda" list="vend-list" autocomplete="off"></div>
+      <div class="full"><label>Produto</label><textarea id="env-prod" rows="2" placeholder="Um modelo por linha" style="resize:vertical;min-height:44px;font-family:inherit"></textarea></div>
+      <div><label>Valor</label><input id="env-valor" placeholder="Valor R$" inputmode="decimal"></div>
+      <div><label>Transportadora <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o Edson confirma)</span></label>
+        <select id="env-trsp"><option value="">A definir na operação</option></select></div>
+      <div class="full"><label>Observação</label><input id="env-obs" placeholder="Ex: já está no Melhor Envio · embalar como presente"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="fecharEnvio()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEnvio()">Salvar envio</button>
+    </div>
+  </div>
+</div>
+
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v131</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -1739,6 +1829,63 @@ const ENTREGADORES = [
   {id:'junior',  nome:'Junior',  tag:'Por entrega',     cor:'#7fb0d4', tipo:'freelance', tel:'5562993741125'},
 ];
 const ENT = Object.fromEntries(ENTREGADORES.map(e=>[e.id,e]));
+
+/* ============ ENVIOS — vendas para fora de Goiânia ============
+   A vendedora lança o envio no painel → o Edson (operação) confere a
+   transportadora e embala → o entregador leva aos pontos parceiros.
+   Correios e Total Express coletam na própria loja, então esses NUNCA
+   entram no roteiro de quem leva. */
+const TRANSPORTADORAS = [
+  {id:'correios_pac',   nome:'Correios PAC',   ico:'📮', coleta:true },
+  {id:'correios_sedex', nome:'Correios SEDEX', ico:'📮', coleta:true },
+  {id:'total',          nome:'Total Express',  ico:'🚚', coleta:true },
+  {id:'loggi',          nome:'Loggi',          ico:'📦', coleta:false},
+  {id:'jt',             nome:'J&T',            ico:'📦', coleta:false},
+  {id:'jadlog',         nome:'Jadlog',         ico:'📦', coleta:false},
+  {id:'latam',          nome:'Latam',          ico:'✈️', coleta:false},
+  {id:'azul',           nome:'Azul Express',   ico:'✈️', coleta:false},
+];
+const TRSP = Object.fromEntries(TRANSPORTADORAS.map(t=>[t.id,t]));
+function trspNome(id){ const t=TRSP[id]; return t ? `${t.ico} ${t.nome}` : ''; }
+function coletaNaLoja(id){ return !!(TRSP[id] && TRSP[id].coleta); }
+
+/* pontos parceiros e o que cada um recebe.
+   A ordem importa no desempate: cobrindo a mesma coisa, vence quem vem antes. */
+const PONTOS_PARCEIROS = [
+  {id:'lucci', nome:'Lucci',        ico:'🏬', link:'https://maps.app.goo.gl/WnisDgSJvfyqXQDq6', aceita:['jadlog','jt','loggi']},
+  {id:'amo',   nome:'Amo Outlet',   ico:'🏬', link:'https://maps.app.goo.gl/UYos71jmrHxYPQph8', aceita:['jadlog','jt','loggi','latam']},
+  {id:'azulx', nome:'Azul Express', ico:'✈️', link:'https://maps.app.goo.gl/QLrT1rXfpCGrWiJd6', aceita:['azul']},
+];
+const PONTO = Object.fromEntries(PONTOS_PARCEIROS.map(p=>[p.id,p]));
+
+/* Monta o roteiro com o MENOR número de paradas possível.
+   A cada rodada pega o ponto que resolve mais pacotes; empatando, fica com o
+   ponto mais específico (o que aceita menos transportadoras). É isso que faz
+   "só Jadlog/J&T/Loggi" cair no Lucci, e qualquer coisa com Latam cair no Amo
+   Outlet levando os outros junto. Azul só existe no Azul Express, então quando
+   aparece vira parada própria. */
+function roteiroEnvios(lista){
+  let faltam = (lista||[]).filter(v => v.transportadora && !coletaNaLoja(v.transportadora));
+  const paradas = [];
+  while(faltam.length){
+    let melhor=null, melhorItens=[];
+    PONTOS_PARCEIROS.forEach(p=>{
+      const atende = faltam.filter(v => p.aceita.includes(v.transportadora));
+      if(!atende.length) return;
+      const ganhou = !melhor
+        || atende.length > melhorItens.length
+        || (atende.length === melhorItens.length && p.aceita.length < melhor.aceita.length);
+      if(ganhou){ melhor=p; melhorItens=atende; }
+    });
+    if(!melhor) break;                       // transportadora sem ponto cadastrado: fica de fora
+    paradas.push({ponto:melhor, itens:melhorItens});
+    const levados = new Set(melhorItens.map(v=>v.id));
+    faltam = faltam.filter(v => !levados.has(v.id));
+  }
+  // ordem fixa dos pontos: a mesma na sugestão, no texto da rota e na tela do entregador
+  const ordem = PONTOS_PARCEIROS.map(p=>p.id);
+  return paradas.sort((a,b)=>ordem.indexOf(a.ponto.id)-ordem.indexOf(b.ponto.id));
+}
 /* ícone do WhatsApp (acompanha a cor e o tamanho do texto onde for usado) */
 const WA_ICON = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.55-3.7 8.24-8.25 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>';
 const VENDEDORAS = ['Jhennifer','Ialey','Michelly','Natália']; // equipe de vendas
@@ -2031,6 +2178,11 @@ const store = {
 let entregas = sanitizeCoords(store.load());
 let filtro = 'todos';
 
+/* ---- envios: guardados à parte das entregas (fluxo e telas próprios) ---- */
+const ENV_KEY = 'loretto_envios_v1';
+let envios = (function(){ try{ const r=localStorage.getItem(ENV_KEY); return r?(JSON.parse(r)||[]):[]; }catch(e){ return []; } })();
+let _envShadow={}, _envPend={}, _envSynced=false, _envAssinado=false;
+
 /* ============ Firebase (Firestore) — dados compartilhados em tempo real ============ */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCogQoTSULCdC1JhTb0IUilWAIA1itBJ8U",
@@ -2100,7 +2252,7 @@ function initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
     FIREBASE_ON = true;
-    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
+    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
     return true;
   }catch(e){ console.warn('Firebase init falhou — seguindo com localStorage', e); FIREBASE_ON=false; return false; }
 }
@@ -2127,6 +2279,41 @@ function assinarEntregas(){
     _rerenderAtual();
   }, err=>console.warn('Firebase: leitura bloqueada — verifique as regras do Firestore', err));
 }
+/* ---- envios: gravação e escuta ----
+   Volume baixo e ciclo curto, então a regra é simples: vence o carimbo mais
+   novo. O que foi mexido nesta sessão fica em _envPend e não é descartado
+   enquanto o servidor não confirmar. */
+function persistEnvios(){
+  try{ localStorage.setItem(ENV_KEY, JSON.stringify(envios)); }catch(e){}
+  if(!FIREBASE_ON || !fdb) return;
+  envios.forEach(v=>{
+    if(!_envSynced && _envPend[v.id]===undefined) return;   // antes da 1ª sincronização, não sobe o que não foi tocado aqui
+    if(_envShadow[v.id] === JSON.stringify(v)) return;
+    v.atualizadoEm = Date.now();
+    const j = JSON.stringify(v);
+    _envShadow[v.id]=j; _envPend[v.id]=v.atualizadoEm;
+    let payload; try{ payload=JSON.parse(j); }catch(_){ payload=v; }
+    fdb.collection('envios').doc(String(v.id)).set(payload)
+      .catch(err=>console.warn('Firebase: envio não salvou (id '+v.id+')', err));
+  });
+}
+function assinarEnvios(){
+  if(!FIREBASE_ON || _envAssinado) return; _envAssinado=true;
+  fdb.collection('envios').onSnapshot(snap=>{
+    const nuvem=[];
+    snap.forEach(d=>{ nuvem.push(d.data()); if(_envPend[d.id]!==undefined && !d.metadata.hasPendingWrites) delete _envPend[d.id]; });
+    const porId={}; envios.forEach(v=>porId[v.id]=v);
+    nuvem.forEach(c=>{ const meu=porId[c.id]; if(!meu || (c.atualizadoEm||0) >= (meu.atualizadoEm||0)) porId[c.id]=c; });
+    const naNuvem = new Set(nuvem.map(c=>String(c.id)));
+    // some da nuvem = alguém excluiu. Só descarta depois da 1ª sincronização e nunca o que ainda está subindo daqui.
+    envios = Object.values(porId).filter(v => naNuvem.has(String(v.id)) || !_envSynced || _envPend[v.id]!==undefined);
+    _envShadow={}; envios.forEach(v=>{ if(naNuvem.has(String(v.id))) _envShadow[v.id]=JSON.stringify(v); });
+    _envSynced=true;
+    try{ localStorage.setItem(ENV_KEY, JSON.stringify(envios)); }catch(e){}
+    persistEnvios();          // sobe o que foi criado offline nesta sessão
+    _rerenderAtual();
+  }, err=>console.warn('Firebase: leitura de envios bloqueada — verifique as regras do Firestore', err));
+}
 function _subirTudo(arr){
   try{ const batch=fdb.batch();
     arr.forEach(e=>batch.set(fdb.collection('entregas').doc(String(e.id)), e));
@@ -2138,6 +2325,7 @@ function _rerenderAtual(){
   if(session.role==='entregador') renderEntregador();
   else if(session.role==='gestor') renderGestor();
   else { render(); }
+  if(typeof renderEnvios==='function') renderEnvios();
 }
 /* posições ao vivo dos entregadores (rastreio) — alimenta o ETA real das vendedoras */
 let liveEnt={}, _rastAssinado=false, _rastUnsub=null;
@@ -3115,6 +3303,7 @@ function fmtFoneFinal(el){                                            // formata
 }
 function normFoneSalvar(raw){ const a=analisarFone(raw); return (a.ok && a.fmt) ? a.fmt : (a.d || (raw||'').trim()); }
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
+function maskCEP(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>5) v=v.replace(/(\d{5})(\d{1,3})/,'$1-$2'); el.value=v; }
 function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
@@ -4146,6 +4335,20 @@ function buildRouteText(items, ent){
     if(d.observacao) t += `📝 ${d.observacao}\n`;
     if(d.vendedora)t += `👤 ${d.vendedora}\n`;
   });
+  // pacotes de envio que ele tem que deixar nos pontos parceiros entram como paradas extras
+  const paradas = paradasEnvioDe(ent.id);
+  if(paradas.length){
+    const tot = paradas.reduce((s,p)=>s+p.itens.length,0);
+    t += `\n━━━━━━━━━━━━━━\n📮 *ENVIOS — ${tot} pacote${tot>1?'s':''} para deixar*\n`;
+    paradas.forEach((p,i)=>{
+      t += `\n*${items.length+i+1}) ${p.ponto.nome}* — ${p.itens.length} pacote${p.itens.length>1?'s':''}\n`;
+      t += `🔗 ${p.ponto.link}\n`;
+      p.itens.forEach(v=>{
+        const tr = TRSP[v.transportadora] ? TRSP[v.transportadora].nome : '';
+        t += `   • ${v.cliente}${tr?' — '+tr:''}\n`;
+      });
+    });
+  }
   return t.trim();
 }
 function despacharRota(items, entId){
@@ -4566,6 +4769,7 @@ function render(){
   // animação de entrada apenas em ações deliberadas (não no refresh de 30s)
   ['list-aguard','list-rota','list-entregue'].forEach(id=>{ const el=$(id); if(el) el.classList.toggle('anim', _anim); });
   _anim=false;
+  if(typeof renderEnvios==='function') renderEnvios();   // mantém o contador da aba Envios em dia
 }
 
 /* ============ editar (simples via prompt do form) ============ */
@@ -4671,21 +4875,23 @@ const ROUTE_COLORS=['#d4b45a','#6fb0a6','#c97b5a','#8e9cd6','#cf8aa8','#9bbf6f']
 
 function switchTab(name){
   tabAtiva = name;
-  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes';
-  $('view-painel').style.display = (isMapa||isFin||isRank||isPend)?'none':'';
+  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes', isEnv = name==='envios';
+  $('view-painel').style.display = (isMapa||isFin||isRank||isPend||isEnv)?'none':'';
   $('view-mapa').style.display = isMapa?'':'none';
   $('view-fin').style.display = isFin?'':'none';
   $('view-ranking').style.display = isRank?'':'none';
   $('view-pendentes').style.display = isPend?'':'none';
+  $('view-envios').style.display = isEnv?'':'none';
   $('tab-painel').classList.toggle('on', name==='painel');
   $('tab-mapa').classList.toggle('on', isMapa);
   $('tab-fin').classList.toggle('on', isFin);
   $('tab-ranking').classList.toggle('on', isRank);
   $('tab-pendentes').classList.toggle('on', isPend);
+  $('tab-envios').classList.toggle('on', isEnv);
   const dt=$('destaques-topo');
   if(dt){ if(name==='painel'){ dt.innerHTML=destaquesHTML(true); dt.style.display=''; } else dt.style.display='none'; }  // destaques só no Painel
   if(isMapa){ assinarRastreio(); ensureMap(); renderMap(); if(!suggestion && aguardandoHoje().some(e=>coordOf(e))) sugerirRotas(); }
-  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else { animateNext(); render(); } }
+  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else if(isEnv){ renderEnvios(); } else { animateNext(); render(); } }
 }
 function ensureMap(){
   if(mapInited){ if(map) setTimeout(()=>map.invalidateSize(),50); return; }
@@ -4930,6 +5136,313 @@ function enviarSugestao(ci){
   suggestion.groups[ci]=[];
   renderMap(); renderRotasSugeridas(); render();
   toast(`Rota ${ci+1} → ${ENT[entId].nome}`);
+}
+
+/* ============ ENVIOS — cadastro, fila da operação e roteiro ============ */
+let _envEditId=null, _envAiBusy=false;
+
+/* quem manda nos envios: a operação (Edson) e o gestor */
+function podeOperarEnvios(){ return !!(session && (session.role==='gestor' || (session.role==='vendedora' && session.geral))); }
+function podeVerEnvio(v){
+  if(!session || !session.role) return false;
+  if(session.role==='gestor' || session.geral) return true;
+  if(session.role==='vendedora') return canonVend(v.vendedora||'')===session.vendedora;
+  if(session.role==='entregador') return v.entregador===session.entregador;
+  return false;
+}
+function enviosVisiveis(){ return envios.filter(podeVerEnvio); }
+function enviosStatus(st){ return enviosVisiveis().filter(v=>v.status===st); }
+/* prontos que ainda precisam de alguém para levar ao ponto parceiro */
+function enviosParaLevar(){ return enviosStatus('embalado').filter(v=>!coletaNaLoja(v.transportadora)); }
+function enviosAguardandoColeta(){ return enviosStatus('embalado').filter(v=>coletaNaLoja(v.transportadora)); }
+
+function opcoesTrsp(sel){
+  return '<option value="">A definir na operação</option>' +
+    TRANSPORTADORAS.map(t=>`<option value="${t.id}"${sel===t.id?' selected':''}>${t.ico} ${t.nome}${t.coleta?' · coleta na loja':''}</option>`).join('');
+}
+
+/* ---- formulário ---- */
+function novoEnvio(){
+  _envEditId=null;
+  $('env-modal-title').textContent='Novo envio';
+  ['env-paste','env-cliente','env-cpf','env-nasc','env-contato','env-cep','env-end','env-bairro','env-cidade','env-uf','env-prod','env-valor','env-obs']
+    .forEach(i=>{ const el=$(i); if(el) el.value=''; });
+  $('env-trsp').innerHTML=opcoesTrsp('');
+  const ehVend = session.role==='vendedora' && !session.geral;
+  const fv=$('env-vend'); fv.value = ehVend ? session.vendedora : ''; fv.readOnly = ehVend; fv.style.opacity = ehVend?'.65':'';
+  $('env-modal').classList.add('open');
+}
+function editarEnvio(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  _envEditId=id;
+  $('env-modal-title').textContent='Editar envio';
+  $('env-paste').value='';
+  $('env-cliente').value=v.cliente||''; $('env-cpf').value=v.cpf||''; $('env-nasc').value=v.nascimento||'';
+  $('env-contato').value=v.contato||''; $('env-cep').value=v.cep||''; $('env-end').value=v.endereco||'';
+  $('env-bairro').value=v.bairro||''; $('env-cidade').value=v.cidade||''; $('env-uf').value=v.uf||'';
+  $('env-vend').value=v.vendedora||''; $('env-prod').value=v.produto||''; $('env-valor').value=v.valor||'';
+  $('env-obs').value=v.observacao||''; $('env-trsp').innerHTML=opcoesTrsp(v.transportadora||'');
+  const ehVend = session.role==='vendedora' && !session.geral;
+  const fv=$('env-vend'); fv.readOnly=ehVend; fv.style.opacity=ehVend?'.65':'';
+  $('env-modal').classList.add('open');
+}
+function fecharEnvio(){ $('env-modal').classList.remove('open'); _envEditId=null; }
+function salvarEnvio(){
+  const cliente=$('env-cliente').value.trim();
+  const cidade=$('env-cidade').value.trim();
+  if(!cliente){ toast('Preencha o nome do cliente'); return; }
+  if(!cidade){ toast('Preencha a cidade de destino'); return; }
+  const dados={
+    cliente, cidade,
+    cpf:$('env-cpf').value.trim(),
+    nascimento:$('env-nasc').value.trim(),
+    contato:$('env-contato').value.trim(),
+    cep:$('env-cep').value.trim(),
+    endereco:$('env-end').value.trim(),
+    bairro:$('env-bairro').value.trim(),
+    uf:$('env-uf').value.trim().toUpperCase(),
+    vendedora:$('env-vend').value.trim(),
+    produto:$('env-prod').value.trim(),
+    valor:$('env-valor').value.trim(),
+    transportadora:$('env-trsp').value,
+    observacao:$('env-obs').value.trim()
+  };
+  const editando=!!_envEditId;
+  if(editando){
+    const v=envios.find(x=>x.id===_envEditId);
+    if(v) Object.assign(v, dados);
+  }else{
+    const id=uid();
+    envios.push(Object.assign({id, status:'novo', entregador:null, pontoId:'', criadoEm:Date.now(), atualizadoEm:Date.now()}, dados));
+    _envPend[id]=Date.now();
+  }
+  persistEnvios(); fecharEnvio(); renderEnvios();
+  toast(editando ? 'Envio atualizado ✓' : 'Envio lançado — já aparece na fila da operação');
+}
+async function envColar(){
+  try{ const t=await navigator.clipboard.readText(); if(t){ $('env-paste').value=t; autoGrow($('env-paste')); toast('Mensagem colada'); } }
+  catch(e){ toast('Cole a mensagem no campo (toque e segure → Colar)'); }
+}
+
+const SYS_ENVIO = `Você extrai os dados do destinatário de mensagens de WhatsApp de uma loja de calçados em Goiânia, para ENVIOS pelos Correios/transportadora (vendas para fora da cidade). As mensagens são informais e os dados vêm fora de ordem. Responda SOMENTE com um objeto JSON válido, sem markdown, sem nenhum texto antes ou depois.
+Campos do JSON:
+- cliente: nome completo da PESSOA que vai receber o pacote.
+- cpf: CPF do destinatário, formatado 000.000.000-00. Um número solto de 11 dígitos que não seja telefone costuma ser o CPF. Senão "".
+- nascimento: data de nascimento, formato dd/mm/aaaa. Senão "".
+- contato: telefone do destinatário. SÓ os dígitos, exatamente como aparecem (com DDD se houver). NÃO invente, complete nem remova dígitos. Sem +55.
+- cep: CEP do destino, formatado 00000-000. Senão "".
+- endereco: rua, número, quadra, lote, complemento e ponto de referência. NÃO repita bairro, cidade nem CEP aqui.
+- bairro: só o bairro/vila/setor/residencial.
+- cidade: a cidade de destino.
+- uf: a sigla do estado com 2 letras (ex: SP, GO, MG). Se a mensagem não disser, deduza pela cidade quando for uma cidade conhecida; se não tiver como saber, "".
+- produto: liste UM modelo por linha (modelo + numeração). Se a mensagem trouxer o preço de cada item, coloque o valor no fim da linha do item. Se não houver produto na mensagem, "".
+- valor: valor TOTAL da venda, só o número, ex "289,90". Sem "R$". Se não aparecer, "".
+- observacao: instrução extra útil para quem embala (ex: "já está no Melhor Envio", "embalar como presente", "cliente pediu urgência"). Se a mensagem disser que a etiqueta já foi gerada em alguma plataforma, registre isso aqui. Senão "".
+Use "" para qualquer campo ausente. Ignore RG.`;
+
+async function envPreencherIA(){
+  const t=$('env-paste').value.trim();
+  if(!t){ toast('Cole a mensagem primeiro'); return; }
+  if(_envAiBusy) return;
+  _envAiBusy=true;
+  const btn=$('btn-env-ai'); const old=btn?btn.textContent:'';
+  if(btn){ btn.textContent='✨ Lendo...'; btn.disabled=true; }
+  toast('✨ Lendo…');
+  try{
+    const r=await aiParseEnvio(t);
+    const set=(campo,val)=>{ const el=$(campo); if(el && val) el.value=val; };
+    set('env-cliente', r.cliente); set('env-cpf', r.cpf); set('env-nasc', r.nascimento);
+    set('env-contato', r.contato); set('env-cep', r.cep); set('env-end', r.endereco);
+    set('env-bairro', r.bairro); set('env-cidade', r.cidade);
+    set('env-uf', (r.uf||'').toUpperCase());
+    set('env-prod', r.produto); set('env-valor', r.valor); set('env-obs', r.observacao);
+    // o remetente da mensagem no WhatsApp costuma ser a própria vendedora
+    if(!$('env-vend').value.trim() && !$('env-vend').readOnly){
+      const base=parseWhatsapp(t); if(base && base.vendedora) $('env-vend').value=base.vendedora;
+    }
+    toast('✨ Preenchido — confira e salve');
+  }catch(e){
+    toast('IA indisponível agora — preencha os campos à mão');
+  }finally{ _envAiBusy=false; if(btn){ btn.textContent=old; btn.disabled=false; } }
+}
+async function aiParseEnvio(text){
+  const userText=normWhats(text);
+  let data;
+  if(AI_PROXY_URL){
+    const res=await fetch(AI_PROXY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:SYS_ENVIO, text:userText})});
+    if(!res.ok) throw new Error('proxy '+res.status);
+    data=await res.json();
+  }else{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:SYS_ENVIO,messages:[{role:"user",content:userText}]})
+    });
+    if(!res.ok) throw new Error('api '+res.status);
+    data=await res.json();
+  }
+  if(data && data.error) throw new Error('IA: '+(data.error.message||'erro'));
+  let txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+  txt=txt.replace(/```json|```/g,'').trim();
+  const a=txt.indexOf('{'), b=txt.lastIndexOf('}');
+  if(a>=0 && b>a) txt=txt.slice(a,b+1);
+  return JSON.parse(txt);
+}
+
+/* ---- ações da operação ---- */
+function envEmbalar(id){
+  const v=envios.find(x=>x.id===id); if(!v || !podeOperarEnvios()) return;
+  const sel=$('env-trsp-'+id);
+  const t=sel ? sel.value : v.transportadora;
+  if(!t){ toast('Escolha a transportadora antes de marcar embalado'); return; }
+  v.transportadora=t; v.status='embalado'; v.embaladoEm=Date.now();
+  v.embaladoPor = session ? (session.vendedora||session.role) : '';
+  persistEnvios(); renderEnvios();
+  toast(coletaNaLoja(t) ? `Embalado ✓ — ${TRSP[t].nome} coleta na loja` : 'Embalado ✓ — entra no roteiro dos pontos parceiros');
+}
+function envSetTrsp(id, valor){
+  const v=envios.find(x=>x.id===id); if(!v || !podeOperarEnvios()) return;
+  v.transportadora=valor||'';
+  if(v.status==='embalado'){ v.pontoId=''; }       // mudou de transportadora: o roteiro é recalculado
+  persistEnvios(); renderEnvios();
+}
+function envColetado(id){
+  const v=envios.find(x=>x.id===id); if(!v || !podeOperarEnvios()) return;
+  v.status='despachado'; v.despachadoEm=Date.now(); v.coletadoNaLoja=true;
+  v.despachadoPor = session ? (session.vendedora||session.role) : '';
+  persistEnvios(); renderEnvios(); toast('Coletado pela transportadora ✓');
+}
+function envVoltar(id){
+  const v=envios.find(x=>x.id===id); if(!v || !podeOperarEnvios()) return;
+  v.status='novo'; v.entregador=null; v.pontoId=''; v.coletadoNaLoja=false;
+  v.embaladoEm=null; v.despachadoEm=null; v.reabertoEm=Date.now();
+  persistEnvios(); renderEnvios(); toast('Envio voltou para a fila de embalagem');
+}
+function excluirEnvio(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  if(!confirm(`Excluir o envio de ${v.cliente}?`)) return;
+  envios=envios.filter(x=>x.id!==id);
+  delete _envShadow[id]; delete _envPend[id];
+  try{ localStorage.setItem(ENV_KEY, JSON.stringify(envios)); }catch(e){}
+  if(FIREBASE_ON && fdb) fdb.collection('envios').doc(String(id)).delete().catch(e=>console.warn('Firebase: exclusão de envio falhou', e));
+  renderEnvios(); toast('Envio excluído');
+}
+/* manda o roteiro inteiro para um entregador: cada pacote já sai com o ponto onde deve ser deixado */
+function mandarEnviosRota(entId){
+  if(!entId){ toast('Escolha quem vai levar'); return; }
+  const ent=ENT[entId]; if(!ent || !podeOperarEnvios()) return;
+  const paradas=roteiroEnvios(enviosParaLevar());
+  if(!paradas.length){ toast('Não há envio pronto para levar'); return; }
+  let n=0;
+  paradas.forEach(p=>p.itens.forEach(v=>{ v.status='em_rota'; v.entregador=entId; v.pontoId=p.ponto.id; v.roteadoEm=Date.now(); n++; }));
+  persistEnvios(); renderEnvios();
+  toast(`${n} envio${n>1?'s':''} em ${paradas.length} parada${paradas.length>1?'s':''} → ${ent.nome}`);
+}
+
+/* ---- tela ---- */
+function envDestinoTxt(v){
+  const linha1=[v.endereco, v.bairro].filter(Boolean).join(' · ');
+  const linha2=[v.cidade, v.uf].filter(Boolean).join(' - ');
+  return [linha1, [linha2, v.cep].filter(Boolean).join(' · ')].filter(Boolean).join('<br>');
+}
+function envCardHTML(v, modo){
+  const opera=podeOperarEnvios();
+  const cls = v.status==='despachado' ? 'ok' : v.status==='em_rota' ? 'rota' : v.status==='embalado' ? 'pronto' : '';
+  const t=TRSP[v.transportadora];
+  let acts='';
+  if(modo==='embalar' && opera){
+    acts=`<div class="env-acts">
+      <select id="env-trsp-${v.id}" onchange="envSetTrsp('${v.id}', this.value)">${opcoesTrsp(v.transportadora||'')}</select>
+      <button class="btn btn-primary btn-mini" onclick="envEmbalar('${v.id}')">📦 Embalado</button>
+      <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
+      <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
+    </div>`;
+  } else if(modo==='embalar'){
+    acts=`<div class="env-acts">
+      <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
+      <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
+    </div>`;
+  } else if(modo==='coleta' && opera){
+    acts=`<div class="env-acts">
+      <button class="btn btn-primary btn-mini" onclick="envColetado('${v.id}')">✓ Coletado</button>
+      <button class="btn btn-ghost btn-mini" onclick="envVoltar('${v.id}')">↩ Voltar p/ embalar</button>
+    </div>`;
+  } else if(modo==='levar' && opera){
+    acts=`<div class="env-acts"><button class="btn btn-ghost btn-mini" onclick="envVoltar('${v.id}')">↩ Voltar p/ embalar</button></div>`;
+  }
+  const ponto = v.pontoId && PONTO[v.pontoId];
+  const quem = v.entregador && ENT[v.entregador];
+  return `<div class="env-card ${cls}">
+    <h4>${esc(v.cliente)}${v.valor?`<span style="color:var(--gold);font-size:14px">${esc(v.valor)}</span>`:''}</h4>
+    <div class="env-dest">${envDestinoTxt(v)}</div>
+    ${v.produto?`<div class="env-dest" style="margin-top:5px">🧾 ${esc(v.produto).replace(/\n/g,'<br>')}</div>`:''}
+    ${v.observacao?`<div class="env-dest" style="margin-top:5px;color:var(--text-mute)">📝 ${esc(v.observacao)}</div>`:''}
+    <div class="env-meta">
+      ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
+      ${ponto?`<span class="env-tag tr">${ponto.ico} ${esc(ponto.nome)}</span>`:''}
+      ${quem?`<span class="env-tag">🛵 ${esc(quem.nome)}</span>`:''}
+      ${v.vendedora?`<span>👤 ${esc(v.vendedora)}</span>`:''}
+      ${v.contato?`<span>📞 ${esc(v.contato)}</span>`:''}
+    </div>
+    ${acts}
+  </div>`;
+}
+function envSecHTML(titulo, lista, modo, vazio){
+  if(!lista.length && !vazio) return '';
+  return `<div class="env-sec"><h3>${titulo}<span class="n">${lista.length}</span></h3>
+    ${lista.length ? lista.map(v=>envCardHTML(v,modo)).join('') : `<div class="env-vazio">${vazio}</div>`}</div>`;
+}
+function roteiroHTML(){
+  const prontos=enviosParaLevar();
+  if(!prontos.length) return '';
+  const paradas=roteiroEnvios(prontos);
+  const sobrando=prontos.length - paradas.reduce((s,p)=>s+p.itens.length,0);
+  const opera=podeOperarEnvios();
+  return `<div class="env-rot">
+    <h3>🗺️ Roteiro dos pontos parceiros</h3>
+    <div class="sub">${paradas.length} parada${paradas.length>1?'s':''} dá conta de ${prontos.length} pacote${prontos.length>1?'s':''}.</div>
+    ${paradas.map(p=>`<div class="env-parada">
+      <div class="pn">${p.ponto.ico} ${esc(p.ponto.nome)} <a class="pl" href="${esc(p.ponto.link)}" target="_blank">abrir no mapa ↗</a></div>
+      <ul>${p.itens.map(v=>`<li><span>${esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
+    </div>`).join('')}
+    ${sobrando>0?`<div class="env-vazio" style="margin-top:8px">${sobrando} pacote(s) com transportadora sem ponto parceiro cadastrado — leve à parte.</div>`:''}
+    ${opera?`<div class="env-acts" style="margin-top:12px">
+      <select id="env-ent-pick"><option value="">Quem vai levar…</option>${ENTREGADORES.map(e=>`<option value="${e.id}">${esc(e.nome)}</option>`).join('')}</select>
+      <button class="btn btn-primary btn-mini" onclick="mandarEnviosRota(document.getElementById('env-ent-pick').value)">Mandar para a rota ▸</button>
+    </div>`:''}
+  </div>`;
+}
+function renderEnvios(){
+  const box=$('view-envios'); if(!box) return;
+  const badge=$('c-tab-envios');
+  const aFazer = enviosVisiveis().filter(v=>v.status!=='despachado').length;
+  if(badge) badge.textContent = aFazer ? ' ' + aFazer : '';
+  if(box.style.display==='none') return;            // só monta a tela quando a aba está aberta
+
+  const novos=enviosStatus('novo'), levar=enviosParaLevar(), coleta=enviosAguardandoColeta(), emRota=enviosStatus('em_rota');
+  const feitos=enviosStatus('despachado').sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0)).slice(0,15);
+  const opera=podeOperarEnvios();
+
+  box.innerHTML=`
+    <div class="env-top">
+      <div>
+        <h2>Envios</h2>
+        <p>${opera?'Confira a transportadora, embale e monte o roteiro dos pontos parceiros.':'Vendas para fora de Goiânia — a operação embala e despacha.'}</p>
+      </div>
+      <button class="btn btn-primary" onclick="novoEnvio()">＋ Novo envio</button>
+    </div>
+    <div class="env-kpis">
+      <div class="env-kpi"><div class="lbl">A embalar</div><div class="val">${novos.length}</div></div>
+      <div class="env-kpi"><div class="lbl">A levar no ponto</div><div class="val">${levar.length}</div></div>
+      <div class="env-kpi"><div class="lbl">Coleta na loja</div><div class="val">${coleta.length}</div></div>
+      <div class="env-kpi"><div class="lbl">Em rota</div><div class="val">${emRota.length}</div></div>
+    </div>
+    ${roteiroHTML()}
+    ${envSecHTML('📥 A embalar', novos, 'embalar', opera?'Nada esperando embalagem.':'Nenhum envio seu na fila.')}
+    ${envSecHTML('📦 Prontos — levar ao ponto', levar, 'levar', '')}
+    ${envSecHTML('🚚 Aguardando coleta na loja', coleta, 'coleta', '')}
+    ${envSecHTML('🛵 Em rota para o ponto', emRota, 'rota', '')}
+    ${envSecHTML('✓ Despachados', feitos, 'feito', '')}
+  `;
 }
 
 /* ============ login / sessão / entregador ============ */
@@ -5706,11 +6219,14 @@ function renderEntregador(){
   const start=items.length?Math.min(...items.map(e=>e.roteadoEm||e.criadoEm)):Date.now();
   const _diaEhPassado = diaEnt < todayKey();
   const _temFinDia = entregas.some(e=>e.entregador===session.entregador && dataDe(e)===diaEnt && ['entregue','nao_entregue','cancelado'].includes(e.status));
+  const _nEnv = enviosDoEntregador(session.entregador).length;
+  const _statEnv = _nEnv ? `<div class="stat"><b>${_nEnv}</b><span>${_nEnv===1?'pacote':'pacotes'}</span></div>` : '';
   $('ent-resumo').innerHTML=items.length
-    ? `<div class="stat"><b>${items.length}</b><span>entregas</span></div><div class="stat"><b>${fmtDur(est)}</b><span>de rota</span></div><div class="stat"><b>${finishTime(start,est)}</b><span>término</span></div>`
-    : (_diaEhPassado && _temFinDia
+    ? `<div class="stat"><b>${items.length}</b><span>entregas</span></div><div class="stat"><b>${fmtDur(est)}</b><span>de rota</span></div><div class="stat"><b>${finishTime(start,est)}</b><span>término</span></div>${_statEnv}`
+    : (_nEnv ? `<div class="stat"><b>${_nEnv}</b><span>${_nEnv===1?'pacote de envio':'pacotes de envio'}</span></div><div class="stat empty-stat">Sem entregas — só os envios abaixo.</div>`
+      : (_diaEhPassado && _temFinDia
         ? `<div class="stat empty-stat">Dia encerrado — veja suas entregas finalizadas abaixo.</div>`
-        : `<div class="stat empty-stat">Nenhuma entrega na sua rota agora.</div>`);
+        : `<div class="stat empty-stat">Nenhuma entrega na sua rota agora.</div>`));
   const comHora=ordered.filter(e=>e.horarioTipo&&e.horarioHora);
   const alerta = comHora.length
     ? `<div class="ent-alert"><b>⏰ Atenção aos horários combinados:</b><br>${comHora.map(e=>`${esc(e.cliente)} — <b>${esc(hrTxt(e))}</b>`).join(' · ')}</div>`
@@ -5753,10 +6269,42 @@ function renderEntregador(){
         <button class="btn btn-primary btn-mini" onclick="abrirMoverEntregador()">↪ Mover p/ outro entregador</button>
       </div>
     </div>` : '';
-  $('ent-list').innerHTML=alerta + semLocHTML + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
+  $('ent-list').innerHTML=alerta + semLocHTML + enviosEntregadorHTML() + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
   renderGpsBar();
+}
+/* ---- envios na rota do entregador ---- */
+function enviosDoEntregador(entId){ return envios.filter(v=>v.status==='em_rota' && v.entregador===entId); }
+/* agrupa os pacotes dele pelo ponto onde cada um deve ser deixado */
+function paradasEnvioDe(entId){
+  const porPonto={};
+  enviosDoEntregador(entId).forEach(v=>{ const p=v.pontoId; if(!PONTO[p]) return; (porPonto[p]=porPonto[p]||[]).push(v); });
+  return PONTOS_PARCEIROS.filter(p=>porPonto[p.id]).map(p=>({ponto:p, itens:porPonto[p.id]}));
+}
+function enviosEntregadorHTML(){
+  if(!session || session.role!=='entregador') return '';
+  const paradas=paradasEnvioDe(session.entregador);
+  if(!paradas.length) return '';
+  const total=paradas.reduce((s,p)=>s+p.itens.length,0);
+  return `<div class="ent-envios">
+    <h3>📮 Envios — deixar nos pontos</h3>
+    <div class="sub">${total} pacote${total>1?'s':''} em ${paradas.length} parada${paradas.length>1?'s':''}. Confirme quando deixar cada uma.</div>
+    ${paradas.map(p=>`<div class="env-parada">
+      <div class="pn">${p.ponto.ico} ${esc(p.ponto.nome)} <a class="pl" href="${esc(p.ponto.link)}" target="_blank">abrir no mapa ↗</a></div>
+      <ul>${p.itens.map(v=>`<li><span>${esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
+      <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="envEntregueNoPonto('${p.ponto.id}')">✓ Deixei no ${esc(p.ponto.nome)} (${p.itens.length})</button></div>
+    </div>`).join('')}
+  </div>`;
+}
+function envEntregueNoPonto(pontoId){
+  if(!session || session.role!=='entregador') return;
+  const meus=envios.filter(v=>v.status==='em_rota' && v.entregador===session.entregador && v.pontoId===pontoId);
+  if(!meus.length) return;
+  meus.forEach(v=>{ v.status='despachado'; v.despachadoEm=Date.now(); v.despachadoPor=session.entregador; });
+  persistEnvios(); renderEntregador();
+  const p=PONTO[pontoId];
+  toast(`${meus.length} pacote${meus.length>1?'s':''} entregue${meus.length>1?'s':''} no ${p?p.nome:'ponto'} ✓`);
 }
 function msgPadrao(){
   const ent=ENT[session.entregador]; const nome=ent?ent.nome:'';
