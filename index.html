@@ -900,6 +900,15 @@
     border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
   .ent-envios h3{font-family:var(--ff-display);font-size:19px;font-weight:600;color:var(--gold-lt);margin-bottom:2px}
   .ent-envios .sub{color:var(--text-soft);font-size:12px;margin-bottom:11px}
+  /* aviso ao Edson */
+  .env-aviso-sub{color:var(--text-soft);font-size:13px;line-height:1.55;margin-bottom:12px}
+  .env-aviso-prev{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;
+    font-family:var(--ff-body);font-size:12.5px;line-height:1.6;color:var(--text-soft);text-align:left;
+    white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;margin-bottom:14px}
+  .env-aviso-wa{width:100%;justify-content:center;font-size:15px;padding:13px}
+  .env-aviso-skip{display:block;width:100%;margin-top:10px;background:none;border:none;color:var(--text-mute);
+    font-family:inherit;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px}
+  .env-tag.aviso{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
   .rk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
   .rk-card{border:1px solid rgba(212,180,90,.2);border-radius:16px;padding:14px 16px 18px;background:rgba(255,255,255,.018)}
   .rk-card .rk-block{margin-top:0}
@@ -1617,7 +1626,20 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v131</div>
+<!-- aviso obrigatório ao Edson depois de lançar um envio -->
+<div class="modal-bg" id="env-aviso-modal">
+  <div class="modal" style="max-width:470px;text-align:center">
+    <div style="font-size:40px;line-height:1">📦</div>
+    <h3 style="margin:8px 0 6px">Envio salvo — avise o Edson</h3>
+    <p class="env-aviso-sub">Mande no WhatsApp que a etiqueta já foi gerada no Melhor Envio e o pedido está pronto para ser embalado e enviado.</p>
+    <pre id="env-aviso-prev" class="env-aviso-prev"></pre>
+    <button class="btn btn-primary env-aviso-wa" id="env-aviso-btn" onclick="avisarEdsonWhats()">Avisar o Edson no WhatsApp</button>
+    <button class="btn btn-primary env-aviso-wa" id="env-aviso-fechar" style="display:none" onclick="fecharAvisoEdson()">✓ Pronto, avisei</button>
+    <button type="button" class="env-aviso-skip" id="env-aviso-skip" onclick="pularAvisoEdson()">não consigo avisar agora</button>
+  </div>
+</div>
+
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v132</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -1827,6 +1849,9 @@ const ENTREGADORES = [
   {id:'hugo',    nome:'Hugo',    tag:'Por entrega',     cor:'#8e9cd6', tipo:'freelance', tel:'5562986218413'},
   {id:'flavio',  nome:'Flavio',  tag:'Por entrega',     cor:'#cf8aa8', tipo:'freelance', tel:'5562999296060'},
   {id:'junior',  nome:'Junior',  tag:'Por entrega',     cor:'#7fb0d4', tipo:'freelance', tel:'5562993741125'},
+  // Edson também roda entrega: recebe no mínimo R$ 25 por entrega, mas onde a tabela
+  // por região paga mais (Trindade, Goianira e Senador Canedo, R$ 40) vale a tabela.
+  {id:'edson',   nome:'Edson',   tag:'Por entrega',     cor:'#9bbf6f', tipo:'freelance', tel:'5562999266976', pisoPorEntrega:25},
 ];
 const ENT = Object.fromEntries(ENTREGADORES.map(e=>[e.id,e]));
 
@@ -2046,7 +2071,9 @@ function custoEntrega(e){
   const ent=ENT[e.entregador]; if(!ent) return 0;
   if(ent.tipo==='gratis'||ent.tipo==='fixo') return 0;  // grátis (pai) e fixo (salário mensal) não têm custo por entrega
   const f=config.custos.freelance||{};
-  return Number(f[regiaoEntrega(e)] ?? f.outro ?? 0);
+  const tabela=Number(f[regiaoEntrega(e)] ?? f.outro ?? 0);
+  // piso por entrega: quem tem valor mínimo combinado nunca recebe menos que ele
+  return ent.pisoPorEntrega!=null ? Math.max(Number(ent.pisoPorEntrega), tabela) : tabela;
 }
 
 /* extrai coordenadas de um link do Google Maps */
@@ -5208,16 +5235,59 @@ function salvarEnvio(){
     observacao:$('env-obs').value.trim()
   };
   const editando=!!_envEditId;
+  let novoId=null;
   if(editando){
     const v=envios.find(x=>x.id===_envEditId);
     if(v) Object.assign(v, dados);
   }else{
-    const id=uid();
-    envios.push(Object.assign({id, status:'novo', entregador:null, pontoId:'', criadoEm:Date.now(), atualizadoEm:Date.now()}, dados));
-    _envPend[id]=Date.now();
+    novoId=uid();
+    envios.push(Object.assign({id:novoId, status:'novo', entregador:null, pontoId:'', criadoEm:Date.now(), atualizadoEm:Date.now()}, dados));
+    _envPend[novoId]=Date.now();
   }
   persistEnvios(); fecharEnvio(); renderEnvios();
-  toast(editando ? 'Envio atualizado ✓' : 'Envio lançado — já aparece na fila da operação');
+  if(novoId){ abrirAvisoEdson(novoId); }          // envio novo: avisar o Edson é parte do cadastro
+  else toast('Envio atualizado ✓');
+}
+
+/* ---- aviso ao Edson: a etiqueta saiu, o pedido pode ser embalado ---- */
+let _envAvisoId=null;
+function envMsgEdson(v){
+  const destino=[v.cidade, v.uf].filter(Boolean).join(' - ');
+  let t='Oi Edson! 📦 *Novo envio pronto pra embalar*\n\n';
+  t+=`*${v.cliente}*\n`;
+  if(destino) t+=`📍 ${destino}${v.cep?' · CEP '+v.cep:''}\n`;
+  if(v.produto) t+=`🧾 ${v.produto.replace(/\n/g,' · ')}${v.valor?' — R$ '+v.valor:''}\n`;
+  if(v.transportadora && TRSP[v.transportadora]) t+=`🚚 ${TRSP[v.transportadora].nome}\n`;
+  t+='\nA etiqueta já foi gerada no Melhor Envio. O pedido está pronto para ser embalado e enviado.';
+  if(v.vendedora) t+=`\n\n— ${v.vendedora}`;
+  return t;
+}
+function abrirAvisoEdson(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  _envAvisoId=id;
+  $('env-aviso-prev').textContent=envMsgEdson(v);
+  $('env-aviso-btn').style.display=''; $('env-aviso-skip').style.display='';
+  $('env-aviso-fechar').style.display='none';
+  $('env-aviso-modal').classList.add('open');
+}
+function avisarEdsonWhats(){
+  const v=envios.find(x=>x.id===_envAvisoId); if(!v) return;
+  const tel=TEL_VEND['Edson']||'5562999266976';
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(envMsgEdson(v))}`,'_blank');
+  v.avisoEdson=Date.now();
+  v.avisoEdsonPor = session ? (session.vendedora||session.role) : '';
+  persistEnvios(); renderEnvios();
+  $('env-aviso-btn').style.display='none'; $('env-aviso-skip').style.display='none';
+  $('env-aviso-fechar').style.display='';
+}
+/* sem trapaça: dá pra sair, mas o envio fica marcado como "Edson não avisado" na lista */
+function pularAvisoEdson(){
+  $('env-aviso-modal').classList.remove('open'); _envAvisoId=null;
+  renderEnvios(); toast('Envio salvo — mas o Edson ainda não foi avisado');
+}
+function fecharAvisoEdson(){
+  $('env-aviso-modal').classList.remove('open'); _envAvisoId=null;
+  renderEnvios(); toast('Edson avisado ✓');
 }
 async function envColar(){
   try{ const t=await navigator.clipboard.readText(); if(t){ $('env-paste').value=t; autoGrow($('env-paste')); toast('Mensagem colada'); } }
@@ -5358,6 +5428,7 @@ function envCardHTML(v, modo){
     </div>`;
   } else if(modo==='embalar'){
     acts=`<div class="env-acts">
+      ${!v.avisoEdson?`<button class="btn btn-primary btn-mini" onclick="abrirAvisoEdson('${v.id}')">💬 Avisar o Edson</button>`:''}
       <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
       <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
     </div>`;
@@ -5378,6 +5449,7 @@ function envCardHTML(v, modo){
     ${v.observacao?`<div class="env-dest" style="margin-top:5px;color:var(--text-mute)">📝 ${esc(v.observacao)}</div>`:''}
     <div class="env-meta">
       ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
+      ${(v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
       ${ponto?`<span class="env-tag tr">${ponto.ico} ${esc(ponto.nome)}</span>`:''}
       ${quem?`<span class="env-tag">🛵 ${esc(quem.nome)}</span>`:''}
       ${v.vendedora?`<span>👤 ${esc(v.vendedora)}</span>`:''}
@@ -6794,20 +6866,31 @@ function rankingHTML(){
   </div>`;
 }
 /* ============ Pagamento — entregadores avulsos (por região, por semana) ============ */
-const PA_AVULSOS = ['joao','hugo','flavio','junior'];
+const PA_AVULSOS = ['joao','hugo','flavio','junior','edson'];
 let _paSel = 'joao';
 let _paCompras = {};
 function _paEnt(id){ return (typeof ENTREGADORES!=='undefined'?ENTREGADORES:[]).find(function(e){return e.id===id;})||{}; }
 function _brlPA(n){ return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function _paRate(cidade){
+function _paRate(cidade, courierId){
+  const ent=courierId?_paEnt(courierId):null;
+  const piso=(ent && ent.pisoPorEntrega!=null) ? Number(ent.pisoPorEntrega) : null;
+  const _r=v=>piso!=null?Math.max(piso, Number(v)||0):(Number(v)||0);   // respeita o piso combinado
   const f=(config.custos&&config.custos.freelance)||{};
   const c=normTxt(cidade);
-  if(c.includes('goianira')) return Number(f.goianira)||0;
-  if(c.includes('aparecida')) return Number(f.aparecida)||0;   // ANTES de goiania: "Aparecida de Goiânia" contém "goiania"
-  if(c.includes('trindade')) return Number(f.trindade)||0;
-  if(c.includes('senador')) return Number(f.senador)||0;
-  if(!c || c.includes('goiania')) return Number(f.goiania)||0;
-  return Number(f.outro)||0;
+  if(c.includes('goianira')) return _r(f.goianira);
+  if(c.includes('aparecida')) return _r(f.aparecida);   // ANTES de goiania: "Aparecida de Goiânia" contém "goiania"
+  if(c.includes('trindade')) return _r(f.trindade);
+  if(c.includes('senador')) return _r(f.senador);
+  if(!c || c.includes('goiania')) return _r(f.goiania);
+  return _r(f.outro);
+}
+/* frase das tarifas: valor fechado para quem tem, tabela por região para os demais */
+function _paTarifaTxt(courierId){
+  const ent=courierId?_paEnt(courierId):null;
+  const piso=(ent && ent.pisoPorEntrega!=null) ? ' Mínimo de '+_brlPA(ent.pisoPorEntrega)+' por entrega.' : '';
+  return 'Tarifa por região: Goiânia '+_brlPA(_paRate('',courierId))+' · Aparecida '+_brlPA(_paRate('aparecida',courierId))
+    +' · Trindade '+_brlPA(_paRate('trindade',courierId))+' · Senador Canedo '+_brlPA(_paRate('senador',courierId))
+    +' · Goianira '+_brlPA(_paRate('goianira',courierId))+' · outras '+_brlPA(_paRate('outracidade',courierId))+'.'+piso;
 }
 function _paCidadeLabel(cidade){
   const c=normTxt(cidade);
@@ -6841,7 +6924,7 @@ function _paRelatorio(courierId, semanas){
       const dk=dateKey(dt);
       const doDia = ent.filter(e=> dataDe(e)===dk);
       const g={}; let falhas=0;
-      doDia.forEach(e=>{ const lbl=_paCidadeLabel(e.cidade); if(!g[lbl]) g[lbl]={label:lbl,n:0,rate:_paRate(e.cidade)}; g[lbl].n++; if(e.status!=='entregue') falhas++; });
+      doDia.forEach(e=>{ const lbl=_paCidadeLabel(e.cidade); if(!g[lbl]) g[lbl]={label:lbl,n:0,rate:_paRate(e.cidade, courierId)}; g[lbl].n++; if(e.status!=='entregue') falhas++; });
       falhasSem+=falhas;
       const grupos=Object.keys(g).map(k=>g[k]).sort((a,b)=>b.n-a.n);
       const total=grupos.reduce((t,x)=>t+x.n*x.rate,0);
@@ -6938,7 +7021,7 @@ function _paPdfHTML(id, soIdx){
     +'<div class="head"><div class="brand">Loretto Scarpa</div><h1>Relat\u00f3rio de pagamento \u2014 '+esc(nome)+'</h1><div class="meta">'+periodoLbl+' \u00b7 '+nEnt+' entregas conclu\u00eddas \u00b7 gerado em '+hoje+'</div></div>'
     +'<div class="total-box"><span class="lbl">'+totLbl+'</span><span class="val">'+_brlPA(totalMes)+'</span></div>'
     +semHtml
-    +'<div class="foot">Tarifas por regi\u00e3o: Goi\u00e2nia '+_brlPA(_paRate(''))+' \u00b7 Aparecida '+_brlPA(_paRate('aparecida'))+' \u00b7 Trindade '+_brlPA(_paRate('trindade'))+' \u00b7 Senador Canedo '+_brlPA(_paRate('senador'))+' \u00b7 Goianira '+_brlPA(_paRate('goianira'))+' \u00b7 outras '+_brlPA(_paRate('outracidade'))+'. Conta entregas conclu\u00eddas + "n\u00e3o comprou". N\u00e3o conta "n\u00e3o entregue" nem agendadas.</div>'
+    +'<div class="foot">'+esc(_paTarifaTxt(id))+' Conta entregas conclu\u00eddas + "n\u00e3o comprou". N\u00e3o conta "n\u00e3o entregue" nem agendadas.</div>'
     +'<scr'+'ipt>window.addEventListener("load",function(){setTimeout(function(){window.focus();window.print();},350);});</scr'+'ipt>'
     +'</body></html>';
 }
@@ -6975,7 +7058,7 @@ function _paRender(){
       +(comprou>0?'<div class="pa-saldo '+(saldo>=0?'pos':'neg')+'">Saldo a '+(saldo>=0?'pagar':'receber')+': <b>'+_brlPA(Math.abs(saldo))+'</b></div>':'')
       +'</div></div>'
     +semHtml
-    +'<div class="pa-hint">Tarifa por região (edite em Custos, acima): Goiânia '+_brlPA(_paRate(''))+' · Aparecida '+_brlPA(_paRate('aparecida'))+' · Trindade '+_brlPA(_paRate('trindade'))+' · Senador Canedo '+_brlPA(_paRate('senador'))+' · Goianira '+_brlPA(_paRate('goianira'))+' · outras '+_brlPA(_paRate('outracidade'))+'. Conta as concluídas + as "não comprou" (o entregador foi até o cliente, mas a venda não fechou). Não conta as "não entregue" (cliente ausente/não localizado) nem as agendadas que não saíram.</div>';
+    +'<div class="pa-hint">'+esc(_paTarifaTxt(_paSel))+' Conta as concluídas + as "não comprou" (o entregador foi até o cliente, mas a venda não fechou). Não conta as "não entregue" (cliente ausente/não localizado) nem as agendadas que não saíram.</div>';
 }
 function renderGestor(){
   $('mes-label').textContent = rotuloMes(mesAtivo);
