@@ -915,6 +915,12 @@
   .env-card.falta{border-left-color:var(--urgent)}
   .env-sec.alerta > h3{color:var(--urgent)}
   .env-sec.alerta > h3 .n{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
+  .env-card.parado{border-left-color:var(--warn)}
+  .env-rast{border-top:1px dashed var(--line);padding-top:9px;margin-top:9px}
+  .env-rast-inp{flex:1;min-width:150px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);
+    border-radius:9px;padding:8px 10px;font-family:inherit;font-size:12.5px;letter-spacing:.4px}
+  .env-rast-inp::placeholder{color:var(--text-mute);letter-spacing:0}
+  .env-hint-tel{font-size:11.5px;color:var(--text-mute)}
   .env-desp{margin-top:7px;font-size:12.5px;color:var(--calm);background:rgba(127,174,107,.12);
     border:1px solid rgba(127,174,107,.32);border-radius:9px;padding:6px 10px;display:inline-block}
   .rk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
@@ -1625,6 +1631,7 @@
       <div><label>Valor</label><input id="env-valor" placeholder="Valor R$" inputmode="decimal"></div>
       <div><label>Transportadora <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o Edson confirma)</span></label>
         <select id="env-trsp"><option value="">A definir na operação</option></select></div>
+      <div class="full"><label>Código de rastreio <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(do Melhor Envio — pode preencher depois)</span></label><input id="env-rast" placeholder="Ex: AB123456789BR" autocomplete="off"></div>
       <div class="full"><label>Observação</label><input id="env-obs" placeholder="Ex: já está no Melhor Envio · embalar como presente"></div>
     </div>
     <div class="form-actions">
@@ -1647,7 +1654,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v134</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v135</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2537,8 +2544,23 @@ function _buscarRender(termo, resId){
     const nome=norm(e.cliente||''); const tel=(e.contato||'').replace(/\D/g,'');
     return nome.includes(q) || (qd.length>=4 && tel.includes(qd));
   }).sort((a,b)=>String(dataDe(b)||'').localeCompare(String(dataDe(a)||'')));
-  if(!hits.length){ box.innerHTML='<div class="busca-item"><span><b>Nada encontrado</b><small>tente outro nome ou parte do telefone</small></span></div>'; return; }
-  box.innerHTML=hits.slice(0,15).map(e=>{
+  // envios entram na mesma busca: o cliente liga e ninguém precisa lembrar em qual aba procurar
+  const hitsEnv=(typeof envios!=='undefined'?envios:[]).filter(v=>{
+    if(!podeVerEnvio(v)) return false;
+    const nome=norm(v.cliente||''); const tel=(v.contato||'').replace(/\D/g,''); const rast=norm(v.rastreio||'');
+    return nome.includes(q) || (qd.length>=4 && tel.includes(qd)) || (q.length>=5 && rast.includes(q));
+  }).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+  if(!hits.length && !hitsEnv.length){ box.innerHTML='<div class="busca-item"><span><b>Nada encontrado</b><small>tente outro nome ou parte do telefone</small></span></div>'; return; }
+  const envHTML=hitsEnv.slice(0,8).map(v=>{
+    const [lbl,bg,cor]=_statusBuscaEnvio(v);
+    const destino=[v.cidade,v.uf].filter(Boolean).join(' - ');
+    const vend=session.role==='entregador' ? '' : (' · '+esc(v.vendedora||'sem vendedora'));
+    return `<div class="busca-item" onclick="irParaEnvio('${v.id}')">
+      <span><b>📮 ${esc(v.cliente||'(sem nome)')}</b><small>Envio${destino?' · '+esc(destino):''}${vend}</small></span>
+      <span class="busca-tag" style="background:${bg};color:${cor}">${lbl}</span>
+    </div>`;
+  }).join('');
+  box.innerHTML=envHTML+hits.slice(0,15).map(e=>{
     const [lbl,bg,cor]=_statusBusca(e); const dia=dataDe(e);
     const ent=e.entregador?(' · '+esc((ENT[e.entregador]||{}).nome||e.entregador)):'';
     const vend=session.role==='entregador' ? '' : (' · '+esc(e.vendedora||'sem vendedora'));
@@ -2550,6 +2572,27 @@ function _buscarRender(termo, resId){
 }
 function buscarEntrega(termo){ _buscarRender(termo, 'busca-res'); }       // painel (gestor/vendedora)
 function buscarEntregaEnt(termo){ _buscarRender(termo, 'busca-res-ent'); } // tela do entregador
+function _statusBuscaEnvio(v){
+  if(v.status==='novo')     return ['A embalar','rgba(224,179,65,.18)','#e0b341'];
+  if(v.status==='embalado') return coletaNaLoja(v.transportadora)
+    ? ['Aguardando coleta','rgba(111,176,166,.2)','#6fb0a6']
+    : ['A levar ao ponto','rgba(212,180,90,.2)','#d4b45a'];
+  if(v.status==='em_rota')  return ['Em rota','rgba(127,174,107,.2)','#7fae6b'];
+  if(v.status==='despachado') return ['Despachado','rgba(127,174,107,.24)','#9fce86'];
+  return [v.status||'—','rgba(255,255,255,.08)','rgba(248,243,230,.7)'];
+}
+function irParaEnvio(id){
+  ['busca-entrega','busca-ent'].forEach(i=>{ const el=$(i); if(el) el.value=''; });
+  ['busca-res','busca-res-ent'].forEach(i=>{ const b=$(i); if(b) b.innerHTML=''; });
+  if(session && session.role==='entregador'){ renderEntregador(); return; }   // ele vê os envios dentro da rota
+  if(typeof switchTab==='function') switchTab('envios');
+  setTimeout(()=>{
+    const el=document.querySelector('[data-vid="'+id+'"]');
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'});
+      el.style.transition='box-shadow .25s'; el.style.boxShadow='0 0 0 2px var(--gold)';
+      setTimeout(()=>{ el.style.boxShadow=''; },2200); }
+  }, 420);
+}
 function irParaEntrega(dia,id){
   ['busca-entrega','busca-ent'].forEach(i=>{ const el=$(i); if(el) el.value=''; });
   ['busca-res','busca-res-ent'].forEach(i=>{ const b=$(i); if(b) b.innerHTML=''; });
@@ -2610,9 +2653,14 @@ function renderAvisos(){
   const link=entregas.filter(e=>e.status==='entregue' && !e.linkConferido && (e.pagamento==='link'||e.pagamento2==='link') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
   const dinheiro=entregas.filter(e=>e.status==='entregue' && !e.dinheiroRecebido && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
   const reag=entregas.filter(e=>e.reagendadaEm && e.reagendadaEm>lim48 && e.status!=='entregue' && e.status!=='cancelado' && _podeVerBusca(e)).sort((a,b)=>b.reagendadaEm-a.reagendadaEm);
-  const total=pend.length+resolver.length+link.length+dinheiro.length+reag.length;
+  const envParados=(typeof enviosParados==='function') ? enviosParados() : [];
+  const total=pend.length+resolver.length+link.length+dinheiro.length+reag.length+envParados.length;
   if(!total){ box.innerHTML=''; return; }
   let rows='';
+  if(envParados.length){
+    const li=envParados.map(v=>'<div class="exp-row"><span class="exp-cli" onclick="irParaEnvio(\''+v.id+'\')" style="cursor:pointer">'+esc(v.cliente||'(sem nome)')+'<small>'+esc(fmtDur(envParadoMin(v)))+' '+esc(envMotivoParado(v))+([v.cidade,v.uf].filter(Boolean).length?' · '+esc([v.cidade,v.uf].filter(Boolean).join(' - ')):'')+'</small></span><span class="acts"><button class="mini prim" onclick="event.stopPropagation();irParaEnvio(\''+v.id+'\')">abrir</button></span></div>').join('');
+    rows+=_avLinha('envparado','⏱','amber','Envios parados esperando',envParados.length,'<div class="av-exp"><div class="av-note">Envio não tem prazo no sistema, então o que cobra é o tempo parado. Verifique o que travou.</div>'+li+'</div>');
+  }
   if(dinheiro.length){
     const li=dinheiro.map(e=>{
       const v=(e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?_brl(e.pagamentoValores.dinheiro):(e.valor?('R$ '+e.valor):'');
@@ -5193,6 +5241,26 @@ function enviosParaLevar(){ return enviosStatus('embalado').filter(v=>v.transpor
 function enviosAguardandoColeta(){ return enviosStatus('embalado').filter(v=>coletaNaLoja(v.transportadora)); }
 function enviosSemTransportadora(){ return enviosStatus('embalado').filter(v=>!v.transportadora); }
 
+/* ---- envio parado: nada no fluxo tem prazo, então o tempo parado é o que cobra ---- */
+const ENV_URGENCIA = {embalar:120, levar:240};   // minutos até virar alerta
+function envParadoDesde(v){
+  if(v.status==='novo')     return v.criadoEm||0;
+  if(v.status==='embalado') return v.embaladoEm||v.criadoEm||0;
+  if(v.status==='em_rota')  return v.roteadoEm||0;
+  return 0;
+}
+function envParadoMin(v){ const t=envParadoDesde(v); return t?minutesSince(t):0; }
+function envAtrasado(v){
+  if(v.status==='novo')     return envParadoMin(v)>=ENV_URGENCIA.embalar;
+  if(v.status==='embalado') return envParadoMin(v)>=ENV_URGENCIA.levar;
+  return false;
+}
+function envMotivoParado(v){
+  if(v.status==='novo') return 'esperando embalagem';
+  return coletaNaLoja(v.transportadora) ? 'esperando a coleta na loja' : 'embalado, esperando ir ao ponto';
+}
+function enviosParados(){ return enviosVisiveis().filter(envAtrasado).sort((a,b)=>envParadoDesde(a)-envParadoDesde(b)); }
+
 function opcoesTrsp(sel){
   return '<option value="">A definir na operação</option>' +
     TRANSPORTADORAS.map(t=>`<option value="${t.id}"${sel===t.id?' selected':''}>${t.ico} ${t.nome}${t.coleta?' · coleta na loja':''}</option>`).join('');
@@ -5202,7 +5270,7 @@ function opcoesTrsp(sel){
 function novoEnvio(){
   _envEditId=null;
   $('env-modal-title').textContent='Novo envio';
-  ['env-paste','env-cliente','env-cpf','env-nasc','env-contato','env-cep','env-end','env-bairro','env-cidade','env-uf','env-prod','env-valor','env-obs']
+  ['env-paste','env-cliente','env-cpf','env-nasc','env-contato','env-cep','env-end','env-bairro','env-cidade','env-uf','env-prod','env-valor','env-rast','env-obs']
     .forEach(i=>{ const el=$(i); if(el) el.value=''; });
   $('env-trsp').innerHTML=opcoesTrsp('');
   const ehVend = session.role==='vendedora' && !session.geral;
@@ -5218,7 +5286,7 @@ function editarEnvio(id){
   $('env-contato').value=v.contato||''; $('env-cep').value=v.cep||''; $('env-end').value=v.endereco||'';
   $('env-bairro').value=v.bairro||''; $('env-cidade').value=v.cidade||''; $('env-uf').value=v.uf||'';
   $('env-vend').value=v.vendedora||''; $('env-prod').value=v.produto||''; $('env-valor').value=v.valor||'';
-  $('env-obs').value=v.observacao||''; $('env-trsp').innerHTML=opcoesTrsp(v.transportadora||'');
+  $('env-obs').value=v.observacao||''; $('env-rast').value=v.rastreio||''; $('env-trsp').innerHTML=opcoesTrsp(v.transportadora||'');
   const ehVend = session.role==='vendedora' && !session.geral;
   const fv=$('env-vend'); fv.readOnly=ehVend; fv.style.opacity=ehVend?'.65':'';
   $('env-modal').classList.add('open');
@@ -5242,6 +5310,7 @@ function salvarEnvio(){
     produto:$('env-prod').value.trim(),
     valor:$('env-valor').value.trim(),
     transportadora:$('env-trsp').value,
+    rastreio:$('env-rast').value.trim(),
     observacao:$('env-obs').value.trim()
   };
   const editando=!!_envEditId;
@@ -5406,6 +5475,32 @@ function excluirEnvio(id){
   if(FIREBASE_ON && fdb) fdb.collection('envios').doc(String(id)).delete().catch(e=>console.warn('Firebase: exclusão de envio falhou', e));
   renderEnvios(); toast('Envio excluído');
 }
+/* ---- rastreio e aviso ao cliente ---- */
+function envSetRastreio(id, valor){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  const novo=(valor||'').trim();
+  if(novo===(v.rastreio||'')) return;
+  v.rastreio=novo; persistEnvios(); renderEnvios();
+  if(novo) toast('Código de rastreio salvo ✓');
+}
+function envMsgCliente(v){
+  const nome=(v.cliente||'').split(' ')[0];
+  const t=TRSP[v.transportadora];
+  let m=`Oi${nome?' '+nome:''}! 😊\nSeu pedido da *Loretto Scarpa* já foi despachado.\n`;
+  if(t) m+=`\n🚚 ${t.nome}`;
+  if(v.rastreio) m+=`\n📦 Código de rastreio: *${v.rastreio}*`;
+  m+='\n\nQualquer dúvida é só chamar por aqui. Obrigada pela preferência! 🖤';
+  return m;
+}
+function envAvisarCliente(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  const tel=waNumero(v.contato);
+  if(!tel){ toast('Sem telefone válido para avisar o cliente'); return; }
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(envMsgCliente(v))}`,'_blank');
+  v.avisoCliente=Date.now();
+  v.avisoClientePor = session ? (session.vendedora||session.role) : '';
+  persistEnvios(); renderEnvios();
+}
 /* manda o roteiro inteiro para um entregador: cada pacote já sai com o ponto onde deve ser deixado */
 function mandarEnviosRota(entId){
   if(!entId){ toast('Escolha quem vai levar'); return; }
@@ -5468,7 +5563,15 @@ function envCardHTML(v, modo){
   }
   const ponto = v.pontoId && PONTO[v.pontoId];
   const quem = v.entregador && ENT[v.entregador];
-  return `<div class="env-card ${cls}">
+  // rastreio + aviso ao cliente: a dona da venda e a operação podem mexer
+  const dono = opera || !!(session && session.role==='vendedora' && canonVend(v.vendedora||'')===session.vendedora);
+  const tel = waNumero(v.contato);
+  const jaAvisou = !!v.avisoCliente;
+  const rastLinha = (modo!=='corrigir' && dono) ? `<div class="env-acts env-rast">
+      <input class="env-rast-inp" value="${esc(v.rastreio||'').replace(/"/g,'&quot;')}" placeholder="🔎 código de rastreio" onchange="envSetRastreio('${v.id}', this.value)">
+      ${tel?`<button class="btn ${(v.status==='despachado'&&!jaAvisou)?'btn-primary':'btn-ghost'} btn-mini" onclick="envAvisarCliente('${v.id}')">${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:'<span class="env-hint-tel">sem telefone válido para avisar o cliente</span>'}
+    </div>` : '';
+  return `<div class="env-card ${cls}${envAtrasado(v)?' parado':''}" data-vid="${v.id}">
     <h4>${esc(v.cliente)}${v.valor?`<span style="color:var(--gold);font-size:14px">${esc(v.valor)}</span>`:''}</h4>
     <div class="env-dest">${envDestinoTxt(v)}</div>
     ${v.produto?`<div class="env-dest" style="margin-top:5px">🧾 ${esc(v.produto).replace(/\n/g,'<br>')}</div>`:''}
@@ -5477,12 +5580,15 @@ function envCardHTML(v, modo){
     <div class="env-meta">
       ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
       ${(v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
+      ${envAtrasado(v)?`<span class="env-tag aviso">⏱ parado há ${esc(fmtDur(envParadoMin(v)))}</span>`:''}
+      ${v.rastreio?`<span class="env-tag tr">🔎 ${esc(v.rastreio)}</span>`:''}
       ${ponto?`<span class="env-tag tr">${ponto.ico} ${esc(ponto.nome)}</span>`:''}
       ${quem?`<span class="env-tag">🛵 ${esc(quem.nome)}</span>`:''}
       ${v.vendedora?`<span>👤 ${esc(v.vendedora)}</span>`:''}
       ${v.contato?`<span>📞 ${esc(v.contato)}</span>`:''}
     </div>
     ${acts}
+    ${rastLinha}
   </div>`;
 }
 function envSecHTML(titulo, lista, modo, vazio, cls){
@@ -5519,7 +5625,7 @@ function renderEnvios(){
   if(box.style.display==='none') return;            // só monta a tela quando a aba está aberta
 
   const novos=enviosStatus('novo'), levar=enviosParaLevar(), coleta=enviosAguardandoColeta(), emRota=enviosStatus('em_rota');
-  const semTr=enviosSemTransportadora();
+  const semTr=enviosSemTransportadora(), parados=enviosParados();
   const feitos=enviosStatus('despachado').sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0)).slice(0,15);
   const opera=podeOperarEnvios();
 
@@ -5537,6 +5643,10 @@ function renderEnvios(){
       <div class="env-kpi"><div class="lbl">Coleta na loja</div><div class="val">${coleta.length}</div></div>
       <div class="env-kpi"><div class="lbl">Em rota</div><div class="val">${emRota.length}</div></div>
     </div>
+    ${parados.length?`<div class="alerta-card espera" style="margin-bottom:16px">
+      <div class="al-ico">⏱</div>
+      <div class="al-txt"><b>${parados.length} ${parados.length===1?'envio parado':'envios parados'}</b><span>${parados.slice(0,4).map(v=>`${esc(v.cliente)} — ${esc(fmtDur(envParadoMin(v)))} ${esc(envMotivoParado(v))}`).join(' · ')}${parados.length>4?` · e mais ${parados.length-4}`:''}</span></div>
+    </div>`:''}
     ${envSecHTML('⚠️ Sem transportadora — fora do roteiro', semTr, 'corrigir', '', 'alerta')}
     ${roteiroHTML()}
     ${envSecHTML('📥 A embalar', novos, 'embalar', opera?'Nada esperando embalagem.':'Nenhum envio seu na fila.')}
