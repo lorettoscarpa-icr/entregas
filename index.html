@@ -1677,7 +1677,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v138</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v139</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -6544,12 +6544,27 @@ function enviosEntregadorHTML(){
     </div>`).join('')}
   </div>`;
 }
+/* grava SÓ os campos informados, em vez de regravar o documento inteiro.
+   O entregador entra anônimo e as regras do Firestore só liberam esses campos pra ele;
+   regravar o documento todo levaria junto a versão que ele tem em mãos, que pode estar
+   velha (a vendedora pode ter editado no meio do caminho) e a gravação seria recusada. */
+function envAtualizarCampos(v, campos){
+  const ts=Date.now();
+  Object.assign(v, campos); v.atualizadoEm=ts;
+  const payload=Object.assign({}, campos, {atualizadoEm:ts});
+  _envShadow[v.id]=JSON.stringify(v); _envPend[v.id]=ts;
+  try{ localStorage.setItem(ENV_KEY, JSON.stringify(envios)); }catch(e){}
+  if(FIREBASE_ON && fdb){
+    fdb.collection('envios').doc(String(v.id)).update(payload)
+      .catch(err=>console.warn('Firebase: envio não atualizou (id '+v.id+')', err));
+  }
+}
 function envEntregueNoPonto(pontoId){
   if(!session || session.role!=='entregador') return;
   const meus=envios.filter(v=>v.status==='em_rota' && v.entregador===session.entregador && v.pontoId===pontoId);
   if(!meus.length) return;
-  meus.forEach(v=>{ v.status='despachado'; v.despachadoEm=Date.now(); v.despachadoPor=session.entregador; });
-  persistEnvios(); renderEntregador();
+  meus.forEach(v=>envAtualizarCampos(v, {status:'despachado', despachadoEm:Date.now(), despachadoPor:session.entregador}));
+  renderEntregador();
   const p=PONTO[pontoId];
   toast(`${meus.length} pacote${meus.length>1?'s':''} entregue${meus.length>1?'s':''} no ${p?p.nome:'ponto'} ✓`);
 }
