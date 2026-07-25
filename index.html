@@ -909,6 +909,12 @@
   .env-aviso-skip{display:block;width:100%;margin-top:10px;background:none;border:none;color:var(--text-mute);
     font-family:inherit;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px}
   .env-tag.aviso{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
+  .env-acts .btn:disabled{opacity:.38;cursor:not-allowed}
+  .env-acts select.falta{border-color:rgba(224,106,82,.6);box-shadow:0 0 0 2px rgba(224,106,82,.13)}
+  .env-hint-falta{font-size:11.5px;color:var(--urgent);width:100%;margin-top:-2px}
+  .env-card.falta{border-left-color:var(--urgent)}
+  .env-sec.alerta > h3{color:var(--urgent)}
+  .env-sec.alerta > h3 .n{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
   .rk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
   .rk-card{border:1px solid rgba(212,180,90,.2);border-radius:16px;padding:14px 16px 18px;background:rgba(255,255,255,.018)}
   .rk-card .rk-block{margin-top:0}
@@ -1639,7 +1645,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v132</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v133</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5179,9 +5185,11 @@ function podeVerEnvio(v){
 }
 function enviosVisiveis(){ return envios.filter(podeVerEnvio); }
 function enviosStatus(st){ return enviosVisiveis().filter(v=>v.status===st); }
-/* prontos que ainda precisam de alguém para levar ao ponto parceiro */
-function enviosParaLevar(){ return enviosStatus('embalado').filter(v=>!coletaNaLoja(v.transportadora)); }
+/* prontos que ainda precisam de alguém para levar ao ponto parceiro.
+   Sem transportadora o pacote não tem ponto: fica de fora daqui e cai na lista de pendência. */
+function enviosParaLevar(){ return enviosStatus('embalado').filter(v=>v.transportadora && !coletaNaLoja(v.transportadora)); }
 function enviosAguardandoColeta(){ return enviosStatus('embalado').filter(v=>coletaNaLoja(v.transportadora)); }
+function enviosSemTransportadora(){ return enviosStatus('embalado').filter(v=>!v.transportadora); }
 
 function opcoesTrsp(sel){
   return '<option value="">A definir na operação</option>' +
@@ -5420,11 +5428,20 @@ function envCardHTML(v, modo){
   const t=TRSP[v.transportadora];
   let acts='';
   if(modo==='embalar' && opera){
+    // sem transportadora não dá pra embalar: sem ela o pacote não tem ponto e some da rota
+    const falta=!v.transportadora;
     acts=`<div class="env-acts">
-      <select id="env-trsp-${v.id}" onchange="envSetTrsp('${v.id}', this.value)">${opcoesTrsp(v.transportadora||'')}</select>
-      <button class="btn btn-primary btn-mini" onclick="envEmbalar('${v.id}')">📦 Embalado</button>
+      <select id="env-trsp-${v.id}" class="${falta?'falta':''}" onchange="envSetTrsp('${v.id}', this.value)">${opcoesTrsp(v.transportadora||'')}</select>
+      <button class="btn btn-primary btn-mini" onclick="envEmbalar('${v.id}')"${falta?' disabled':''}>📦 Embalado</button>
       <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
       <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
+      ${falta?`<div class="env-hint-falta">Escolha a transportadora para liberar o “Embalado” — sem ela o pacote não entra no roteiro.</div>`:''}
+    </div>`;
+  } else if(modo==='corrigir' && opera){
+    acts=`<div class="env-acts">
+      <select id="env-trsp-${v.id}" class="falta" onchange="envSetTrsp('${v.id}', this.value)">${opcoesTrsp('')}</select>
+      <button class="btn btn-ghost btn-mini" onclick="envVoltar('${v.id}')">↩ Voltar p/ embalar</button>
+      <div class="env-hint-falta">Marcado como embalado sem transportadora — escolha uma para ele voltar ao roteiro.</div>
     </div>`;
   } else if(modo==='embalar'){
     acts=`<div class="env-acts">
@@ -5458,9 +5475,9 @@ function envCardHTML(v, modo){
     ${acts}
   </div>`;
 }
-function envSecHTML(titulo, lista, modo, vazio){
+function envSecHTML(titulo, lista, modo, vazio, cls){
   if(!lista.length && !vazio) return '';
-  return `<div class="env-sec"><h3>${titulo}<span class="n">${lista.length}</span></h3>
+  return `<div class="env-sec${cls?' '+cls:''}"><h3>${titulo}<span class="n">${lista.length}</span></h3>
     ${lista.length ? lista.map(v=>envCardHTML(v,modo)).join('') : `<div class="env-vazio">${vazio}</div>`}</div>`;
 }
 function roteiroHTML(){
@@ -5491,6 +5508,7 @@ function renderEnvios(){
   if(box.style.display==='none') return;            // só monta a tela quando a aba está aberta
 
   const novos=enviosStatus('novo'), levar=enviosParaLevar(), coleta=enviosAguardandoColeta(), emRota=enviosStatus('em_rota');
+  const semTr=enviosSemTransportadora();
   const feitos=enviosStatus('despachado').sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0)).slice(0,15);
   const opera=podeOperarEnvios();
 
@@ -5508,6 +5526,7 @@ function renderEnvios(){
       <div class="env-kpi"><div class="lbl">Coleta na loja</div><div class="val">${coleta.length}</div></div>
       <div class="env-kpi"><div class="lbl">Em rota</div><div class="val">${emRota.length}</div></div>
     </div>
+    ${envSecHTML('⚠️ Sem transportadora — fora do roteiro', semTr, 'corrigir', '', 'alerta')}
     ${roteiroHTML()}
     ${envSecHTML('📥 A embalar', novos, 'embalar', opera?'Nada esperando embalagem.':'Nenhum envio seu na fila.')}
     ${envSecHTML('📦 Prontos — levar ao ponto', levar, 'levar', '')}
