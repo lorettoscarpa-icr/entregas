@@ -923,6 +923,8 @@
   .env-rast-inp{flex:1;min-width:150px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);
     border-radius:9px;padding:8px 10px;font-family:inherit;font-size:12.5px;letter-spacing:.4px}
   .env-rast-inp::placeholder{color:var(--text-mute);letter-spacing:0}
+  .env-tag-lnk{text-decoration:none;cursor:pointer}
+  .env-tag-lnk:hover{background:rgba(212,180,90,.24)}
   .env-hint-tel{font-size:11.5px;color:var(--text-mute)}
   .env-desp{margin-top:7px;font-size:12.5px;color:var(--calm);background:rgba(127,174,107,.12);
     border:1px solid rgba(127,174,107,.32);border-radius:9px;padding:6px 10px;display:inline-block}
@@ -1642,7 +1644,7 @@
       <div><label>Valor</label><input id="env-valor" placeholder="Valor R$" inputmode="decimal"></div>
       <div><label>Transportadora <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o Edson confirma)</span></label>
         <select id="env-trsp"><option value="">A definir na operação</option></select></div>
-      <div class="full"><label>Código de rastreio <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(do Melhor Envio — pode preencher depois)</span></label><input id="env-rast" placeholder="Ex: AB123456789BR" autocomplete="off"></div>
+      <div class="full"><label>Link de rastreio <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o link que o cliente abre para acompanhar — pode colar depois)</span></label><input id="env-rast" placeholder="Cole aqui o link de rastreio" autocomplete="off"></div>
       <div class="full"><label>Observação</label><input id="env-obs" placeholder="Ex: já está no Melhor Envio · embalar como presente"></div>
     </div>
     <div class="form-actions">
@@ -1665,7 +1667,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v136</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v137</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5492,21 +5494,22 @@ function envSetRastreio(id, valor){
   const novo=(valor||'').trim();
   if(novo===(v.rastreio||'')) return;
   v.rastreio=novo; persistEnvios(); renderEnvios();
-  if(novo) toast('Código de rastreio salvo ✓');
+  if(novo) toast('Link de rastreio salvo ✓');
 }
 function envMsgCliente(v){
   const nome=(v.cliente||'').split(' ')[0];
   const t=TRSP[v.transportadora];
-  let m=`Oi${nome?' '+nome:''}! 😊\nSeu pedido da *Loretto Scarpa* já foi despachado.\n`;
-  if(t) m+=`\n🚚 ${t.nome}`;
-  if(v.rastreio) m+=`\n📦 Código de rastreio: *${v.rastreio}*`;
-  m+='\n\nQualquer dúvida é só chamar por aqui. Obrigada pela preferência! 🖤';
+  let m=`Oi, ${nome||'tudo bem'} 😊\nSeu pedido da Loretto Scarpa já foi enviado!\n`;
+  if(t) m+=`\n🚚 Transportadora: ${t.nome}\n`;
+  m+='\nClique no link abaixo para acompanhar o andamento do seu pedido 👇\n';
+  m+=`\nLink de rastreio: ${v.rastreio||''}`;
   return m;
 }
 function envAvisarCliente(id){
   const v=envios.find(x=>x.id===id); if(!v) return;
   const tel=waNumero(v.contato);
   if(!tel){ toast('Sem telefone válido para avisar o cliente'); return; }
+  if(!v.rastreio){ toast('Cole o link de rastreio antes de avisar o cliente'); return; }
   window.open(`https://wa.me/${tel}?text=${encodeURIComponent(envMsgCliente(v))}`,'_blank');
   v.avisoCliente=Date.now();
   v.avisoClientePor = session ? (session.vendedora||session.role) : '';
@@ -5579,8 +5582,9 @@ function envCardHTML(v, modo){
   const tel = waNumero(v.contato);
   const jaAvisou = !!v.avisoCliente;
   const rastLinha = (modo!=='corrigir' && dono) ? `<div class="env-acts env-rast">
-      <input class="env-rast-inp" value="${esc(v.rastreio||'').replace(/"/g,'&quot;')}" placeholder="🔎 código de rastreio" onchange="envSetRastreio('${v.id}', this.value)">
-      ${tel?`<button class="btn ${(v.status==='despachado'&&!jaAvisou)?'btn-primary':'btn-ghost'} btn-mini" onclick="envAvisarCliente('${v.id}')">${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:'<span class="env-hint-tel">sem telefone válido para avisar o cliente</span>'}
+      <input class="env-rast-inp" value="${esc(v.rastreio||'').replace(/"/g,'&quot;')}" placeholder="🔎 cole o link de rastreio" onchange="envSetRastreio('${v.id}', this.value)">
+      ${tel?`<button class="btn ${(v.status==='despachado'&&!jaAvisou&&v.rastreio)?'btn-primary':'btn-ghost'} btn-mini" onclick="envAvisarCliente('${v.id}')"${!v.rastreio?' disabled':''}>${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:'<span class="env-hint-tel">sem telefone válido para avisar o cliente</span>'}
+      ${(tel&&!v.rastreio)?'<span class="env-hint-tel">cole o link para liberar o aviso</span>':''}
     </div>` : '';
   return `<div class="env-card ${cls}${envAtrasado(v)?' parado':''}" data-vid="${v.id}">
     <h4>${esc(v.cliente)}${v.valor?`<span style="color:var(--gold);font-size:14px">${esc(v.valor)}</span>`:''}</h4>
@@ -5592,7 +5596,9 @@ function envCardHTML(v, modo){
       ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
       ${(v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
       ${envAtrasado(v)?`<span class="env-tag aviso">⏱ parado há ${esc(fmtDur(envParadoMin(v)))}</span>`:''}
-      ${v.rastreio?`<span class="env-tag tr">🔎 ${esc(v.rastreio)}</span>`:''}
+      ${v.rastreio?(/^https?:\/\//i.test(v.rastreio)
+        ? `<a class="env-tag tr env-tag-lnk" href="${esc(v.rastreio)}" target="_blank">🔎 link de rastreio ↗</a>`
+        : `<span class="env-tag tr">🔎 ${esc(v.rastreio)}</span>`):''}
       ${ponto?`<span class="env-tag tr">${ponto.ico} ${esc(ponto.nome)}</span>`:''}
       ${quem?`<span class="env-tag">🛵 ${esc(quem.nome)}</span>`:''}
       ${v.vendedora?`<span>👤 ${esc(v.vendedora)}</span>`:''}
