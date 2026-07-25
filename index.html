@@ -915,6 +915,8 @@
   .env-card.falta{border-left-color:var(--urgent)}
   .env-sec.alerta > h3{color:var(--urgent)}
   .env-sec.alerta > h3 .n{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
+  .env-desp{margin-top:7px;font-size:12.5px;color:var(--calm);background:rgba(127,174,107,.12);
+    border:1px solid rgba(127,174,107,.32);border-radius:9px;padding:6px 10px;display:inline-block}
   .rk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
   .rk-card{border:1px solid rgba(212,180,90,.2);border-radius:16px;padding:14px 16px 18px;background:rgba(255,255,255,.018)}
   .rk-card .rk-block{margin-top:0}
@@ -1645,7 +1647,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v133</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v134</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -1818,7 +1820,7 @@
 </div>
 
 <div class="notif" id="notif" onclick="this.classList.remove('show')">
-  <div class="notif-ic">🎉</div>
+  <div class="notif-ic" id="notif-ic">🎉</div>
   <div class="notif-txt"><b id="notif-t">Entrega concluída</b><span id="notif-s"></span></div>
 </div>
 
@@ -5417,6 +5419,13 @@ function mandarEnviosRota(entId){
 }
 
 /* ---- tela ---- */
+/* "hoje às 14:32" / "ontem às 09:10" / "22/07 às 16:40" */
+function envQuando(ts){
+  const dk=dateKey(new Date(ts)), hoje=todayKey();
+  const ontem=dateKey(new Date(Date.now()-86400000));
+  const dia = dk===hoje ? 'hoje' : dk===ontem ? 'ontem' : dk.slice(8,10)+'/'+dk.slice(5,7);
+  return `${dia} às ${fmtClock(ts)}`;
+}
 function envDestinoTxt(v){
   const linha1=[v.endereco, v.bairro].filter(Boolean).join(' · ');
   const linha2=[v.cidade, v.uf].filter(Boolean).join(' - ');
@@ -5464,6 +5473,7 @@ function envCardHTML(v, modo){
     <div class="env-dest">${envDestinoTxt(v)}</div>
     ${v.produto?`<div class="env-dest" style="margin-top:5px">🧾 ${esc(v.produto).replace(/\n/g,'<br>')}</div>`:''}
     ${v.observacao?`<div class="env-dest" style="margin-top:5px;color:var(--text-mute)">📝 ${esc(v.observacao)}</div>`:''}
+    ${v.status==='despachado'?`<div class="env-desp">✓ ${esc(envOndeTxt(v))}${v.despachadoEm?` · ${esc(envQuando(v.despachadoEm))}`:''}</div>`:''}
     <div class="env-meta">
       ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
       ${(v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
@@ -5505,6 +5515,7 @@ function renderEnvios(){
   const badge=$('c-tab-envios');
   const aFazer = enviosVisiveis().filter(v=>v.status!=='despachado').length;
   if(badge) badge.textContent = aFazer ? ' ' + aFazer : '';
+  checkNotificacoesEnvios();                        // avisa a vendedora mesmo se ela estiver no Painel
   if(box.style.display==='none') return;            // só monta a tela quando a aba está aberta
 
   const novos=enviosStatus('novo'), levar=enviosParaLevar(), coleta=enviosAguardandoColeta(), emRota=enviosStatus('em_rota');
@@ -5672,7 +5683,7 @@ function logout(){
   try{ localStorage.removeItem('loretto_session'); }catch(_){}   // esquece o "manter conectado"
   pararRastreio();                 // encerra a transmissão de GPS, se estiver ativa
   entSel.clear(); selVend.clear(); pegarSel.clear(); entTab='rota';
-  entCoord=null; _prevStatus=null;
+  entCoord=null; _prevStatus=null; _prevEnvStatus=null;
   session={role:null,entregador:null,vendedora:null,geral:false};
   document.body.classList.remove('role-entregador');
   filtroVend='todas'; tabAtiva='painel';
@@ -6758,6 +6769,7 @@ function beepNotif(){
 }
 function notificarEntregaConcluida(e){
   const pag = e.pagamento ? ' · '+pagamentoLabel(e) : '';
+  $('notif-ic').textContent = '🎉';
   $('notif-t').textContent = `Entrega de ${e.cliente||'cliente'} concluída`;
   $('notif-s').textContent = `Deu tudo certo${pag}`;
   const n=$('notif'); n.classList.add('show'); clearTimeout(_notifT); _notifT=setTimeout(()=>n.classList.remove('show'),7000);
@@ -6775,6 +6787,38 @@ function checkNotificacoes(){
     }
   });
   _prevStatus={}; entregas.forEach(e=>_prevStatus[e.id]=e.status);
+}
+/* ===== aviso à vendedora quando o envio dela é despachado ===== */
+let _prevEnvStatus=null;
+function envOndeTxt(v){
+  if(v.coletadoNaLoja){
+    const t=TRSP[v.transportadora];
+    return `Coletado na loja${t?' pela '+t.nome:''}`;
+  }
+  const p=PONTO[v.pontoId];
+  const q=v.despachadoPor && ENT[v.despachadoPor] ? ENT[v.despachadoPor].nome : '';
+  return `Entregue${p?' no '+p.nome:' no ponto parceiro'}${q?' por '+q:''}`;
+}
+function notificarEnvioDespachado(v){
+  const onde=envOndeTxt(v);
+  $('notif-ic').textContent = '📮';
+  $('notif-t').textContent = `Envio de ${v.cliente||'cliente'} despachado`;
+  $('notif-s').textContent = onde;
+  const n=$('notif'); n.classList.add('show'); clearTimeout(_notifT); _notifT=setTimeout(()=>n.classList.remove('show'),7000);
+  beepNotif();
+  try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('Loretto · Envio despachado', {body:`${v.cliente||'Cliente'} — ${onde}`, tag:'envio-'+v.id}); } }catch(_){}
+}
+function checkNotificacoesEnvios(){
+  if(!session || session.role!=='vendedora'){ _prevEnvStatus=null; return; }
+  if(_prevEnvStatus===null){ _prevEnvStatus={}; envios.forEach(v=>_prevEnvStatus[v.id]=v.status); return; }  // 1ª carga: memoriza sem avisar
+  const ehGeral=!!session.geral;
+  envios.forEach(v=>{
+    const antes=_prevEnvStatus[v.id];
+    if(antes && antes!=='despachado' && v.status==='despachado'){
+      if(ehGeral || canonVend(v.vendedora||'')===session.vendedora) notificarEnvioDespachado(v);
+    }
+  });
+  _prevEnvStatus={}; envios.forEach(v=>_prevEnvStatus[v.id]=v.status);
 }
 
 /* ============ clock ============ */
