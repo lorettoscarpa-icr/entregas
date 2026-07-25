@@ -851,6 +851,9 @@
   .dest-wrap.compact .dest-un{font-size:12.5px;margin-left:5px}
   /* Ranking */
   #view-ranking{max-width:1040px;margin:4px auto 0}
+  .rk-sub-nota{color:var(--text-mute);font-size:12px;margin:-6px 0 12px}
+  .rk-vazio{color:var(--text-mute);font-size:13px;background:var(--surface);border:1px dashed var(--line);
+    border-radius:var(--radius-sm);padding:16px;text-align:center}
 
   /* ---- envios ---- */
   #view-envios{max-width:1040px;margin:4px auto 0}
@@ -1133,6 +1136,14 @@
   .g-day-bar span{display:block;width:100%;background:linear-gradient(to top,var(--gold),var(--gold-lt));border-radius:8px 8px 0 0;transition:height .5s cubic-bezier(.2,.7,.2,1);min-height:2px}
   .g-day-n{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
   .g-day-lbl{font-size:11px;color:var(--text-mute)}
+  .g-env-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 26px}
+  @media(max-width:640px){.g-env-grid{grid-template-columns:1fr}}
+  .g-env-h{font-family:var(--ff-eyebrow);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--gold);margin-bottom:8px;font-weight:600}
+  .g-env-row{display:grid;grid-template-columns:1fr 90px 26px;align-items:center;gap:9px;margin-bottom:6px}
+  .g-env-lbl{font-size:12.5px;color:var(--text-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .g-env-n{font-size:12.5px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+  .g-env-vazio{color:var(--text-mute);font-size:13px;padding:8px 0}
   .g-regs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
   .g-reg{font-size:12px;background:var(--surface-3);border:1px solid var(--line);border-radius:999px;padding:5px 11px;color:var(--text-soft)}
   .g-reg b{color:var(--text)}
@@ -1654,7 +1665,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v135</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v136</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -7027,8 +7038,25 @@ function rankBlock(titulo, ico, arr, isMoney){
   }).join('');
   return `<div class="rk-block"><div class="rk-block-head"><span class="rk-ico">${ico}</span>${titulo}</div>${rows}</div>`;
 }
+/* envio não entra no ranking de entregas: conta como envio, em disputa própria */
+function rankingEnviosDados(){
+  const mes=todayKey().slice(0,7), hoje=todayKey();
+  const cMes={}, cDia={}, tk={};
+  VENDEDORAS.forEach(v=>{ cMes[v]=0; cDia[v]=0; tk[v]={s:0,n:0}; });
+  (typeof envios!=='undefined'?envios:[]).forEach(x=>{
+    if(!x.vendedora) return;
+    const v=canonVend(x.vendedora); if(!(v in cMes)) return;   // só o time de vendas
+    const d=dateKey(new Date(x.criadoEm||Date.now()));
+    if(d.slice(0,7)===mes){ cMes[v]++; const val=_num(x.valor); if(val>0){ tk[v].s+=val; tk[v].n++; } }
+    if(d===hoje) cDia[v]++;
+  });
+  const arr=o=>VENDEDORAS.map(v=>({vend:v,val:o[v]||0})).sort((a,b)=>b.val-a.val);
+  const arrTick=VENDEDORAS.map(v=>({vend:v,val: tk[v].n? tk[v].s/tk[v].n : 0})).sort((a,b)=>b.val-a.val);
+  return { mes:arr(cMes), dia:arr(cDia), tick:arrTick };
+}
 function rankingHTML(){
-  const d=rankingDados();
+  const d=rankingDados(), e=rankingEnviosDados();
+  const totEnv=e.mes.reduce((s,r)=>s+r.val,0);
   return `<div class="rk-wrap">
     <div class="dest-eyebrow">Ranking do mês · competição</div>
     <div class="rk-cols">
@@ -7036,6 +7064,13 @@ function rankingHTML(){
       <div class="rk-card">${rankBlock('Entregas hoje','☀️', d.dia, false)}</div>
       <div class="rk-card">${rankBlock('Ticket médio','💰', d.tick, true)}</div>
     </div>
+    <div class="dest-eyebrow" style="margin-top:22px">Envios do mês · disputa separada</div>
+    <div class="rk-sub-nota">Vendas para fora de Goiânia não entram no ranking de entregas — elas contam aqui.</div>
+    ${totEnv ? `<div class="rk-cols">
+      <div class="rk-card">${rankBlock('Envios no mês','📮', e.mes, false)}</div>
+      <div class="rk-card">${rankBlock('Envios hoje','☀️', e.dia, false)}</div>
+      <div class="rk-card">${rankBlock('Ticket médio dos envios','💰', e.tick, true)}</div>
+    </div>` : `<div class="rk-vazio">Nenhum envio lançado neste mês ainda.</div>`}
   </div>`;
 }
 /* ============ Pagamento — entregadores avulsos (por região, por semana) ============ */
@@ -7233,6 +7268,48 @@ function _paRender(){
     +semHtml
     +'<div class="pa-hint">'+esc(_paTarifaTxt(_paSel))+' Conta as concluídas + as "não comprou" (o entregador foi até o cliente, mas a venda não fechou). Não conta as "não entregue" (cliente ausente/não localizado) nem as agendadas que não saíram.</div>';
 }
+/* bloco de envios do gestor: volume do mês, para onde vai e por onde sai */
+function gestorEnviosHTML(mes){
+  const doMes=(typeof envios!=='undefined'?envios:[]).filter(v=>dateKey(new Date(v.criadoEm||0)).startsWith(mes));
+  if(!doMes.length){
+    return `<div class="g-card"><h3>📮 Envios</h3>
+      <div class="g-env-vazio">Nenhum envio lançado em ${esc(rotuloMes(mes))}.</div></div>`;
+  }
+  const despachados=doMes.filter(v=>v.status==='despachado');
+  const andamento=doMes.length-despachados.length;
+  const naLoja=despachados.filter(v=>v.coletadoNaLoja).length;
+  const noPonto=despachados.length-naLoja;
+  const fat=doMes.reduce((s,v)=>s+_num(v.valor),0);
+
+  const cont=(arr,chave)=>{ const o={}; arr.forEach(v=>{ const k=chave(v); if(k) o[k]=(o[k]||0)+1; });
+    return Object.keys(o).map(k=>({k,n:o[k]})).sort((a,b)=>b.n-a.n); };
+  const porTr=cont(doMes, v=>v.transportadora ? (TRSP[v.transportadora]?TRSP[v.transportadora].nome:v.transportadora) : 'a definir');
+  const porUf=cont(doMes, v=>(v.uf||'').toUpperCase()||'—');
+  const porVend=cont(doMes, v=>v.vendedora||'sem vendedora');
+  const porPonto=cont(despachados.filter(v=>!v.coletadoNaLoja), v=>PONTO[v.pontoId]?PONTO[v.pontoId].nome:'—');
+  const topTr=Math.max(1,...porTr.map(x=>x.n));
+  const barras=(lista,cor)=>lista.map(x=>`<div class="g-env-row">
+      <div class="g-env-lbl">${esc(x.k)}</div>
+      <div class="g-bar"><span style="width:${Math.round(x.n/topTr*100)}%;background:${cor}"></span></div>
+      <div class="g-env-n">${x.n}</div>
+    </div>`).join('');
+
+  return `<div class="g-card">
+    <h3>📮 Envios · ${esc(rotuloMes(mes))}</h3>
+    <div class="g-kpis" style="margin-bottom:16px">
+      <div class="g-kpi"><div class="lbl">Envios no mês</div><div class="val">${doMes.length}</div>${andamento?`<div class="sub">${andamento} em andamento</div>`:'<div class="sub">todos despachados</div>'}</div>
+      <div class="g-kpi"><div class="lbl">Valor em envios</div><div class="val">${brl(fat)}</div><div class="sub">${doMes.length?brl(fat/doMes.length):brl(0)} por envio</div></div>
+      <div class="g-kpi"><div class="lbl">Como saíram</div><div class="val">${noPonto} / ${naLoja}</div><div class="sub">levados ao ponto / coletados na loja</div></div>
+    </div>
+    <div class="g-env-grid">
+      <div><h4 class="g-env-h">Por transportadora</h4>${barras(porTr,'var(--gold)')}</div>
+      <div><h4 class="g-env-h">Por estado</h4>${barras(porUf,'var(--teal)')}</div>
+      <div><h4 class="g-env-h">Por vendedora</h4>${barras(porVend,'var(--calm)')}</div>
+      ${porPonto.length?`<div><h4 class="g-env-h">Por ponto parceiro</h4>${barras(porPonto,'var(--terra)')}</div>`:''}
+    </div>
+    <p class="g-set-hint" style="margin-top:12px">Envio não entra no faturamento de entregas nem no ranking de entregas — é contado à parte. Correios e Total Express coletam na própria loja; o resto vai de carona na rota do entregador até o ponto parceiro.</p>
+  </div>`;
+}
 function renderGestor(){
   $('mes-label').textContent = rotuloMes(mesAtivo);
   const doMes = entregas.filter(e=>dataDe(e).startsWith(mesAtivo));
@@ -7333,6 +7410,8 @@ function renderGestor(){
     <div class="g-cost-line"><span>Manutenção / troca de óleo</span><span>${brl(cManut)}</span></div>
     <div class="g-cost-line total"><span>Total do mês</span><span>${brl(custoTotal)}</span></div>
   </div>
+
+  ${gestorEnviosHTML(mesAtivo)}
 
   <details class="g-card g-settings">
     <summary>⚙️ Ajustar valores de custo</summary>
