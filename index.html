@@ -1644,13 +1644,23 @@
       <div><label>Valor</label><input id="env-valor" placeholder="Valor R$" inputmode="decimal"></div>
       <div><label>Transportadora <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o Edson confirma)</span></label>
         <select id="env-trsp"><option value="">A definir na operação</option></select></div>
-      <div class="full"><label>Link de rastreio <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o link que o cliente abre para acompanhar — pode colar depois)</span></label><input id="env-rast" placeholder="Cole aqui o link de rastreio" autocomplete="off"></div>
+      <div class="full"><label>Link de rastreio * <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o link do Melhor Envio que a cliente abre para acompanhar)</span></label><input id="env-rast" placeholder="Cole aqui o link de rastreio" autocomplete="off"></div>
       <div class="full"><label>Observação</label><input id="env-obs" placeholder="Ex: já está no Melhor Envio · embalar como presente"></div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="fecharEnvio()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarEnvio()">Salvar envio</button>
     </div>
+  </div>
+</div>
+
+<!-- falta o link de rastreio para concluir o envio -->
+<div class="modal-bg" id="env-falta-modal">
+  <div class="modal" style="max-width:440px;text-align:center" onclick="event.stopPropagation()">
+    <div style="font-size:38px;line-height:1">🔎</div>
+    <h3 style="margin:8px 0 6px">Falta o link de rastreio</h3>
+    <p class="env-aviso-sub">O link de rastreio é obrigatório para concluir o envio — é ele que a cliente recebe para acompanhar o pedido até a entrega.<br><br>Gere a etiqueta no <b>Melhor Envio</b> e cole o link aqui antes de mandar para o Edson.</p>
+    <button class="btn btn-primary env-aviso-wa" onclick="fecharEnvFaltaLink()">Colar o link agora</button>
   </div>
 </div>
 
@@ -1667,7 +1677,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v137</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v138</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5310,6 +5320,8 @@ function salvarEnvio(){
   const cidade=$('env-cidade').value.trim();
   if(!cliente){ toast('Preencha o nome do cliente'); return; }
   if(!cidade){ toast('Preencha a cidade de destino'); return; }
+  // sem link de rastreio o envio não fecha: é o que a cliente recebe para acompanhar
+  if(!$('env-rast').value.trim()){ abrirEnvFaltaLink(); return; }
   const dados={
     cliente, cidade,
     cpf:$('env-cpf').value.trim(),
@@ -5380,6 +5392,12 @@ function pularAvisoEdson(){
 function fecharAvisoEdson(){
   $('env-aviso-modal').classList.remove('open'); _envAvisoId=null;
   renderEnvios(); toast('Edson avisado ✓');
+}
+function abrirEnvFaltaLink(){ $('env-falta-modal').classList.add('open'); }
+function fecharEnvFaltaLink(){
+  $('env-falta-modal').classList.remove('open');
+  const el=$('env-rast');
+  if(el){ el.focus(); el.scrollIntoView({behavior:'smooth',block:'center'}); }
 }
 async function envColar(){
   try{ const t=await navigator.clipboard.readText(); if(t){ $('env-paste').value=t; autoGrow($('env-paste')); toast('Mensagem colada'); } }
