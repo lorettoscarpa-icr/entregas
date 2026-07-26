@@ -856,19 +856,25 @@
     border-radius:var(--radius-sm);padding:16px;text-align:center}
 
   /* ---- envios ---- */
-  #view-envios{max-width:1040px;margin:4px auto 0}
-  .env-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-  .env-top h2{font-family:var(--ff-display);font-size:26px;font-weight:600;letter-spacing:.4px}
-  .env-top p{color:var(--text-mute);font-size:12.5px;margin-top:2px}
-  .env-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
-  @media(max-width:700px){.env-kpis{grid-template-columns:repeat(2,1fr)}}
-  .env-kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 13px;box-shadow:var(--elev-1)}
-  .env-kpi .lbl{font-family:var(--ff-eyebrow);font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--text-mute)}
-  .env-kpi .val{font-family:var(--ff-display);font-size:25px;font-weight:600;margin-top:2px}
-  .env-sec{margin-bottom:22px}
-  .env-sec > h3{font-family:var(--ff-eyebrow);font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--gold);
-    margin-bottom:10px;display:flex;align-items:center;gap:8px}
-  .env-sec > h3 .n{background:rgba(212,180,90,.16);border:1px solid var(--line-strong);border-radius:20px;padding:1px 8px;font-size:10.5px;color:var(--gold-lt)}
+  .board.with-envios{grid-template-columns:1.1fr 1fr .85fr .95fr}
+  @media(max-width:1200px){ .board.with-envios{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:920px){ .board.with-envios{grid-template-columns:1fr} }
+  .col-head .tick.envios{background:var(--gold)}
+  /* no celular a coluna de envios sobe pro topo de quem embala */
+  @media(max-width:920px){ body.role-operacao .col-envios{order:-1} }
+  .col-envios .env-card{padding:11px 12px;margin-bottom:8px}
+  .col-envios .env-card h4{font-size:15.5px}
+  .col-envios .env-acts select{min-width:0;width:100%;font-size:12.5px}
+  .col-envios .env-acts{gap:6px}
+  .col-envios .env-acts .btn{font-size:12px}
+  .env-sub{font-family:var(--ff-eyebrow);font-size:10px;letter-spacing:1.1px;text-transform:uppercase;
+    color:var(--text-mute);margin:14px 0 7px;display:flex;align-items:center;gap:7px}
+  .env-sub:first-child{margin-top:0}
+  .env-sub .n{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:1px 7px;font-size:10px}
+  .env-sub.urg{color:var(--urgent)}
+  .env-sub.urg .n{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
+  .env-atraso-nota{background:rgba(224,179,65,.13);border:1px solid rgba(224,179,65,.36);color:var(--warn);
+    border-radius:var(--radius-sm);padding:9px 11px;font-size:12px;line-height:1.45;margin-bottom:12px}
   .env-card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--surface-3);border-radius:var(--radius-sm);
     padding:12px 14px;margin-bottom:9px;box-shadow:var(--elev-1)}
   .env-card.pronto{border-left-color:var(--gold)}
@@ -916,13 +922,12 @@
   .env-acts select.falta{border-color:rgba(224,106,82,.6);box-shadow:0 0 0 2px rgba(224,106,82,.13)}
   .env-hint-falta{font-size:11.5px;color:var(--urgent);width:100%;margin-top:-2px}
   .env-card.falta{border-left-color:var(--urgent)}
-  .env-sec.alerta > h3{color:var(--urgent)}
-  .env-sec.alerta > h3 .n{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
   .env-card.parado{border-left-color:var(--warn)}
   .env-rast{border-top:1px dashed var(--line);padding-top:9px;margin-top:9px}
   .env-rast-inp{flex:1;min-width:150px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);
     border-radius:9px;padding:8px 10px;font-family:inherit;font-size:12.5px;letter-spacing:.4px}
   .env-rast-inp::placeholder{color:var(--text-mute);letter-spacing:0}
+  .env-rast-inp.falta{border-color:rgba(224,106,82,.6);box-shadow:0 0 0 2px rgba(224,106,82,.13)}
   .env-tag-lnk{text-decoration:none;cursor:pointer}
   .env-tag-lnk:hover{background:rgba(212,180,90,.24)}
   .env-hint-tel{font-size:11.5px;color:var(--text-mute)}
@@ -1281,6 +1286,7 @@
   <div class="toolbar">
     <div class="filters" id="filters"></div>
     <button class="btn btn-primary" onclick="novaEntrega()">＋ Nova entrega</button>
+    <button class="btn" onclick="novoEnvio()">📮 Novo envio</button>
   </div>
 
   <div class="filters2" id="row-vend-filter">
@@ -1420,7 +1426,6 @@
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
     <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">Entregadores ↗</button>
-    <button class="tab" id="tab-envios" onclick="switchTab('envios')">📮 Envios<span id="c-tab-envios"></span></button>
     <button class="tab" id="tab-ranking" onclick="switchTab('ranking')">🏅 Ranking</button>
   </div>
 
@@ -1448,6 +1453,10 @@
       <div class="col-head"><span class="title"><span class="tick entregue"></span>Finalizadas</span><span class="count" id="c-entregue">0</span></div>
       <div id="list-entregue"></div>
     </div>
+    <div class="col col-envios" id="col-envios" style="display:none">
+      <div class="col-head"><span class="title"><span class="tick envios"></span>Envios</span><span class="count" id="c-envios">0</span></div>
+      <div id="list-envios"></div>
+    </div>
   </div>
   </div>
 
@@ -1473,7 +1482,6 @@
     <div id="fin-list"></div>
   </div>
 
-  <div id="view-envios" style="display:none"></div>
   </div><!-- /area-operacao -->
 
   <!-- ENTREGADOR -->
@@ -1630,7 +1638,8 @@
       </div>
     </div>
     <div class="fields">
-      <div class="full"><label>Cliente *</label><input id="env-cliente" placeholder="Nome completo de quem recebe"></div>
+      <div><label>Cliente *</label><input id="env-cliente" placeholder="Nome completo de quem recebe"></div>
+      <div><label>Sai da loja em <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(dia em que o pacote deve sair)</span></label><input id="env-data" type="date"></div>
       <div><label>CPF</label><input id="env-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" oninput="maskCPF(this)"></div>
       <div><label>Nascimento</label><input id="env-nasc" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" oninput="maskData(this)"></div>
       <div><label>Contato</label><input id="env-contato" type="tel" inputmode="tel" placeholder="(11) 9....-...."></div>
@@ -1677,7 +1686,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v139</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v140</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2608,7 +2617,10 @@ function irParaEnvio(id){
   ['busca-entrega','busca-ent'].forEach(i=>{ const el=$(i); if(el) el.value=''; });
   ['busca-res','busca-res-ent'].forEach(i=>{ const b=$(i); if(b) b.innerHTML=''; });
   if(session && session.role==='entregador'){ renderEntregador(); return; }   // ele vê os envios dentro da rota
-  if(typeof switchTab==='function') switchTab('envios');
+  const v=envios.find(x=>x.id===id);
+  if(typeof switchTab==='function') switchTab('painel');
+  // atrasado aparece no dia de hoje, não no dia original
+  if(v) setDia(envAtrasadoDia(v) ? todayKey() : dataEnvioDe(v));
   setTimeout(()=>{
     const el=document.querySelector('[data-vid="'+id+'"]');
     if(el){ el.scrollIntoView({behavior:'smooth',block:'center'});
@@ -4981,23 +4993,21 @@ const ROUTE_COLORS=['#d4b45a','#6fb0a6','#c97b5a','#8e9cd6','#cf8aa8','#9bbf6f']
 
 function switchTab(name){
   tabAtiva = name;
-  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes', isEnv = name==='envios';
-  $('view-painel').style.display = (isMapa||isFin||isRank||isPend||isEnv)?'none':'';
+  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes';
+  $('view-painel').style.display = (isMapa||isFin||isRank||isPend)?'none':'';
   $('view-mapa').style.display = isMapa?'':'none';
   $('view-fin').style.display = isFin?'':'none';
   $('view-ranking').style.display = isRank?'':'none';
   $('view-pendentes').style.display = isPend?'':'none';
-  $('view-envios').style.display = isEnv?'':'none';
   $('tab-painel').classList.toggle('on', name==='painel');
   $('tab-mapa').classList.toggle('on', isMapa);
   $('tab-fin').classList.toggle('on', isFin);
   $('tab-ranking').classList.toggle('on', isRank);
   $('tab-pendentes').classList.toggle('on', isPend);
-  $('tab-envios').classList.toggle('on', isEnv);
   const dt=$('destaques-topo');
   if(dt){ if(name==='painel'){ dt.innerHTML=destaquesHTML(true); dt.style.display=''; } else dt.style.display='none'; }  // destaques só no Painel
   if(isMapa){ assinarRastreio(); ensureMap(); renderMap(); if(!suggestion && aguardandoHoje().some(e=>coordOf(e))) sugerirRotas(); }
-  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else if(isEnv){ renderEnvios(); } else { animateNext(); render(); } }
+  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else { animateNext(); render(); } }
 }
 function ensureMap(){
   if(mapInited){ if(map) setTimeout(()=>map.invalidateSize(),50); return; }
@@ -5257,12 +5267,28 @@ function podeVerEnvio(v){
   return false;
 }
 function enviosVisiveis(){ return envios.filter(podeVerEnvio); }
-function enviosStatus(st){ return enviosVisiveis().filter(v=>v.status===st); }
+
+/* ---- envio por dia ----
+   dataEnvio é o dia em que o pacote DEVE sair da loja (mesma ideia do dataEntrega),
+   não o dia da venda. O que não saiu no dia dele rola sozinho para hoje, marcado como
+   atrasado — assim nada some da tela e ninguém precisa "trazer p/ hoje" na mão. */
+function dataEnvioDe(v){ return v.dataEnvio || dateKey(new Date(v.criadoEm||Date.now())); }
+function envAtrasadoDia(v){ return v.status!=='despachado' && dataEnvioDe(v) < todayKey(); }
+function enviosDoDia(ymd){
+  const hoje=todayKey();
+  return enviosVisiveis().filter(v=>{
+    const d=dataEnvioDe(v);
+    // o atrasado MUDA de lugar: sai do dia dele e passa a viver em hoje, sem aparecer nos dois
+    if(d===ymd) return !(ymd<hoje && v.status!=='despachado');
+    return ymd===hoje && d<hoje && v.status!=='despachado';
+  });
+}
+function enviosStatus(st, lista){ return (lista||enviosVisiveis()).filter(v=>v.status===st); }
 /* prontos que ainda precisam de alguém para levar ao ponto parceiro.
    Sem transportadora o pacote não tem ponto: fica de fora daqui e cai na lista de pendência. */
-function enviosParaLevar(){ return enviosStatus('embalado').filter(v=>v.transportadora && !coletaNaLoja(v.transportadora)); }
-function enviosAguardandoColeta(){ return enviosStatus('embalado').filter(v=>coletaNaLoja(v.transportadora)); }
-function enviosSemTransportadora(){ return enviosStatus('embalado').filter(v=>!v.transportadora); }
+function enviosParaLevar(lista){ return enviosStatus('embalado', lista).filter(v=>v.transportadora && !coletaNaLoja(v.transportadora)); }
+function enviosAguardandoColeta(lista){ return enviosStatus('embalado', lista).filter(v=>coletaNaLoja(v.transportadora)); }
+function enviosSemTransportadora(lista){ return enviosStatus('embalado', lista).filter(v=>!v.transportadora); }
 
 /* ---- envio parado: nada no fluxo tem prazo, então o tempo parado é o que cobra ---- */
 const ENV_URGENCIA = {embalar:120, levar:240};   // minutos até virar alerta
@@ -5296,6 +5322,7 @@ function novoEnvio(){
   ['env-paste','env-cliente','env-cpf','env-nasc','env-contato','env-cep','env-end','env-bairro','env-cidade','env-uf','env-prod','env-valor','env-rast','env-obs']
     .forEach(i=>{ const el=$(i); if(el) el.value=''; });
   $('env-trsp').innerHTML=opcoesTrsp('');
+  $('env-data').value = diaAtivo && diaAtivo>=todayKey() ? diaAtivo : todayKey();
   const ehVend = session.role==='vendedora' && !session.geral;
   const fv=$('env-vend'); fv.value = ehVend ? session.vendedora : ''; fv.readOnly = ehVend; fv.style.opacity = ehVend?'.65':'';
   $('env-modal').classList.add('open');
@@ -5309,7 +5336,7 @@ function editarEnvio(id){
   $('env-contato').value=v.contato||''; $('env-cep').value=v.cep||''; $('env-end').value=v.endereco||'';
   $('env-bairro').value=v.bairro||''; $('env-cidade').value=v.cidade||''; $('env-uf').value=v.uf||'';
   $('env-vend').value=v.vendedora||''; $('env-prod').value=v.produto||''; $('env-valor').value=v.valor||'';
-  $('env-obs').value=v.observacao||''; $('env-rast').value=v.rastreio||''; $('env-trsp').innerHTML=opcoesTrsp(v.transportadora||'');
+  $('env-obs').value=v.observacao||''; $('env-rast').value=v.rastreio||''; $('env-data').value=dataEnvioDe(v); $('env-trsp').innerHTML=opcoesTrsp(v.transportadora||'');
   const ehVend = session.role==='vendedora' && !session.geral;
   const fv=$('env-vend'); fv.readOnly=ehVend; fv.style.opacity=ehVend?'.65':'';
   $('env-modal').classList.add('open');
@@ -5324,6 +5351,7 @@ function salvarEnvio(){
   if(!$('env-rast').value.trim()){ abrirEnvFaltaLink(); return; }
   const dados={
     cliente, cidade,
+    dataEnvio: $('env-data').value || todayKey(),
     cpf:$('env-cpf').value.trim(),
     nascimento:$('env-nasc').value.trim(),
     contato:$('env-contato').value.trim(),
@@ -5532,6 +5560,7 @@ function envAvisarCliente(id){
   v.avisoCliente=Date.now();
   v.avisoClientePor = session ? (session.vendedora||session.role) : '';
   persistEnvios(); renderEnvios();
+  if(tabAtiva==='fin') renderFinalizadas();
 }
 /* manda o roteiro inteiro para um entregador: cada pacote já sai com o ponto onde deve ser deixado */
 function mandarEnviosRota(entId){
@@ -5599,10 +5628,13 @@ function envCardHTML(v, modo){
   const dono = opera || !!(session && session.role==='vendedora' && canonVend(v.vendedora||'')===session.vendedora);
   const tel = waNumero(v.contato);
   const jaAvisou = !!v.avisoCliente;
-  const rastLinha = (modo!=='corrigir' && dono) ? `<div class="env-acts env-rast">
-      <input class="env-rast-inp" value="${esc(v.rastreio||'').replace(/"/g,'&quot;')}" placeholder="🔎 cole o link de rastreio" onchange="envSetRastreio('${v.id}', this.value)">
-      ${tel?`<button class="btn ${(v.status==='despachado'&&!jaAvisou&&v.rastreio)?'btn-primary':'btn-ghost'} btn-mini" onclick="envAvisarCliente('${v.id}')"${!v.rastreio?' disabled':''}>${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:'<span class="env-hint-tel">sem telefone válido para avisar o cliente</span>'}
-      ${(tel&&!v.rastreio)?'<span class="env-hint-tel">cole o link para liberar o aviso</span>':''}
+  // o link é obrigatório no cadastro, então o campo só reaparece quando falta (envio antigo);
+  // o botão de avisar a cliente só faz sentido depois que o pacote saiu.
+  const faltaLink = dono && !v.rastreio;
+  const podeAvisar = dono && tel && v.status==='despachado' && v.rastreio;
+  const rastLinha = (modo!=='corrigir' && (faltaLink || podeAvisar)) ? `<div class="env-acts env-rast">
+      ${faltaLink?`<input class="env-rast-inp falta" value="" placeholder="🔎 falta o link de rastreio" onchange="envSetRastreio('${v.id}', this.value)">`:''}
+      ${podeAvisar?`<button class="btn ${jaAvisou?'btn-ghost':'btn-primary'} btn-mini" onclick="envAvisarCliente('${v.id}')">${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:''}
     </div>` : '';
   return `<div class="env-card ${cls}${envAtrasado(v)?' parado':''}" data-vid="${v.id}">
     <h4>${esc(v.cliente)}${v.valor?`<span style="color:var(--gold);font-size:14px">${esc(v.valor)}</span>`:''}</h4>
@@ -5626,11 +5658,6 @@ function envCardHTML(v, modo){
     ${rastLinha}
   </div>`;
 }
-function envSecHTML(titulo, lista, modo, vazio, cls){
-  if(!lista.length && !vazio) return '';
-  return `<div class="env-sec${cls?' '+cls:''}"><h3>${titulo}<span class="n">${lista.length}</span></h3>
-    ${lista.length ? lista.map(v=>envCardHTML(v,modo)).join('') : `<div class="env-vazio">${vazio}</div>`}</div>`;
-}
 function roteiroHTML(){
   const prontos=enviosParaLevar();
   if(!prontos.length) return '';
@@ -5651,45 +5678,43 @@ function roteiroHTML(){
     </div>`:''}
   </div>`;
 }
+function envSubSec(titulo, lista, modo, cls){
+  if(!lista.length) return '';
+  return `<div class="env-sub${cls?' '+cls:''}">${titulo}<span class="n">${lista.length}</span></div>`
+    + lista.map(v=>envCardHTML(v,modo)).join('');
+}
+/* coluna de Envios dentro do quadro do Painel — no lugar da antiga aba */
 function renderEnvios(){
-  const box=$('view-envios'); if(!box) return;
-  const badge=$('c-tab-envios');
-  const aFazer = enviosVisiveis().filter(v=>v.status!=='despachado').length;
-  if(badge) badge.textContent = aFazer ? ' ' + aFazer : '';
-  checkNotificacoesEnvios();                        // avisa a vendedora mesmo se ela estiver no Painel
-  if(box.style.display==='none') return;            // só monta a tela quando a aba está aberta
+  checkNotificacoesEnvios();                    // avisa a vendedora, esteja ela em qual aba estiver
+  const col=$('col-envios'), box=$('list-envios');
+  if(!col || !box) return;
+  const ehOperacaoOuVend = session && session.role==='vendedora';
+  const board=document.querySelector('#view-painel .board');
+  if(!ehOperacaoOuVend){ col.style.display='none'; if(board) board.classList.remove('with-envios'); return; }
+  col.style.display=''; if(board) board.classList.add('with-envios');
 
-  const novos=enviosStatus('novo'), levar=enviosParaLevar(), coleta=enviosAguardandoColeta(), emRota=enviosStatus('em_rota');
-  const semTr=enviosSemTransportadora(), parados=enviosParados();
-  const feitos=enviosStatus('despachado').sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0)).slice(0,15);
-  const opera=podeOperarEnvios();
+  const doDia=enviosDoDia(diaAtivo);
+  const novos=enviosStatus('novo', doDia), levar=enviosParaLevar(doDia),
+        coleta=enviosAguardandoColeta(doDia), emRota=enviosStatus('em_rota', doDia),
+        semTr=enviosSemTransportadora(doDia);
+  const feitos=enviosStatus('despachado', doDia).sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0));
+  const abertos=doDia.filter(v=>v.status!=='despachado');
+  const atrasados=doDia.filter(envAtrasadoDia);
+  $('c-envios').textContent = abertos.length;
 
-  box.innerHTML=`
-    <div class="env-top">
-      <div>
-        <h2>Envios</h2>
-        <p>${opera?'Confira a transportadora, embale e monte o roteiro dos pontos parceiros.':'Vendas para fora de Goiânia — a operação embala e despacha.'}</p>
-      </div>
-      <button class="btn btn-primary" onclick="novoEnvio()">＋ Novo envio</button>
-    </div>
-    <div class="env-kpis">
-      <div class="env-kpi"><div class="lbl">A embalar</div><div class="val">${novos.length}</div></div>
-      <div class="env-kpi"><div class="lbl">A levar no ponto</div><div class="val">${levar.length}</div></div>
-      <div class="env-kpi"><div class="lbl">Coleta na loja</div><div class="val">${coleta.length}</div></div>
-      <div class="env-kpi"><div class="lbl">Em rota</div><div class="val">${emRota.length}</div></div>
-    </div>
-    ${parados.length?`<div class="alerta-card espera" style="margin-bottom:16px">
-      <div class="al-ico">⏱</div>
-      <div class="al-txt"><b>${parados.length} ${parados.length===1?'envio parado':'envios parados'}</b><span>${parados.slice(0,4).map(v=>`${esc(v.cliente)} — ${esc(fmtDur(envParadoMin(v)))} ${esc(envMotivoParado(v))}`).join(' · ')}${parados.length>4?` · e mais ${parados.length-4}`:''}</span></div>
-    </div>`:''}
-    ${envSecHTML('⚠️ Sem transportadora — fora do roteiro', semTr, 'corrigir', '', 'alerta')}
-    ${roteiroHTML()}
-    ${envSecHTML('📥 A embalar', novos, 'embalar', opera?'Nada esperando embalagem.':'Nenhum envio seu na fila.')}
-    ${envSecHTML('📦 Prontos — levar ao ponto', levar, 'levar', '')}
-    ${envSecHTML('🚚 Aguardando coleta na loja', coleta, 'coleta', '')}
-    ${envSecHTML('🛵 Em rota para o ponto', emRota, 'rota', '')}
-    ${envSecHTML('✓ Despachados', feitos, 'feito', '')}
-  `;
+  if(!doDia.length){
+    box.innerHTML=`<div class="env-vazio">Nenhum envio ${diaAtivo===todayKey()?'hoje':'neste dia'}.<br><button class="btn btn-ghost btn-mini" style="margin-top:10px" onclick="novoEnvio()">📮 Lançar envio</button></div>`;
+    return;
+  }
+  box.innerHTML =
+      (atrasados.length?`<div class="env-atraso-nota">⏱ ${atrasados.length} ${atrasados.length===1?'envio veio':'envios vieram'} de ${atrasados.length===1?'dia anterior':'dias anteriores'} e ${atrasados.length===1?'ainda não saiu':'ainda não saíram'}.</div>`:'')
+    + envSubSec('⚠️ Sem transportadora', semTr, 'corrigir', 'urg')
+    + roteiroHTML()
+    + envSubSec('📥 A embalar', novos, 'embalar')
+    + envSubSec('📦 Levar ao ponto', levar, 'levar')
+    + envSubSec('🚚 Coleta na loja', coleta, 'coleta')
+    + envSubSec('🛵 Em rota', emRota, 'rota')
+    + envSubSec('✓ Despachados', feitos, 'feito');
 }
 
 /* ============ login / sessão / entregador ============ */
@@ -5779,7 +5804,7 @@ function restaurarSessao(){
 function applyRole(){
   salvarSessao();   // mantém conectado: guarda o perfil no aparelho
   $('login').style.display='none'; $('rolebar').style.display='flex';
-  document.body.classList.remove('role-entregador');
+  document.body.classList.remove('role-entregador','role-operacao');
   $('area-operacao').style.display='none'; $('area-entregador').style.display='none'; $('area-gestor').style.display='none';
   $('tab-fin').style.display='none';
   const _rb=$('routebar'); if(_rb){ _rb.classList.remove('show'); _rb.style.display='none'; }   // barra Montar rota: só operação
@@ -5802,6 +5827,7 @@ function applyRole(){
     { const _ff=$('filters'); if(_ff) _ff.style.display = ehGeral ? '' : 'none'; }
     { const _cfg=document.querySelector('.settings-box'); if(_cfg) _cfg.style.display = ehGeral ? '' : 'none'; }
     $('area-operacao').style.display='';
+    if(ehGeral) document.body.classList.add('role-operacao');   // no celular, a coluna de Envios sobe pro topo de quem embala
     if(_rb) _rb.style.display='';                     // operação pode montar rota
     renderFiltersVend();
     switchTab('painel');  // sempre entra no Painel (a coluna "Minhas entregas" aparece nele)
@@ -6137,14 +6163,72 @@ function renderFinalizadas(){
   const dia=diaAtivo, ehGeral=!!session.geral;
   const base = ehGeral ? entregas.filter(e=>dataDe(e)===dia) : entregasDaVendedora(dia);
   const fin = base.filter(e=>e.status==='entregue').sort((a,b)=>(a.entregueEm||0)-(b.entregueEm||0)); // em fila: feito primeiro
-  const _lanc = fin.filter(e=>e.lancado).length, _falta = fin.length - _lanc;
-  const _resumoSis = fin.length ? `<div style="margin-top:7px;font-size:12.5px;color:var(--text-soft)">📥 <b style="color:#7fb0e0">${_lanc}</b> lançados no sistema · <b style="color:var(--gold)">${_falta}</b> a lançar</div>` : '';
+  // envios já despachados entram aqui pelo dia em que SAÍRAM da loja (é o que fechou no dia)
+  const finEnv = enviosVisiveis()
+    .filter(v=>v.status==='despachado' && v.despachadoEm && dateKey(new Date(v.despachadoEm))===dia)
+    .sort((a,b)=>(a.despachadoEm||0)-(b.despachadoEm||0));
+  const todos=[...fin, ...finEnv];
+  const _lanc = todos.filter(e=>e.lancado).length, _falta = todos.length - _lanc;
+  const _resumoSis = todos.length ? `<div style="margin-top:7px;font-size:12.5px;color:var(--text-soft)">📥 <b style="color:#7fb0e0">${_lanc}</b> lançados no sistema · <b style="color:var(--gold)">${_falta}</b> a lançar${finEnv.length?` · inclui <b>${finEnv.length}</b> ${finEnv.length===1?'envio':'envios'}`:''}</div>` : '';
   $('fin-sub').innerHTML = (ehGeral
-    ? `Entregas <b>finalizadas</b> de <b>${esc(rotuloDia(dia))}</b> — confira como cada cliente pagou.`
-    : `Suas entregas <b>finalizadas</b> de <b>${esc(rotuloDia(dia))}</b> — forma de pagamento, comprovante e detalhes.`) + _resumoSis;
-  $('fin-list').innerHTML = fin.length
-    ? fin.map(fcard).join('')
-    : `<div class="empty">Nenhuma entrega finalizada neste dia ainda.</div>`;
+    ? `Entregas e envios <b>finalizados</b> de <b>${esc(rotuloDia(dia))}</b> — confira como cada cliente pagou.`
+    : `Suas entregas e envios <b>finalizados</b> de <b>${esc(rotuloDia(dia))}</b> — forma de pagamento, comprovante e detalhes.`) + _resumoSis;
+  $('fin-list').innerHTML = todos.length
+    ? fin.map(fcard).join('') + finEnv.map(fcardEnvio).join('')
+    : `<div class="empty">Nenhuma entrega ou envio finalizado neste dia ainda.</div>`;
+}
+function toggleLancadoEnvio(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  v.lancado=!v.lancado;
+  if(v.lancado){ v.lancadoEm=Date.now(); v.lancadoPor=session?(session.vendedora||session.role):''; }
+  else { v.lancadoEm=null; v.lancadoPor=''; }
+  persistEnvios(); renderFinalizadas(); renderEnvios();
+  toast(v.lancado?'Marcado como lançado no sistema ✓':'Desmarcado — falta lançar');
+}
+/* card do envio despachado na aba Finalizadas — mesma casca da entrega */
+function fcardEnvio(v){
+  const hora = v.despachadoEm ? fmtClock(v.despachadoEm) : '';
+  const t = TRSP[v.transportadora];
+  const quem = v.despachadoPor && ENT[v.despachadoPor];
+  const tel = waNumero(v.contato);
+  return `<div class="fcard" data-vid="${v.id}">
+    <div class="fcard-top">
+      <span class="vbadge ok">📮 Despachado${hora?' · '+hora:''}</span>
+      ${t?`<span class="vbadge" style="background:rgba(212,180,90,.16);color:var(--gold-lt)">${t.ico} ${esc(t.nome)}</span>`:''}
+      ${quem?`<span class="vbadge" style="background:${quem.cor}22;color:${quem.cor}">🛵 ${esc(quem.nome)}</span>`:''}
+      ${v.lancado?`<span class="vbadge sis">✓ Lançado no sistema</span>`:''}
+    </div>
+    <div class="fcard-name">${esc(v.cliente)}</div>
+
+    <div class="fcard-sec-h">👤 Cliente</div>
+    <div class="fcard-body"><div class="fcard-info">
+      ${v.contato?`<div class="frow"><span class="ico">📞</span><span>${esc(v.contato)}</span></div>`:''}
+      ${v.cpf?`<div class="frow"><span class="ico">🪪</span><span>CPF: <b>${esc(v.cpf)}</b></span></div>`:''}
+      ${v.nascimento?`<div class="frow"><span class="ico">🎂</span><span>Nascimento: <b>${esc(v.nascimento)}</b></span></div>`:''}
+      ${v.endereco?`<div class="frow"><span class="ico">📍</span><span>${esc(v.endereco)}</span></div>`:''}
+      <div class="frow"><span class="ico">🏘️</span><span>${esc([v.bairro,[v.cidade,v.uf].filter(Boolean).join(' - ')].filter(Boolean).join(' · '))}${v.cep?` · CEP ${esc(v.cep)}`:''}</span></div>
+      ${v.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(v.observacao)}</span></div>`:''}
+      ${v.vendedora?`<div class="frow"><span class="ico">🙋</span><span>Vendedora: <b>${esc(v.vendedora)}</b></span></div>`:''}
+    </div></div>
+
+    <div class="fcard-sec-h">👟 Produto</div>
+    <div class="fcard-body"><div class="fcard-info">
+      ${(v.produto||v.valor)?`<div class="frow"><span class="ico">🧾</span><span>${esc(v.produto||'').replace(/\n/g,'<br>')}${v.valor?` — <b>R$ ${esc(v.valor)}</b>`:''}</span></div>`:''}
+    </div></div>
+
+    <div class="fcard-sec-h">📮 Envio</div>
+    <div class="fcard-body"><div class="fcard-info">
+      <div class="frow"><span class="ico">✓</span><span style="color:var(--calm)">${esc(envOndeTxt(v))}${v.despachadoEm?` · ${esc(envQuando(v.despachadoEm))}`:''}</span></div>
+      ${v.rastreio?`<div class="frow"><span class="ico">🔎</span><span>${/^https?:\/\//i.test(v.rastreio)?`<a class="lnk" href="${esc(v.rastreio)}" target="_blank">link de rastreio</a>`:esc(v.rastreio)}</span></div>`:''}
+      ${v.avisoCliente?`<div class="frow"><span class="ico">💬</span><span style="color:var(--calm)">Cliente avisada do rastreio ✓</span></div>`:`<div class="frow"><span class="ico">💬</span><span style="color:var(--warn)">Cliente ainda não recebeu o rastreio</span></div>`}
+    </div></div>
+
+    <div class="vcard-acts">
+      <button class="vbtn ${v.lancado?'sis-on':'sis-off'}" onclick="toggleLancadoEnvio('${v.id}')">${v.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>
+      ${tel?`<button class="vbtn ${v.avisoCliente?'ghost':''}" onclick="envAvisarCliente('${v.id}')">${WA_ICON} ${v.avisoCliente?'Reenviar rastreio':'Avisar cliente — rastreio'}</button>`:'<span class="vbtn disabled">sem telefone</span>'}
+      ${tel?`<a class="vbtn wa" href="https://wa.me/${tel}?text=${encodeURIComponent(msgPosVenda(v))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:''}
+    </div>
+  </div>`;
 }
 function fcard(e){
   const hora = e.entregueEm?fmtClock(e.entregueEm):'';
@@ -7085,7 +7169,7 @@ function rankingEnviosDados(){
   (typeof envios!=='undefined'?envios:[]).forEach(x=>{
     if(!x.vendedora) return;
     const v=canonVend(x.vendedora); if(!(v in cMes)) return;   // só o time de vendas
-    const d=dateKey(new Date(x.criadoEm||Date.now()));
+    const d=dataEnvioDe(x);
     if(d.slice(0,7)===mes){ cMes[v]++; const val=_num(x.valor); if(val>0){ tk[v].s+=val; tk[v].n++; } }
     if(d===hoje) cDia[v]++;
   });
@@ -7309,7 +7393,7 @@ function _paRender(){
 }
 /* bloco de envios do gestor: volume do mês, para onde vai e por onde sai */
 function gestorEnviosHTML(mes){
-  const doMes=(typeof envios!=='undefined'?envios:[]).filter(v=>dateKey(new Date(v.criadoEm||0)).startsWith(mes));
+  const doMes=(typeof envios!=='undefined'?envios:[]).filter(v=>dataEnvioDe(v).startsWith(mes));
   if(!doMes.length){
     return `<div class="g-card"><h3>📮 Envios</h3>
       <div class="g-env-vazio">Nenhum envio lançado em ${esc(rotuloMes(mes))}.</div></div>`;
