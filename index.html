@@ -923,6 +923,9 @@
   .env-hint-falta{font-size:11.5px;color:var(--urgent);width:100%;margin-top:-2px}
   .env-card.falta{border-left-color:var(--urgent)}
   .env-card.parado{border-left-color:var(--warn)}
+  .env-card.canc{border-left-color:var(--text-mute);opacity:.66}
+  .env-canc{margin-top:7px;font-size:12.5px;color:var(--text-mute);background:rgba(255,255,255,.05);
+    border:1px solid var(--line);border-radius:9px;padding:6px 10px;display:inline-block}
   .env-rast{border-top:1px dashed var(--line);padding-top:9px;margin-top:9px}
   .env-rast-inp{flex:1;min-width:150px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);
     border-radius:9px;padding:8px 10px;font-family:inherit;font-size:12.5px;letter-spacing:.4px}
@@ -1663,6 +1666,20 @@
   </div>
 </div>
 
+<!-- cancelar envio -->
+<div class="modal-bg" id="env-canc-modal" onclick="fecharCancEnvio()">
+  <div class="modal" style="max-width:440px" onclick="event.stopPropagation()">
+    <h3 style="margin-bottom:6px">Cancelar envio</h3>
+    <p style="color:var(--text-soft);font-size:13.5px;margin-bottom:10px">Por que este envio não vai mais sair? Ele sai da fila mas continua no histórico.</p>
+    <div class="desf-quick" id="env-canc-quick"></div>
+    <input id="env-canc-motivo" placeholder="Motivo (opcional se já escolheu acima)">
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="fecharCancEnvio()">Voltar</button>
+      <button class="btn btn-primary" onclick="confirmarCancEnvio()">Confirmar cancelamento</button>
+    </div>
+  </div>
+</div>
+
 <!-- falta o link de rastreio para concluir o envio -->
 <div class="modal-bg" id="env-falta-modal">
   <div class="modal" style="max-width:440px;text-align:center" onclick="event.stopPropagation()">
@@ -1686,7 +1703,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v141</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v142</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2611,6 +2628,7 @@ function _statusBuscaEnvio(v){
     : ['A levar ao ponto','rgba(212,180,90,.2)','#d4b45a'];
   if(v.status==='em_rota')  return ['Em rota','rgba(127,174,107,.2)','#7fae6b'];
   if(v.status==='despachado') return ['Despachado','rgba(127,174,107,.24)','#9fce86'];
+  if(v.status==='cancelado') return ['Cancelado','rgba(138,145,122,.22)','rgba(248,243,230,.7)'];
   return [v.status||'—','rgba(255,255,255,.08)','rgba(248,243,230,.7)'];
 }
 function irParaEnvio(id){
@@ -5292,14 +5310,28 @@ function enviosVisiveis(){ return envios.filter(podeVerEnvio); }
    não o dia da venda. O que não saiu no dia dele rola sozinho para hoje, marcado como
    atrasado — assim nada some da tela e ninguém precisa "trazer p/ hoje" na mão. */
 function dataEnvioDe(v){ return v.dataEnvio || dateKey(new Date(v.criadoEm||Date.now())); }
-function envAtrasadoDia(v){ return v.status!=='despachado' && dataEnvioDe(v) < todayKey(); }
+function envAtrasadoDia(v){
+  if(v.status==='despachado' || v.status==='cancelado') return false;
+  // embalado esperando a coleta: quem define o dia é a transportadora, não a loja —
+  // cobrar isso todo dia viraria alarme falso e ensinaria a equipe a ignorar o aviso
+  if(v.status==='embalado' && coletaNaLoja(v.transportadora)) return false;
+  return dataEnvioDe(v) < todayKey();
+}
+/* há quantos dias o pacote de coleta está embalado esperando o caminhão (informativo, não é atraso) */
+function envEsperandoColetaDesde(v){
+  if(!(v.status==='embalado' && coletaNaLoja(v.transportadora))) return '';
+  const d=dataEnvioDe(v); if(d>=todayKey()) return '';
+  const ontem=dateKey(new Date(Date.now()-86400000));
+  return d===ontem ? 'ontem' : d.slice(8,10)+'/'+d.slice(5,7);
+}
 function enviosDoDia(ymd){
   const hoje=todayKey();
   return enviosVisiveis().filter(v=>{
     const d=dataEnvioDe(v);
     // o atrasado MUDA de lugar: sai do dia dele e passa a viver em hoje, sem aparecer nos dois
-    if(d===ymd) return !(ymd<hoje && v.status!=='despachado');
-    return ymd===hoje && d<hoje && v.status!=='despachado';
+    const aberto = v.status!=='despachado' && v.status!=='cancelado';
+    if(d===ymd) return !(ymd<hoje && aberto);
+    return ymd===hoje && d<hoje && aberto;
   });
 }
 function enviosStatus(st, lista){ return (lista||enviosVisiveis()).filter(v=>v.status===st); }
@@ -5537,6 +5569,37 @@ function envVoltar(id){
   v.embaladoEm=null; v.despachadoEm=null; v.reabertoEm=Date.now();
   persistEnvios(); renderEnvios(); toast('Envio voltou para a fila de embalagem');
 }
+const ENV_CANC_MOTIVOS = ['Cliente desistiu','Pediu para trocar antes de enviar','Produto sem estoque','Endereço incorreto','Cliente vai retirar na loja','Frete não compensou'];
+let _envCancId=null, _envCancMotivo='';
+function abrirCancEnvio(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  _envCancId=id; _envCancMotivo='';
+  $('env-canc-motivo').value='';
+  $('env-canc-quick').innerHTML = ENV_CANC_MOTIVOS.map(m=>`<button class="desf-chip" onclick="pickMotivoEnvio(this,'${m.replace(/'/g,"\\'")}')">${m}</button>`).join('');
+  $('env-canc-modal').classList.add('open');
+}
+function pickMotivoEnvio(el, m){
+  _envCancMotivo=m;
+  [...$('env-canc-quick').children].forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+}
+function fecharCancEnvio(){ $('env-canc-modal').classList.remove('open'); _envCancId=null; _envCancMotivo=''; }
+function confirmarCancEnvio(){
+  const v=envios.find(x=>x.id===_envCancId); if(!v) return;
+  const motivo = ($('env-canc-motivo').value.trim() || _envCancMotivo || '').trim();
+  if(!motivo){ toast('Escolha ou escreva o motivo'); return; }
+  v.status='cancelado'; v.motivo=motivo; v.canceladoEm=Date.now();
+  v.canceladoPor = session ? (session.vendedora||session.role) : '';
+  v.entregador=null; v.pontoId='';          // sai do roteiro e da rota de quem ia levar
+  persistEnvios(); fecharCancEnvio(); render();
+  toast('Envio cancelado — segue no histórico');
+}
+function reabrirEnvio(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  v.status='novo'; v.motivo=''; v.canceladoEm=null; v.canceladoPor='';
+  v.dataEnvio=todayKey(); v.reabertoEm=Date.now();
+  persistEnvios(); render(); toast('Envio reaberto para hoje');
+}
 function excluirEnvio(id){
   const v=envios.find(x=>x.id===id); if(!v) return;
   if(!confirm(`Excluir o envio de ${v.cliente}?`)) return;
@@ -5601,7 +5664,8 @@ function envDestinoTxt(v){
 }
 function envCardHTML(v, modo){
   const opera=podeOperarEnvios();
-  const cls = v.status==='despachado' ? 'ok' : v.status==='em_rota' ? 'rota' : v.status==='embalado' ? 'pronto' : '';
+  const cls = v.status==='cancelado' ? 'canc' : v.status==='despachado' ? 'ok' : v.status==='em_rota' ? 'rota' : v.status==='embalado' ? 'pronto' : '';
+  const dono0 = podeOperarEnvios() || !!(session && session.role==='vendedora' && canonVend(v.vendedora||'')===session.vendedora);
   const t=TRSP[v.transportadora];
   let acts='';
   if(modo==='embalar' && opera){
@@ -5611,6 +5675,7 @@ function envCardHTML(v, modo){
       <select id="env-trsp-${v.id}" class="${falta?'falta':''}" onchange="envSetTrsp('${v.id}', this.value)">${opcoesTrsp(v.transportadora||'')}</select>
       <button class="btn btn-primary btn-mini" onclick="envEmbalar('${v.id}')"${falta?' disabled':''}>📦 Embalado</button>
       <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
+      <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
       <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
       ${falta?`<div class="env-hint-falta">Escolha a transportadora para liberar o “Embalado” — sem ela o pacote não entra no roteiro.</div>`:''}
     </div>`;
@@ -5624,15 +5689,25 @@ function envCardHTML(v, modo){
     acts=`<div class="env-acts">
       ${!v.avisoEdson?`<button class="btn btn-primary btn-mini" onclick="abrirAvisoEdson('${v.id}')">💬 Avisar o Edson</button>`:''}
       <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
+      <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
       <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
     </div>`;
   } else if(modo==='coleta' && opera){
     acts=`<div class="env-acts">
       <button class="btn btn-primary btn-mini" onclick="envColetado('${v.id}')">✓ Coletado</button>
       <button class="btn btn-ghost btn-mini" onclick="envVoltar('${v.id}')">↩ Voltar p/ embalar</button>
+      <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
     </div>`;
   } else if(modo==='levar' && opera){
-    acts=`<div class="env-acts"><button class="btn btn-ghost btn-mini" onclick="envVoltar('${v.id}')">↩ Voltar p/ embalar</button></div>`;
+    acts=`<div class="env-acts">
+      <button class="btn btn-ghost btn-mini" onclick="envVoltar('${v.id}')">↩ Voltar p/ embalar</button>
+      <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
+    </div>`;
+  } else if(modo==='cancelado' && dono0){
+    acts=`<div class="env-acts">
+      <button class="btn btn-ghost btn-mini" onclick="reabrirEnvio('${v.id}')">↩ Reabrir para hoje</button>
+      <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
+    </div>`;
   }
   const ponto = v.pontoId && PONTO[v.pontoId];
   const quem = v.entregador && ENT[v.entregador];
@@ -5653,11 +5728,13 @@ function envCardHTML(v, modo){
     <div class="env-dest">${envDestinoTxt(v)}</div>
     ${v.produto?`<div class="env-dest" style="margin-top:5px">🧾 ${esc(v.produto).replace(/\n/g,'<br>')}</div>`:''}
     ${v.observacao?`<div class="env-dest" style="margin-top:5px;color:var(--text-mute)">📝 ${esc(v.observacao)}</div>`:''}
+    ${v.status==='cancelado'?`<div class="env-canc">✕ Cancelado${v.motivo?` — ${esc(v.motivo)}`:''}${v.canceladoEm?` · ${esc(envQuando(v.canceladoEm))}`:''}</div>`:''}
     ${v.status==='despachado'?`<div class="env-desp">✓ ${esc(envOndeTxt(v))}${v.despachadoEm?` · ${esc(envQuando(v.despachadoEm))}`:''}</div>`:''}
     <div class="env-meta">
       ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
       ${(v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
       ${envAtrasadoDia(v)?`<span class="env-tag aviso">⏱ era pra sair ${esc(envAtrasoTxt(v))}</span>`:''}
+      ${envEsperandoColetaDesde(v)?`<span class="env-tag coleta">🚚 na loja desde ${esc(envEsperandoColetaDesde(v))}</span>`:''}
       ${v.rastreio?(/^https?:\/\//i.test(v.rastreio)
         ? `<a class="env-tag tr env-tag-lnk" href="${esc(v.rastreio)}" target="_blank">🔎 link de rastreio ↗</a>`
         : `<span class="env-tag tr">🔎 ${esc(v.rastreio)}</span>`):''}
@@ -5710,7 +5787,8 @@ function renderEnvios(){
         coleta=enviosAguardandoColeta(doDia), emRota=enviosStatus('em_rota', doDia),
         semTr=enviosSemTransportadora(doDia);
   const feitos=enviosStatus('despachado', doDia).sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0));
-  const abertos=doDia.filter(v=>v.status!=='despachado');
+  const cancelados=enviosStatus('cancelado', doDia).sort((a,b)=>(b.canceladoEm||0)-(a.canceladoEm||0));
+  const abertos=doDia.filter(v=>v.status!=='despachado' && v.status!=='cancelado');
   const atrasados=doDia.filter(envAtrasadoDia);
   $('c-envios').textContent = abertos.length;
 
@@ -5726,7 +5804,8 @@ function renderEnvios(){
     + envSubSec('📦 Levar ao ponto', levar, 'levar')
     + envSubSec('🚚 Coleta na loja', coleta, 'coleta')
     + envSubSec('🛵 Em rota', emRota, 'rota')
-    + envSubSec('✓ Despachados', feitos, 'feito');
+    + envSubSec('✓ Despachados', feitos, 'feito')
+    + envSubSec('✕ Cancelados', cancelados, 'cancelado');
 }
 
 /* ============ login / sessão / entregador ============ */
@@ -7179,7 +7258,7 @@ function rankingEnviosDados(){
   const cMes={}, cDia={}, tk={};
   VENDEDORAS.forEach(v=>{ cMes[v]=0; cDia[v]=0; tk[v]={s:0,n:0}; });
   (typeof envios!=='undefined'?envios:[]).forEach(x=>{
-    if(!x.vendedora) return;
+    if(!x.vendedora || x.status==='cancelado') return;   // cancelado não conta pra ninguém
     const v=canonVend(x.vendedora); if(!(v in cMes)) return;   // só o time de vendas
     const d=dataEnvioDe(x);
     if(d.slice(0,7)===mes){ cMes[v]++; const val=_num(x.valor); if(val>0){ tk[v].s+=val; tk[v].n++; } }
@@ -7410,17 +7489,19 @@ function gestorEnviosHTML(mes){
     return `<div class="g-card"><h3>📮 Envios</h3>
       <div class="g-env-vazio">Nenhum envio lançado em ${esc(rotuloMes(mes))}.</div></div>`;
   }
-  const despachados=doMes.filter(v=>v.status==='despachado');
-  const andamento=doMes.length-despachados.length;
+  const cancelados=doMes.filter(v=>v.status==='cancelado');
+  const validos=doMes.filter(v=>v.status!=='cancelado');       // cancelado não infla volume nem valor
+  const despachados=validos.filter(v=>v.status==='despachado');
+  const andamento=validos.length-despachados.length;
   const naLoja=despachados.filter(v=>v.coletadoNaLoja).length;
   const noPonto=despachados.length-naLoja;
-  const fat=doMes.reduce((s,v)=>s+_num(v.valor),0);
+  const fat=validos.reduce((s,v)=>s+_num(v.valor),0);
 
   const cont=(arr,chave)=>{ const o={}; arr.forEach(v=>{ const k=chave(v); if(k) o[k]=(o[k]||0)+1; });
     return Object.keys(o).map(k=>({k,n:o[k]})).sort((a,b)=>b.n-a.n); };
-  const porTr=cont(doMes, v=>v.transportadora ? (TRSP[v.transportadora]?TRSP[v.transportadora].nome:v.transportadora) : 'a definir');
-  const porUf=cont(doMes, v=>(v.uf||'').toUpperCase()||'—');
-  const porVend=cont(doMes, v=>v.vendedora||'sem vendedora');
+  const porTr=cont(validos, v=>v.transportadora ? (TRSP[v.transportadora]?TRSP[v.transportadora].nome:v.transportadora) : 'a definir');
+  const porUf=cont(validos, v=>(v.uf||'').toUpperCase()||'—');
+  const porVend=cont(validos, v=>v.vendedora||'sem vendedora');
   const porPonto=cont(despachados.filter(v=>!v.coletadoNaLoja), v=>PONTO[v.pontoId]?PONTO[v.pontoId].nome:'—');
   const topTr=Math.max(1,...porTr.map(x=>x.n));
   const barras=(lista,cor)=>lista.map(x=>`<div class="g-env-row">
@@ -7432,8 +7513,8 @@ function gestorEnviosHTML(mes){
   return `<div class="g-card">
     <h3>📮 Envios · ${esc(rotuloMes(mes))}</h3>
     <div class="g-kpis" style="margin-bottom:16px">
-      <div class="g-kpi"><div class="lbl">Envios no mês</div><div class="val">${doMes.length}</div>${andamento?`<div class="sub">${andamento} em andamento</div>`:'<div class="sub">todos despachados</div>'}</div>
-      <div class="g-kpi"><div class="lbl">Valor em envios</div><div class="val">${brl(fat)}</div><div class="sub">${doMes.length?brl(fat/doMes.length):brl(0)} por envio</div></div>
+      <div class="g-kpi"><div class="lbl">Envios no mês</div><div class="val">${validos.length}</div>${andamento?`<div class="sub">${andamento} em andamento</div>`:'<div class="sub">todos despachados</div>'}</div>
+      <div class="g-kpi"><div class="lbl">Valor em envios</div><div class="val">${brl(fat)}</div><div class="sub">${validos.length?brl(fat/validos.length):brl(0)} por envio</div></div>
       <div class="g-kpi"><div class="lbl">Como saíram</div><div class="val">${noPonto} / ${naLoja}</div><div class="sub">levados ao ponto / coletados na loja</div></div>
     </div>
     <div class="g-env-grid">
@@ -7442,6 +7523,7 @@ function gestorEnviosHTML(mes){
       <div><h4 class="g-env-h">Por vendedora</h4>${barras(porVend,'var(--calm)')}</div>
       ${porPonto.length?`<div><h4 class="g-env-h">Por ponto parceiro</h4>${barras(porPonto,'var(--terra)')}</div>`:''}
     </div>
+    ${cancelados.length?`<p class="g-set-hint" style="margin-top:10px">✕ <b>${cancelados.length}</b> ${cancelados.length===1?'envio cancelado':'envios cancelados'} no mês (fora das contas acima): ${esc([...new Set(cancelados.map(v=>v.motivo).filter(Boolean))].join(' · '))||'sem motivo registrado'}.</p>`:''}
     <p class="g-set-hint" style="margin-top:12px">Envio não entra no faturamento de entregas nem no ranking de entregas — é contado à parte. Correios e Total Express coletam na própria loja; o resto vai de carona na rota do entregador até o ponto parceiro.</p>
   </div>`;
 }
