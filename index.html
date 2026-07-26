@@ -1686,7 +1686,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v140</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v141</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2693,8 +2693,8 @@ function renderAvisos(){
   if(!total){ box.innerHTML=''; return; }
   let rows='';
   if(envParados.length){
-    const li=envParados.map(v=>'<div class="exp-row"><span class="exp-cli" onclick="irParaEnvio(\''+v.id+'\')" style="cursor:pointer">'+esc(v.cliente||'(sem nome)')+'<small>'+esc(fmtDur(envParadoMin(v)))+' '+esc(envMotivoParado(v))+([v.cidade,v.uf].filter(Boolean).length?' · '+esc([v.cidade,v.uf].filter(Boolean).join(' - ')):'')+'</small></span><span class="acts"><button class="mini prim" onclick="event.stopPropagation();irParaEnvio(\''+v.id+'\')">abrir</button></span></div>').join('');
-    rows+=_avLinha('envparado','⏱','amber','Envios parados esperando',envParados.length,'<div class="av-exp"><div class="av-note">Envio não tem prazo no sistema, então o que cobra é o tempo parado. Verifique o que travou.</div>'+li+'</div>');
+    const li=envParados.map(v=>'<div class="exp-row"><span class="exp-cli" onclick="irParaEnvio(\''+v.id+'\')" style="cursor:pointer">'+esc(v.cliente||'(sem nome)')+'<small>era pra sair '+esc(envAtrasoTxt(v))+' · '+esc(envMotivoParado(v))+([v.cidade,v.uf].filter(Boolean).length?' · '+esc([v.cidade,v.uf].filter(Boolean).join(' - ')):'')+'</small></span><span class="acts"><button class="mini prim" onclick="event.stopPropagation();irParaEnvio(\''+v.id+'\')">abrir</button></span></div>').join('');
+    rows+=_avLinha('envparado','⏱','amber','Envios que passaram do dia de sair',envParados.length,'<div class="av-exp"><div class="av-note">Passaram do dia em que deviam sair da loja e já vieram para o quadro de hoje.</div>'+li+'</div>');
   }
   if(dinheiro.length){
     const li=dinheiro.map(e=>{
@@ -4216,6 +4216,13 @@ function pendListVend(){
   return entregas.filter(e=>['aguardando','em_rota','nao_entregue','cancelado'].includes(e.status) && dataDe(e) < today && inEsc(e) && !e.pendResolvido && !e.pendDescartado);
 }
 /* entregues que ainda NÃO foram lançadas no sistema (hoje + dias anteriores), no escopo da vendedora */
+function naoLancadasEnviosList(){
+  if(!session || session.role!=='vendedora') return [];
+  const ehVendPessoal = !session.geral && !!session.vendedora;
+  const alvo = ehVendPessoal ? norm(session.vendedora) : null;
+  return envios.filter(v=> v.status==='despachado' && !v.lancado
+    && (!ehVendPessoal || (v.vendedora && norm(v.vendedora)===alvo)));
+}
 function naoLancadasList(){
   const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
   const alvo = ehVendPessoal ? norm(session.vendedora) : null;
@@ -4240,16 +4247,18 @@ function togglePend(k){
 function renderPendentes(){
   const box=$('view-pendentes'); if(!box) return;
   const naoLanc = naoLancadasList().slice().sort((a,b)=>{ const da=dataDe(a), db=dataDe(b); return da<db?-1:da>db?1:0; });
+  const naoLancEnv = naoLancadasEnviosList().slice().sort((a,b)=>(a.despachadoEm||0)-(b.despachadoEm||0));
   const pend=pendListVend();
   const dinRec=dinheiroReceberList();
-  if(!naoLanc.length && !pend.length && !dinRec.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
+  if(!naoLanc.length && !naoLancEnv.length && !pend.length && !dinRec.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
   const fmtBRL = n => 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const _vNum = v => { if(v==null) return 0; let s=String(v).replace(/[^\d.,-]/g,'').trim(); if(s==='') return 0; if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); return Number(s)||0; };
   let html = `<p class="vmin-sub" style="margin-bottom:14px">Tudo que precisa da sua atenção: o que falta <b>lançar no sistema</b>, as <b>pendências de entrega</b> e o <b>dinheiro a receber</b>.</p>`;
 
   // ===== PARTE 1 — Não lançadas no sistema (entregues, hoje + dias anteriores, ainda não lançadas) =====
-  if(naoLanc.length){
-    html += `<div class="pend-part${_pendOpen.nl?'':' collapsed'}" id="pend-head-nl" onclick="togglePend('nl')"><div class="n">1</div><div class="t">Não lançadas no sistema<small>Entregas concluídas que ainda faltam lançar no Kigi</small></div><div class="c">${naoLanc.length} a lançar</div><span class="pend-chev">▾</span></div>`;
+  if(naoLanc.length || naoLancEnv.length){
+    const _totNL = naoLanc.length + naoLancEnv.length;
+    html += `<div class="pend-part${_pendOpen.nl?'':' collapsed'}" id="pend-head-nl" onclick="togglePend('nl')"><div class="n">1</div><div class="t">Não lançadas no sistema<small>Entregas e envios concluídos que ainda faltam lançar no Kigi</small></div><div class="c">${_totNL} a lançar</div><span class="pend-chev">▾</span></div>`;
     html += `<div id="pend-body-nl"${_pendOpen.nl?'':' style="display:none"'}>` + naoLanc.map(e=>{
       const dias=_diasAtras(dataDe(e));
       const quando = dias<=0 ? 'hoje' : `há ${dias} dia${dias>1?'s':''}`;
@@ -4257,6 +4266,16 @@ function renderPendentes(){
       const valTag = vN>0 ? ` <span class="pend-val">${fmtBRL(vN)}</span>` : '';
       const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
       return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b>${valTag}<small>${quando}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}</small></div><div class="pend-acts"><button class="pend-b sis" onclick="toggleLancado('${e.id}')">☐ Marcar: lançado no sistema</button></div></div>`;
+    }).join('') + naoLancEnv.map(v=>{
+      const dkDesp=dateKey(new Date(v.despachadoEm||Date.now()));
+      const quando = dkDesp===todayKey() ? 'hoje'
+        : dkDesp===dateKey(new Date(Date.now()-86400000)) ? 'ontem'
+        : `há ${_diasAtras(dkDesp)} dias`;
+      const vN=_vNum(v.valor);
+      const valTag = vN>0 ? ` <span class="pend-val">${fmtBRL(vN)}</span>` : '';
+      const vnd = (session.geral && v.vendedora) ? ` · 👤 ${esc(v.vendedora)}` : '';
+      const dest = [v.cidade,v.uf].filter(Boolean).join(' - ');
+      return `<div class="pend-row"><div class="pend-info"><b>📮 ${esc(v.cliente)}</b>${valTag}<small>envio · ${quando}${dest?` · ${esc(dest)}`:''}${vnd}</small></div><div class="pend-acts"><button class="pend-b sis" onclick="toggleLancadoEnvio('${v.id}')">☐ Marcar: lançado no sistema</button></div></div>`;
     }).join('') + `</div>`;
   }
 
@@ -4821,7 +4840,7 @@ function render(){
   renderMinhasColuna();
   if(tabAtiva==='fin') renderFinalizadas();
   // aba Pendentes (vendedora/gestor)
-  const _cPend=$('c-tab-pendentes'); if(_cPend){ const _np=pendListVend().length + naoLancadasList().length; _cPend.textContent = _np ? ` ${_np}` : ''; }
+  const _cPend=$('c-tab-pendentes'); if(_cPend){ const _np=pendListVend().length + naoLancadasList().length + naoLancadasEnviosList().length; _cPend.textContent = _np ? ` ${_np}` : ''; }
   if(tabAtiva==='pendentes') renderPendentes();
   checkNotificacoes();
 
@@ -5290,25 +5309,18 @@ function enviosParaLevar(lista){ return enviosStatus('embalado', lista).filter(v
 function enviosAguardandoColeta(lista){ return enviosStatus('embalado', lista).filter(v=>coletaNaLoja(v.transportadora)); }
 function enviosSemTransportadora(lista){ return enviosStatus('embalado', lista).filter(v=>!v.transportadora); }
 
-/* ---- envio parado: nada no fluxo tem prazo, então o tempo parado é o que cobra ---- */
-const ENV_URGENCIA = {embalar:120, levar:240};   // minutos até virar alerta
-function envParadoDesde(v){
-  if(v.status==='novo')     return v.criadoEm||0;
-  if(v.status==='embalado') return v.embaladoEm||v.criadoEm||0;
-  if(v.status==='em_rota')  return v.roteadoEm||0;
-  return 0;
-}
-function envParadoMin(v){ const t=envParadoDesde(v); return t?minutesSince(t):0; }
-function envAtrasado(v){
-  if(v.status==='novo')     return envParadoMin(v)>=ENV_URGENCIA.embalar;
-  if(v.status==='embalado') return envParadoMin(v)>=ENV_URGENCIA.levar;
-  return false;
-}
+/* ---- envio atrasado: o prazo é o próprio dia do envio ----
+   Antes havia uma regra por tempo parado (2h/4h). Com o envio ganhando dia, ela passou a
+   brigar com a regra do dia e acabava apontando o envio errado — foi removida. */
 function envMotivoParado(v){
   if(v.status==='novo') return 'esperando embalagem';
   return coletaNaLoja(v.transportadora) ? 'esperando a coleta na loja' : 'embalado, esperando ir ao ponto';
 }
-function enviosParados(){ return enviosVisiveis().filter(envAtrasado).sort((a,b)=>envParadoDesde(a)-envParadoDesde(b)); }
+function envAtrasoTxt(v){
+  const d=dataEnvioDe(v), ontem=dateKey(new Date(Date.now()-86400000));
+  return d===ontem ? 'ontem' : d.slice(8,10)+'/'+d.slice(5,7);
+}
+function enviosParados(){ return enviosVisiveis().filter(envAtrasadoDia).sort((a,b)=>dataEnvioDe(a)<dataEnvioDe(b)?-1:1); }
 
 function opcoesTrsp(sel){
   return '<option value="">A definir na operação</option>' +
@@ -5636,7 +5648,7 @@ function envCardHTML(v, modo){
       ${faltaLink?`<input class="env-rast-inp falta" value="" placeholder="🔎 falta o link de rastreio" onchange="envSetRastreio('${v.id}', this.value)">`:''}
       ${podeAvisar?`<button class="btn ${jaAvisou?'btn-ghost':'btn-primary'} btn-mini" onclick="envAvisarCliente('${v.id}')">${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:''}
     </div>` : '';
-  return `<div class="env-card ${cls}${envAtrasado(v)?' parado':''}" data-vid="${v.id}">
+  return `<div class="env-card ${cls}${envAtrasadoDia(v)?' parado':''}" data-vid="${v.id}">
     <h4>${esc(v.cliente)}${v.valor?`<span style="color:var(--gold);font-size:14px">${esc(v.valor)}</span>`:''}</h4>
     <div class="env-dest">${envDestinoTxt(v)}</div>
     ${v.produto?`<div class="env-dest" style="margin-top:5px">🧾 ${esc(v.produto).replace(/\n/g,'<br>')}</div>`:''}
@@ -5645,7 +5657,7 @@ function envCardHTML(v, modo){
     <div class="env-meta">
       ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
       ${(v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
-      ${envAtrasado(v)?`<span class="env-tag aviso">⏱ parado há ${esc(fmtDur(envParadoMin(v)))}</span>`:''}
+      ${envAtrasadoDia(v)?`<span class="env-tag aviso">⏱ era pra sair ${esc(envAtrasoTxt(v))}</span>`:''}
       ${v.rastreio?(/^https?:\/\//i.test(v.rastreio)
         ? `<a class="env-tag tr env-tag-lnk" href="${esc(v.rastreio)}" target="_blank">🔎 link de rastreio ↗</a>`
         : `<span class="env-tag tr">🔎 ${esc(v.rastreio)}</span>`):''}
@@ -6182,7 +6194,7 @@ function toggleLancadoEnvio(id){
   v.lancado=!v.lancado;
   if(v.lancado){ v.lancadoEm=Date.now(); v.lancadoPor=session?(session.vendedora||session.role):''; }
   else { v.lancadoEm=null; v.lancadoPor=''; }
-  persistEnvios(); renderFinalizadas(); renderEnvios();
+  persistEnvios(); render(); if(typeof renderFinalizadas==='function') renderFinalizadas();
   toast(v.lancado?'Marcado como lançado no sistema ✓':'Desmarcado — falta lançar');
 }
 /* card do envio despachado na aba Finalizadas — mesma casca da entrega */
