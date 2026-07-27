@@ -1748,6 +1748,16 @@
   </div>
 </div>
 
+<!-- o link não revelou a transportadora -->
+<div class="modal-bg" id="env-trsp-modal">
+  <div class="modal" style="max-width:440px;text-align:center" onclick="event.stopPropagation()">
+    <div style="font-size:38px;line-height:1">🚚</div>
+    <h3 style="margin:8px 0 6px">Qual é a transportadora?</h3>
+    <p class="env-aviso-sub">Não consegui reconhecer pelo link de rastreio. Escolha para o envio entrar no roteiro certo — é ela que define para qual ponto o pacote vai.</p>
+    <button class="btn btn-primary env-aviso-wa" onclick="fecharEnvFaltaTrsp()">Escolher agora</button>
+  </div>
+</div>
+
 <!-- falta o link de rastreio para concluir o envio -->
 <div class="modal-bg" id="env-falta-modal">
   <div class="modal" style="max-width:440px;text-align:center" onclick="event.stopPropagation()">
@@ -1771,7 +1781,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v153</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v154</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5440,10 +5450,36 @@ function envAtrasoTxt(v){
   const d=dataEnvioDe(v), ontem=dateKey(new Date(Date.now()-86400000));
   return d===ontem ? 'ontem' : d.slice(8,10)+'/'+d.slice(5,7);
 }
+/* prazo do Edson: envio de dia anterior, ou de hoje depois do corte, já devia estar embalado */
+function envEsperandoEmbalagem(v){
+  if(!v || v.status!=='novo') return false;
+  const d=dataEnvioDe(v), hoje=todayKey();
+  return d<hoje || (d===hoje && passouDoCorte());
+}
+function envMsgCobrarEdson(v){
+  const d=dataEnvioDe(v), hoje=todayKey();
+  const quando = d<hoje ? 'de '+envAtrasoTxt(v) : 'de hoje';
+  let m='Oi Edson! ⏰\n\n';
+  m+=`O envio ${quando} da *${v.cliente}* ainda não foi embalado.\n`;
+  const t=TRSP[v.transportadora];
+  if(t) m+=`\n🚚 ${t.nome}`;
+  if(v.cidade) m+=`\n📍 ${[v.cidade,v.uf].filter(Boolean).join(' - ')}`;
+  m+='\n\nConsegue embalar pra ele entrar na rota?';
+  if(v.vendedora) m+=`\n\n— ${v.vendedora}`;
+  return m;
+}
+function cobrarEdson(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  const tel=TEL_VEND['Edson']||'5562999266976';
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(envMsgCobrarEdson(v))}`,'_blank');
+  v.cobradoEm=Date.now();
+  v.cobradoPor = session ? (session.vendedora||session.role) : '';
+  persistEnvios(); render();
+}
 function enviosParados(){ return enviosVisiveis().filter(envAtrasadoDia).sort((a,b)=>dataEnvioDe(a)<dataEnvioDe(b)?-1:1); }
 
 function opcoesTrsp(sel){
-  return '<option value="">A definir na operação</option>' +
+  return '<option value="">Escolha a transportadora…</option>' +
     TRANSPORTADORAS.map(t=>`<option value="${t.id}"${sel===t.id?' selected':''}>${t.ico} ${t.nome}${t.coleta?' · coleta na loja':''}</option>`).join('');
 }
 
@@ -5486,6 +5522,8 @@ function salvarEnvio(){
   if(!cidade){ toast('Preencha a cidade de destino'); return; }
   // sem link de rastreio o envio não fecha: é o que a cliente recebe para acompanhar
   if(!$('env-rast').value.trim()){ abrirEnvFaltaLink(); return; }
+  // o link normalmente já diz a transportadora; quando não diz, ela escolhe aqui mesmo
+  if(!$('env-trsp').value){ abrirEnvFaltaTrsp(); return; }
   const dados={
     cliente, cidade,
     dataEnvio: $('env-data').value || todayKey(),
@@ -5572,6 +5610,12 @@ function envDetectarTrsp(){
   if(!sel.value){ sel.value=t; hint.textContent = `Detectei ${TRSP[t].nome} pelo código — pode trocar se não for.`; }
   else if(sel.value!==t){ hint.textContent = `O código parece ser de ${TRSP[t].nome}, mas você escolheu ${TRSP[sel.value]?TRSP[sel.value].nome:'outra'}.`; }
   else { hint.textContent = `Confere: ${TRSP[t].nome}.`; }
+}
+function abrirEnvFaltaTrsp(){ $('env-trsp-modal').classList.add('open'); }
+function fecharEnvFaltaTrsp(){
+  $('env-trsp-modal').classList.remove('open');
+  const el=$('env-trsp');
+  if(el){ el.focus(); el.scrollIntoView({behavior:'smooth',block:'center'}); }
 }
 function abrirEnvFaltaLink(){ $('env-falta-modal').classList.add('open'); }
 function fecharEnvFaltaLink(){
@@ -6060,14 +6104,16 @@ function envCardHTML(v, modo){
   let acts='';
   if(modo==='embalar' && opera){
     // sem transportadora não dá pra embalar: sem ela o pacote não tem ponto e some da rota
+    // a transportadora vem do link no lançamento; só reaparece aqui se faltar (envio antigo)
     const falta=!v.transportadora;
     acts=`<div class="env-acts">
-      <select id="env-trsp-${v.id}" class="${falta?'falta':''}" onchange="envSetTrsp('${v.id}', this.value)">${opcoesTrsp(v.transportadora||'')}</select>
+      ${falta?`<select id="env-trsp-${v.id}" class="falta" onchange="envSetTrsp('${v.id}', this.value)">${opcoesTrsp('')}</select>`:''}
       <button class="btn btn-primary btn-mini" onclick="envEmbalar('${v.id}')"${falta?' disabled':''}>📦 Embalado</button>
+      ${envEsperandoEmbalagem(v)?`<span class="env-tag aviso">⏰ passou do prazo</span>`:''}
       <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
       <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
       <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
-      ${falta?`<div class="env-hint-falta">Escolha a transportadora para liberar o “Embalado” — sem ela o pacote não entra no roteiro.</div>`:''}
+      ${falta?`<div class="env-hint-falta">Este envio ficou sem transportadora — escolha para liberar o “Embalado”.</div>`:''}
     </div>`;
   } else if(modo==='corrigir' && opera){
     acts=`<div class="env-acts">
@@ -6076,11 +6122,14 @@ function envCardHTML(v, modo){
       <div class="env-hint-falta">Marcado como embalado sem transportadora — escolha uma para ele voltar ao roteiro.</div>
     </div>`;
   } else if(modo==='embalar'){
+    const atrasado=envEsperandoEmbalagem(v);
     acts=`<div class="env-acts">
       ${!v.avisoEdson?`<button class="btn btn-primary btn-mini" onclick="abrirAvisoEdson('${v.id}')">💬 Avisar o Edson</button>`:''}
+      ${atrasado?`<button class="btn ${v.cobradoEm?'btn-ghost':'btn-primary'} btn-mini" onclick="cobrarEdson('${v.id}')">⏰ ${v.cobradoEm?'Cobrar de novo':'Cobrar o Edson'}</button>`:''}
       <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
       <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
       <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
+      ${atrasado?`<div class="env-hint-falta">Passou do prazo de embalagem — o Edson precisa embalar para entrar na rota.</div>`:''}
     </div>`;
   } else if(modo==='coleta' && opera){
     acts=`<div class="env-acts">
@@ -6115,7 +6164,7 @@ function envCardHTML(v, modo){
       ${faltaLink?`<input class="env-rast-inp falta" value="" placeholder="🔎 falta o link de rastreio" onchange="envSetRastreio('${v.id}', this.value)">`:''}
       ${podeAvisar?`<button class="btn ${jaAvisou?'btn-ghost':'btn-primary'} btn-mini" onclick="envAvisarCliente('${v.id}')">${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:''}
     </div>` : '';
-  return `<div class="env-card ${cls}${envAtrasadoDia(v)?' parado':''}" data-vid="${v.id}">
+  return `<div class="env-card ${cls}${(envAtrasadoDia(v)||envEsperandoEmbalagem(v))?' parado':''}" data-vid="${v.id}">
     <h4>${ehLote(v)?`📦 ${envQtd(v)} pacote${envQtd(v)>1?'s':''}`:esc(v.cliente)}${(!ehLote(v)&&v.valor)?`<span style="color:var(--gold);font-size:14px">${esc(v.valor)}</span>`:''}</h4>
     ${ehLote(v)?'<div class="env-dest">Lançamento rápido — só para a conta da rota</div>':`<div class="env-dest">${envDestinoTxt(v)}</div>`}
     ${(!ehLote(v)&&v.produto)?`<div class="env-dest" style="margin-top:5px">🧾 ${esc(v.produto).replace(/\n/g,'<br>')}</div>`:''}
