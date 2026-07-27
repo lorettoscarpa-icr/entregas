@@ -874,6 +874,13 @@
   .env-sub .n{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:1px 7px;font-size:10px}
   .env-sub.urg{color:var(--urgent)}
   .env-sub.urg .n{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
+  .env-data-hint{display:block;margin-top:5px;font-size:11.5px;color:var(--text-mute);text-transform:none;letter-spacing:0}
+  .g-corte{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px;padding-top:14px;
+    border-top:1px solid var(--line)}
+  .g-corte label{font-size:13px;color:var(--text)}
+  .g-corte input{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);
+    border-radius:9px;padding:8px 10px;font-family:inherit;font-size:14px}
+  .g-corte span{flex:1 1 100%;font-size:11.5px;color:var(--text-mute);line-height:1.5}
   .env-fila{margin-top:12px;font-size:12.5px;color:var(--text-soft);background:var(--surface-2);
     border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;text-align:center}
   .env-fila b{color:var(--gold-lt)}
@@ -1676,7 +1683,7 @@
     </div>
     <div class="fields">
       <div><label>Cliente *</label><input id="env-cliente" placeholder="Nome completo de quem recebe"></div>
-      <div><label>Sai da loja em <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(dia em que o pacote deve sair)</span></label><input id="env-data" type="date"></div>
+      <div><label>Sai da loja em <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(dia em que o pacote deve sair)</span></label><input id="env-data" type="date"><small id="env-data-hint" class="env-data-hint"></small></div>
       <div><label>CPF</label><input id="env-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" oninput="maskCPF(this)"></div>
       <div><label>Nascimento</label><input id="env-nasc" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" oninput="maskData(this)"></div>
       <div><label>Contato</label><input id="env-contato" type="tel" inputmode="tel" placeholder="(11) 9....-...."></div>
@@ -1764,7 +1771,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v148</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v149</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2129,6 +2136,7 @@ const CFG_KEY = 'loretto_entregas_cfg_v1';
 /* ============ config (loja de origem + estimativa por distância) ============ */
 const CFG_DEFAULT = {
   minPorEntrega: 15,            // fallback p/ entregas sem pin no mapa
+  corteEnvio: '12:30',         // envio lançado depois deste horário já entra para o dia seguinte
   velocidadeKmh: 45,           // velocidade média da moto em Goiânia (usada na previsão do painel; a previsão por rua vem desligada)
   fatorRota: 1.4,              // distância em linha reta -> distância de rua (fallback)
   servicoMin: 4,               // tempo parado por entrega (estacionar/entregar)
@@ -5371,6 +5379,24 @@ function enviosVisiveis(){ return envios.filter(podeVerEnvio); }
    dataEnvio é o dia em que o pacote DEVE sair da loja (mesma ideia do dataEntrega),
    não o dia da venda. O que não saiu no dia dele rola sozinho para hoje, marcado como
    atrasado — assim nada some da tela e ninguém precisa "trazer p/ hoje" na mão. */
+/* horário de corte: depois dele o pacote não pega mais a saída do dia,
+   então o envio já nasce marcado para o dia seguinte. O gestor edita o horário. */
+function corteEnvio(){ return String((config && config.corteEnvio) || '12:30'); }
+function setCorteEnvio(v){
+  const m=String(v||'').match(/^(\d{1,2}):(\d{2})$/);
+  if(!m){ toast('Horário inválido'); return; }
+  config.corteEnvio = String(m[1]).padStart(2,'0')+':'+m[2];
+  saveCfg(); renderGestor();
+  toast('Corte dos envios: '+config.corteEnvio);
+}
+function passouDoCorte(){
+  const m=corteEnvio().match(/^(\d{1,2}):(\d{2})$/); if(!m) return false;
+  const agora=new Date();
+  return (agora.getHours()*60+agora.getMinutes()) > (+m[1]*60 + +m[2]);
+}
+function dataEnvioPadrao(){
+  return passouDoCorte() ? dateKey(new Date(Date.now()+86400000)) : todayKey();
+}
 function dataEnvioDe(v){ return v.dataEnvio || dateKey(new Date(v.criadoEm||Date.now())); }
 function envAtrasadoDia(v){
   if(v.status==='despachado' || v.status==='cancelado') return false;
@@ -5428,7 +5454,11 @@ function novoEnvio(){
   ['env-paste','env-cliente','env-cpf','env-nasc','env-contato','env-cep','env-end','env-bairro','env-cidade','env-uf','env-prod','env-valor','env-rast','env-obs']
     .forEach(i=>{ const el=$(i); if(el) el.value=''; });
   $('env-trsp').innerHTML=opcoesTrsp('');
-  $('env-data').value = diaAtivo && diaAtivo>=todayKey() ? diaAtivo : todayKey();
+  $('env-data').value = (diaAtivo && diaAtivo>todayKey()) ? diaAtivo : dataEnvioPadrao();
+  { const h=$('env-data-hint');
+    if(h) h.textContent = passouDoCorte()
+      ? `Já passou das ${corteEnvio()} — este envio sai amanhã. Pode mudar a data se precisar.`
+      : `Lançado até ${corteEnvio()}, sai hoje.`; }
   const ehVend = session.role==='vendedora' && !session.geral;
   const fv=$('env-vend'); fv.value = ehVend ? session.vendedora : ''; fv.readOnly = ehVend; fv.style.opacity = ehVend?'.65':'';
   $('env-modal').classList.add('open');
@@ -5798,7 +5828,7 @@ function salvarEnvioRapido(){
       produto:'', valor:'', rastreio:'', vendedora:'Loja Virtual',
       transportadora:t.id, status:'embalado', embaladoEm:Date.now(),
       embaladoPor: session ? (session.vendedora||session.role) : '',
-      dataEnvio:todayKey(), entregador:null, pontoId:'',
+      dataEnvio:dataEnvioPadrao(), entregador:null, pontoId:'',
       avisoEdson:Date.now(), criadoEm:Date.now(), atualizadoEm:Date.now()
     });
     _envPend[id]=Date.now(); criados.push(n);
@@ -5887,7 +5917,7 @@ function confirmarImportar(){
       produto:p.produto, valor:p.valor,
       transportadora:p.transportadora, rastreio:p.rastreio,
       observacao:'Pedido #'+p.pedido+' da loja virtual',
-      dataEnvio:p.dataEnvio || todayKey(),
+      dataEnvio:p.dataEnvio || dataEnvioPadrao(),
       status:'novo', entregador:null, pontoId:'',
       avisoEdson:Date.now(),                       // veio pelo arquivo: não precisa avisar o Edson
       criadoEm:Date.now(), atualizadoEm:Date.now()
@@ -7812,7 +7842,12 @@ function gestorEnviosHTML(mes){
   const doMes=(typeof envios!=='undefined'?envios:[]).filter(v=>dataEnvioDe(v).startsWith(mes));
   if(!doMes.length){
     return `<div class="g-card"><h3>📮 Envios</h3>
-      <div class="g-env-vazio">Nenhum envio lançado em ${esc(rotuloMes(mes))}.</div></div>`;
+      <div class="g-env-vazio">Nenhum envio lançado em ${esc(rotuloMes(mes))}.</div>
+      <div class="g-corte">
+        <label for="cfg-corte">⏰ Horário de corte dos envios</label>
+        <input type="time" id="cfg-corte" value="${esc(corteEnvio())}" onchange="setCorteEnvio(this.value)">
+        <span>Envio lançado até esse horário sai no mesmo dia. Depois dele, já entra para o dia seguinte.</span>
+      </div></div>`;
   }
   const cancelados=doMes.filter(v=>v.status==='cancelado');
   const validos=doMes.filter(v=>v.status!=='cancelado');       // cancelado não infla volume nem valor
@@ -7848,6 +7883,11 @@ function gestorEnviosHTML(mes){
       <div><h4 class="g-env-h">Por estado</h4>${barras(porUf,'var(--teal)')}</div>
       <div><h4 class="g-env-h">Por vendedora</h4>${barras(porVend,'var(--calm)')}</div>
       ${porPonto.length?`<div><h4 class="g-env-h">Por ponto parceiro</h4>${barras(porPonto,'var(--terra)')}</div>`:''}
+    </div>
+    <div class="g-corte">
+      <label for="cfg-corte">⏰ Horário de corte dos envios</label>
+      <input type="time" id="cfg-corte" value="${esc(corteEnvio())}" onchange="setCorteEnvio(this.value)">
+      <span>Envio lançado até esse horário sai no mesmo dia. Depois dele, já entra para o dia seguinte.</span>
     </div>
     ${cancelados.length?`<p class="g-set-hint" style="margin-top:10px">✕ <b>${cancelados.length}</b> ${cancelados.length===1?'envio cancelado':'envios cancelados'} no mês (fora das contas acima): ${esc([...new Set(cancelados.map(v=>v.motivo).filter(Boolean))].join(' · '))||'sem motivo registrado'}.</p>`:''}
     <p class="g-set-hint" style="margin-top:12px">Envio não entra no faturamento de entregas nem no ranking de entregas — é contado à parte. Correios e Total Express coletam na própria loja; o resto vai de carona na rota do entregador até o ponto parceiro.</p>
