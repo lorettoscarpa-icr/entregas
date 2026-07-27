@@ -936,6 +936,22 @@
   .imp-item small{display:block;color:var(--text-soft);font-size:12px;line-height:1.5;margin-top:2px}
   .imp-item .ii-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
   .imp-vazio{color:var(--text-mute);font-size:13px;text-align:center;padding:22px}
+  .rap-lista{display:flex;flex-direction:column;gap:7px;margin:4px 0 12px}
+  .rap-row{display:flex;align-items:center;gap:11px;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:9px 12px}
+  .rap-row.tem{border-color:var(--line-strong);background:rgba(212,180,90,.1)}
+  .rap-row .rr-nome{flex:1;font-size:13.5px}
+  .rap-row .rr-nome small{display:block;color:var(--text-mute);font-size:11px}
+  .rap-row input{width:70px;text-align:center;background:var(--surface);color:var(--text);
+    border:1px solid var(--line-strong);border-radius:9px;padding:8px;font-family:inherit;font-size:15px;
+    font-variant-numeric:tabular-nums}
+  .rap-total{font-size:13px;color:var(--text-soft);text-align:center;padding:8px;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:var(--radius-sm)}
+  .rap-total b{color:var(--gold-lt)}
+  .imp-trsp{background:var(--surface);color:var(--text);border:1px solid var(--line-strong);border-radius:8px;
+    padding:5px 8px;font-family:inherit;font-size:12px;max-width:210px}
+  .imp-item.sem-trsp{border-color:rgba(224,106,82,.55);box-shadow:0 0 0 2px rgba(224,106,82,.12)}
+  .imp-item.sem-trsp .imp-trsp{border-color:rgba(224,106,82,.6)}
   .env-canc{margin-top:7px;font-size:12.5px;color:var(--text-mute);background:rgba(255,255,255,.05);
     border:1px solid var(--line);border-radius:9px;padding:6px 10px;display:inline-block}
   .env-rast{border-top:1px dashed var(--line);padding-top:9px;margin-top:9px}
@@ -1303,6 +1319,7 @@
     <button class="btn btn-primary" onclick="novaEntrega()">＋ Nova entrega</button>
     <button class="btn" onclick="novoEnvio()">📮 Novo envio</button>
     <button class="btn" id="btn-importar-pdf" style="display:none" onclick="document.getElementById('pdf-input').click()">📄 Importar pedidos</button>
+    <button class="btn" id="btn-envio-rapido" style="display:none" onclick="abrirEnvioRapido()">⚡ Envio rápido</button>
     <input type="file" id="pdf-input" accept="application/pdf,.pdf" style="display:none" onchange="importarPedidosPDF(this)">
   </div>
 
@@ -1680,6 +1697,20 @@
   </div>
 </div>
 
+<!-- envio rápido: só quantidade por transportadora -->
+<div class="modal-bg" id="rap-modal" onclick="fecharEnvioRapido()">
+  <div class="modal" style="max-width:480px" onclick="event.stopPropagation()">
+    <h3 style="margin-bottom:4px">Envio rápido</h3>
+    <p class="env-aviso-sub">Quantos pacotes você tem prontos por transportadora. Eles entram na rota junto com os envios das vendedoras — sem precisar de dados de cliente.</p>
+    <div id="rap-lista" class="rap-lista"></div>
+    <div class="rap-total" id="rap-total">Nenhum pacote informado</div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="fecharEnvioRapido()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEnvioRapido()">Lançar pacotes</button>
+    </div>
+  </div>
+</div>
+
 <!-- pedidos lidos do PDF da Tray -->
 <div class="modal-bg" id="imp-modal" onclick="fecharImportar()">
   <div class="modal" style="max-width:720px" onclick="event.stopPropagation()">
@@ -1730,7 +1761,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v143</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v144</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4265,7 +4296,7 @@ function naoLancadasEnviosList(){
   if(!session || session.role!=='vendedora') return [];
   const ehVendPessoal = !session.geral && !!session.vendedora;
   const alvo = ehVendPessoal ? norm(session.vendedora) : null;
-  return envios.filter(v=> v.status==='despachado' && !v.lancado
+  return envios.filter(v=> !ehLote(v) && v.status==='despachado' && !v.lancado
     && (!ehVendPessoal || (v.vendedora && norm(v.vendedora)===alvo)));
 }
 function naoLancadasList(){
@@ -4520,14 +4551,15 @@ function buildRouteText(items, ent){
   // pacotes de envio que ele tem que deixar nos pontos parceiros entram como paradas extras
   const paradas = paradasEnvioDe(ent.id);
   if(paradas.length){
-    const tot = paradas.reduce((s,p)=>s+p.itens.length,0);
+    const tot = paradas.reduce((s,p)=>s+somaQtd(p.itens),0);
     t += `\n━━━━━━━━━━━━━━\n📮 *ENVIOS — ${tot} pacote${tot>1?'s':''} para deixar*\n`;
     paradas.forEach((p,i)=>{
-      t += `\n*${items.length+i+1}) ${p.ponto.nome}* — ${p.itens.length} pacote${p.itens.length>1?'s':''}\n`;
+      const nPac=somaQtd(p.itens);
+      t += `\n*${items.length+i+1}) ${p.ponto.nome}* — ${nPac} pacote${nPac>1?'s':''}\n`;
       t += `🔗 ${p.ponto.link}\n`;
       p.itens.forEach(v=>{
         const tr = TRSP[v.transportadora] ? TRSP[v.transportadora].nome : '';
-        t += `   • ${v.cliente}${tr?' — '+tr:''}\n`;
+        t += `   • ${ehLote(v)?envQtd(v)+' pacotes':v.cliente}${tr?' — '+tr:''}\n`;
       });
     });
   }
@@ -5713,6 +5745,59 @@ function parsePedidosTray(texto){
   return out;
 }
 
+/* ---- envio rápido: só a conta dos pacotes, para a rota ----
+   Um registro por transportadora, com a quantidade. Não tem cliente nem rastreio:
+   serve para o Gustavo saber quantos pacotes leva a cada ponto, somando com os
+   envios das vendedoras. */
+function envQtd(v){ return Math.max(1, parseInt(v && v.qtd, 10) || 1); }
+function ehLote(v){ return !!(v && v.tipo==='lote'); }
+function somaQtd(lista){ return (lista||[]).reduce((n,v)=>n+envQtd(v),0); }
+function abrirEnvioRapido(){
+  if(!podeOperarEnvios()) return;
+  $('rap-lista').innerHTML = TRANSPORTADORAS.map(t=>`<label class="rap-row" id="rap-row-${t.id}">
+      <span class="rr-nome">${t.ico} ${esc(t.nome)}${t.coleta?'<small>coleta na loja — não vai com o entregador</small>':'<small>vai ao ponto parceiro</small>'}</span>
+      <input type="number" min="0" max="99" inputmode="numeric" id="rap-${t.id}" value="" placeholder="0" oninput="rapAtualizar()">
+    </label>`).join('');
+  rapAtualizar();
+  $('rap-modal').classList.add('open');
+}
+function rapAtualizar(){
+  let tot=0, pontos=0;
+  TRANSPORTADORAS.forEach(t=>{
+    const n=parseInt(($('rap-'+t.id)||{}).value,10)||0;
+    tot+=n; if(!t.coleta) pontos+=n;
+    const row=$('rap-row-'+t.id); if(row) row.classList.toggle('tem', n>0);
+  });
+  $('rap-total').innerHTML = tot
+    ? `<b>${tot}</b> pacote${tot>1?'s':''} · <b>${pontos}</b> para o entregador levar${tot-pontos?` · ${tot-pontos} de coleta na loja`:''}`
+    : 'Nenhum pacote informado';
+}
+function fecharEnvioRapido(){ $('rap-modal').classList.remove('open'); }
+function salvarEnvioRapido(){
+  if(!podeOperarEnvios()) return;
+  const criados=[];
+  TRANSPORTADORAS.forEach(t=>{
+    const n=parseInt(($('rap-'+t.id)||{}).value,10)||0;
+    if(n<=0) return;
+    const id=uid();
+    envios.push({
+      id, tipo:'lote', qtd:n, origem:'rapido',
+      cliente:`${n} pacote${n>1?'s':''} · ${t.nome}`,
+      cidade:'', uf:'', endereco:'', bairro:'', cep:'', contato:'', cpf:'',
+      produto:'', valor:'', rastreio:'', vendedora:'Loja Virtual',
+      transportadora:t.id, status:'embalado', embaladoEm:Date.now(),
+      embaladoPor: session ? (session.vendedora||session.role) : '',
+      dataEnvio:todayKey(), entregador:null, pontoId:'',
+      avisoEdson:Date.now(), criadoEm:Date.now(), atualizadoEm:Date.now()
+    });
+    _envPend[id]=Date.now(); criados.push(n);
+  });
+  if(!criados.length){ toast('Informe a quantidade de pelo menos uma transportadora'); return; }
+  const tot=criados.reduce((a,b)=>a+b,0);
+  persistEnvios(); fecharEnvioRapido(); render();
+  toast(`${tot} pacote${tot>1?'s':''} lançado${tot>1?'s':''} — já entram na rota ✓`);
+}
+
 let _impPedidos=[];
 async function importarPedidosPDF(input){
   const f = input && input.files && input.files[0];
@@ -5753,8 +5838,8 @@ function abrirImportar(){
         <small>${esc([p.endereco,p.bairro].filter(Boolean).join(' · '))}${dest?`<br>${esc(dest)}`:''}${p.cep?` · CEP ${esc(p.cep)}`:''}</small>
         <small>${esc((p.produto||'').replace(/\n/g,' + '))}${p.valor?` · <b>R$ ${esc(p.valor)}</b>`:''}</small>
         <span class="ii-tags">
-          ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`
-             :`<span class="env-tag aviso">⚠️ ${esc(p.transportadoraTxt||'transportadora não reconhecida')}</span>`}
+          <select class="imp-trsp" data-i="${i}" onchange="impTrocarTrsp(${i}, this.value)" onclick="event.preventDefault()">${opcoesTrsp(p.transportadora||'')}</select>
+          ${p.transportadoraTxt?`<span class="env-tag" title="o que veio no pedido">no pedido: ${esc(p.transportadoraTxt)}</span>`:''}
           <span class="env-tag">📅 sai ${p.dataEnvio?esc(rotuloDia(p.dataEnvio)):'hoje'}</span>
           ${p.rastreio?`<span class="env-tag tr">🔎 ${esc(p.rastreio)}</span>`:`<span class="env-tag aviso">sem rastreio</span>`}
           ${ja?'<span class="env-tag">já lançado</span>':''}
@@ -5764,10 +5849,22 @@ function abrirImportar(){
   }).join('') || '<div class="imp-vazio">Nada para lançar.</div>';
   $('imp-modal').classList.add('open');
 }
+function impTrocarTrsp(i, valor){
+  if(_impPedidos[i]) _impPedidos[i].transportadora = valor||'';
+  const box=document.querySelectorAll('#imp-lista .imp-item')[i];
+  if(box) box.classList.toggle('sem-trsp', !valor);
+}
 function fecharImportar(){ $('imp-modal').classList.remove('open'); _impPedidos=[]; }
 function confirmarImportar(){
   const marcados=[...document.querySelectorAll('#imp-lista input[type=checkbox]:checked:not(:disabled)')].map(c=>+c.dataset.i);
   if(!marcados.length){ toast('Nenhum pedido selecionado'); return; }
+  // o PDF nem sempre traz a transportadora que o Edson vai usar de verdade
+  const semTrsp=marcados.filter(i=>!(_impPedidos[i]||{}).transportadora);
+  if(semTrsp.length){
+    semTrsp.forEach(i=>{ const el=document.querySelectorAll('#imp-lista .imp-item')[i]; if(el) el.classList.add('sem-trsp'); });
+    toast('Escolha a transportadora dos pedidos em destaque');
+    return;
+  }
   marcados.forEach(i=>{
     const p=_impPedidos[i]; if(!p) return;
     const id=uid();
@@ -5831,7 +5928,7 @@ function mandarEnviosRota(entId){
   const paradas=roteiroEnvios(enviosParaLevar());
   if(!paradas.length){ toast('Não há envio pronto para levar'); return; }
   let n=0;
-  paradas.forEach(p=>p.itens.forEach(v=>{ v.status='em_rota'; v.entregador=entId; v.pontoId=p.ponto.id; v.roteadoEm=Date.now(); n++; }));
+  paradas.forEach(p=>p.itens.forEach(v=>{ v.status='em_rota'; v.entregador=entId; v.pontoId=p.ponto.id; v.roteadoEm=Date.now(); n+=envQtd(v); }));
   persistEnvios(); renderEnvios();
   toast(`${n} envio${n>1?'s':''} em ${paradas.length} parada${paradas.length>1?'s':''} → ${ent.nome}`);
 }
@@ -5899,7 +5996,7 @@ function envCardHTML(v, modo){
   const ponto = v.pontoId && PONTO[v.pontoId];
   const quem = v.entregador && ENT[v.entregador];
   // rastreio + aviso ao cliente: a dona da venda e a operação podem mexer
-  const dono = opera || !!(session && session.role==='vendedora' && canonVend(v.vendedora||'')===session.vendedora);
+  const dono = !ehLote(v) && (opera || !!(session && session.role==='vendedora' && canonVend(v.vendedora||'')===session.vendedora));
   const tel = waNumero(v.contato);
   const jaAvisou = !!v.avisoCliente;
   // o link é obrigatório no cadastro, então o campo só reaparece quando falta (envio antigo);
@@ -5911,15 +6008,15 @@ function envCardHTML(v, modo){
       ${podeAvisar?`<button class="btn ${jaAvisou?'btn-ghost':'btn-primary'} btn-mini" onclick="envAvisarCliente('${v.id}')">${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:''}
     </div>` : '';
   return `<div class="env-card ${cls}${envAtrasadoDia(v)?' parado':''}" data-vid="${v.id}">
-    <h4>${esc(v.cliente)}${v.valor?`<span style="color:var(--gold);font-size:14px">${esc(v.valor)}</span>`:''}</h4>
-    <div class="env-dest">${envDestinoTxt(v)}</div>
-    ${v.produto?`<div class="env-dest" style="margin-top:5px">🧾 ${esc(v.produto).replace(/\n/g,'<br>')}</div>`:''}
+    <h4>${ehLote(v)?`📦 ${envQtd(v)} pacote${envQtd(v)>1?'s':''}`:esc(v.cliente)}${(!ehLote(v)&&v.valor)?`<span style="color:var(--gold);font-size:14px">${esc(v.valor)}</span>`:''}</h4>
+    ${ehLote(v)?'<div class="env-dest">Lançamento rápido — só para a conta da rota</div>':`<div class="env-dest">${envDestinoTxt(v)}</div>`}
+    ${(!ehLote(v)&&v.produto)?`<div class="env-dest" style="margin-top:5px">🧾 ${esc(v.produto).replace(/\n/g,'<br>')}</div>`:''}
     ${v.observacao?`<div class="env-dest" style="margin-top:5px;color:var(--text-mute)">📝 ${esc(v.observacao)}</div>`:''}
     ${v.status==='cancelado'?`<div class="env-canc">✕ Cancelado${v.motivo?` — ${esc(v.motivo)}`:''}${v.canceladoEm?` · ${esc(envQuando(v.canceladoEm))}`:''}</div>`:''}
     ${v.status==='despachado'?`<div class="env-desp">✓ ${esc(envOndeTxt(v))}${v.despachadoEm?` · ${esc(envQuando(v.despachadoEm))}`:''}</div>`:''}
     <div class="env-meta">
       ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
-      ${(v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
+      ${(!ehLote(v) && v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
       ${envAtrasadoDia(v)?`<span class="env-tag aviso">⏱ era pra sair ${esc(envAtrasoTxt(v))}</span>`:''}
       ${envEsperandoColetaDesde(v)?`<span class="env-tag coleta">🚚 na loja desde ${esc(envEsperandoColetaDesde(v))}</span>`:''}
       ${v.rastreio?(/^https?:\/\//i.test(v.rastreio)
@@ -5927,7 +6024,7 @@ function envCardHTML(v, modo){
         : `<span class="env-tag tr">🔎 ${esc(v.rastreio)}</span>`):''}
       ${ponto?`<span class="env-tag tr">${ponto.ico} ${esc(ponto.nome)}</span>`:''}
       ${quem?`<span class="env-tag">🛵 ${esc(quem.nome)}</span>`:''}
-      ${v.vendedora?`<span>👤 ${esc(v.vendedora)}</span>`:''}
+      ${(!ehLote(v)&&v.vendedora)?`<span>👤 ${esc(v.vendedora)}</span>`:''}
       ${v.contato?`<span>📞 ${esc(v.contato)}</span>`:''}
     </div>
     ${acts}
@@ -5939,13 +6036,14 @@ function roteiroHTML(){
   if(!prontos.length) return '';
   const paradas=roteiroEnvios(prontos);
   const sobrando=prontos.length - paradas.reduce((s,p)=>s+p.itens.length,0);
+  const totPac=somaQtd(prontos);
   const opera=podeOperarEnvios();
   return `<div class="env-rot">
     <h3>🗺️ Roteiro dos pontos parceiros</h3>
-    <div class="sub">${paradas.length} parada${paradas.length>1?'s':''} dá conta de ${prontos.length} pacote${prontos.length>1?'s':''}.</div>
+    <div class="sub">${paradas.length} parada${paradas.length>1?'s':''} dá conta de ${totPac} pacote${totPac>1?'s':''}.</div>
     ${paradas.map(p=>`<div class="env-parada">
       <div class="pn">${p.ponto.ico} ${esc(p.ponto.nome)} <a class="pl" href="${esc(p.ponto.link)}" target="_blank">abrir no mapa ↗</a></div>
-      <ul>${p.itens.map(v=>`<li><span>${esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
+      <ul>${p.itens.map(v=>`<li><span>${ehLote(v)?`📦 ${envQtd(v)} pacotes`:esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
     </div>`).join('')}
     ${sobrando>0?`<div class="env-vazio" style="margin-top:8px">${sobrando} pacote(s) com transportadora sem ponto parceiro cadastrado — leve à parte.</div>`:''}
     ${opera?`<div class="env-acts" style="margin-top:12px">
@@ -6106,7 +6204,8 @@ function applyRole(){
     { const _cfg=document.querySelector('.settings-box'); if(_cfg) _cfg.style.display = ehGeral ? '' : 'none'; }
     $('area-operacao').style.display='';
     if(ehGeral) document.body.classList.add('role-operacao');
-    { const _bi=$('btn-importar-pdf'); if(_bi) _bi.style.display = ehGeral ? '' : 'none'; }   // no celular, a coluna de Envios sobe pro topo de quem embala
+    { const _bi=$('btn-importar-pdf'); if(_bi) _bi.style.display = ehGeral ? '' : 'none'; }
+    { const _br=$('btn-envio-rapido'); if(_br) _br.style.display = ehGeral ? '' : 'none'; }   // no celular, a coluna de Envios sobe pro topo de quem embala
     if(_rb) _rb.style.display='';                     // operação pode montar rota
     renderFiltersVend();
     switchTab('painel');  // sempre entra no Painel (a coluna "Minhas entregas" aparece nele)
@@ -6444,7 +6543,7 @@ function renderFinalizadas(){
   const fin = base.filter(e=>e.status==='entregue').sort((a,b)=>(a.entregueEm||0)-(b.entregueEm||0)); // em fila: feito primeiro
   // envios já despachados entram aqui pelo dia em que SAÍRAM da loja (é o que fechou no dia)
   const finEnv = enviosVisiveis()
-    .filter(v=>v.status==='despachado' && v.despachadoEm && dateKey(new Date(v.despachadoEm))===dia)
+    .filter(v=>!ehLote(v) && v.status==='despachado' && v.despachadoEm && dateKey(new Date(v.despachadoEm))===dia)
     .sort((a,b)=>(a.despachadoEm||0)-(b.despachadoEm||0));
   const todos=[...fin, ...finEnv];
   const _lanc = todos.filter(e=>e.lancado).length, _falta = todos.length - _lanc;
@@ -6829,7 +6928,7 @@ function renderEntregador(){
   const start=items.length?Math.min(...items.map(e=>e.roteadoEm||e.criadoEm)):Date.now();
   const _diaEhPassado = diaEnt < todayKey();
   const _temFinDia = entregas.some(e=>e.entregador===session.entregador && dataDe(e)===diaEnt && ['entregue','nao_entregue','cancelado'].includes(e.status));
-  const _nEnv = enviosDoEntregador(session.entregador).length;
+  const _nEnv = somaQtd(enviosDoEntregador(session.entregador));
   const _statEnv = _nEnv ? `<div class="stat"><b>${_nEnv}</b><span>${_nEnv===1?'pacote':'pacotes'}</span></div>` : '';
   $('ent-resumo').innerHTML=items.length
     ? `<div class="stat"><b>${items.length}</b><span>entregas</span></div><div class="stat"><b>${fmtDur(est)}</b><span>de rota</span></div><div class="stat"><b>${finishTime(start,est)}</b><span>término</span></div>${_statEnv}`
@@ -6896,14 +6995,14 @@ function enviosEntregadorHTML(){
   if(!session || session.role!=='entregador') return '';
   const paradas=paradasEnvioDe(session.entregador);
   if(!paradas.length) return '';
-  const total=paradas.reduce((s,p)=>s+p.itens.length,0);
+  const total=paradas.reduce((s,p)=>s+somaQtd(p.itens),0);
   return `<div class="ent-envios">
     <h3>📮 Envios — deixar nos pontos</h3>
     <div class="sub">${total} pacote${total>1?'s':''} em ${paradas.length} parada${paradas.length>1?'s':''}. Confirme quando deixar cada uma.</div>
     ${paradas.map(p=>`<div class="env-parada">
       <div class="pn">${p.ponto.ico} ${esc(p.ponto.nome)} <a class="pl" href="${esc(p.ponto.link)}" target="_blank">abrir no mapa ↗</a></div>
-      <ul>${p.itens.map(v=>`<li><span>${esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
-      <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="envEntregueNoPonto('${p.ponto.id}')">✓ Deixei no ${esc(p.ponto.nome)} (${p.itens.length})</button></div>
+      <ul>${p.itens.map(v=>`<li><span>${ehLote(v)?`📦 ${envQtd(v)} pacotes`:esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
+      <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="envEntregueNoPonto('${p.ponto.id}')">✓ Deixei no ${esc(p.ponto.nome)} (${somaQtd(p.itens)})</button></div>
     </div>`).join('')}
   </div>`;
 }
@@ -6928,8 +7027,8 @@ function envEntregueNoPonto(pontoId){
   if(!meus.length) return;
   meus.forEach(v=>envAtualizarCampos(v, {status:'despachado', despachadoEm:Date.now(), despachadoPor:session.entregador}));
   renderEntregador();
-  const p=PONTO[pontoId];
-  toast(`${meus.length} pacote${meus.length>1?'s':''} entregue${meus.length>1?'s':''} no ${p?p.nome:'ponto'} ✓`);
+  const p=PONTO[pontoId], n=somaQtd(meus);
+  toast(`${n} pacote${n>1?'s':''} entregue${n>1?'s':''} no ${p?p.nome:'ponto'} ✓`);
 }
 function msgPadrao(){
   const ent=ENT[session.entregador]; const nome=ent?ent.nome:'';
@@ -7684,6 +7783,7 @@ function gestorEnviosHTML(mes){
   const naLoja=despachados.filter(v=>v.coletadoNaLoja).length;
   const noPonto=despachados.length-naLoja;
   const fat=validos.reduce((s,v)=>s+_num(v.valor),0);
+  const totPacotes=somaQtd(validos);
 
   const cont=(arr,chave)=>{ const o={}; arr.forEach(v=>{ const k=chave(v); if(k) o[k]=(o[k]||0)+1; });
     return Object.keys(o).map(k=>({k,n:o[k]})).sort((a,b)=>b.n-a.n); };
@@ -7701,7 +7801,7 @@ function gestorEnviosHTML(mes){
   return `<div class="g-card">
     <h3>📮 Envios · ${esc(rotuloMes(mes))}</h3>
     <div class="g-kpis" style="margin-bottom:16px">
-      <div class="g-kpi"><div class="lbl">Envios no mês</div><div class="val">${validos.length}</div>${andamento?`<div class="sub">${andamento} em andamento</div>`:'<div class="sub">todos despachados</div>'}</div>
+      <div class="g-kpi"><div class="lbl">Envios no mês</div><div class="val">${totPacotes}</div><div class="sub">${andamento?`${andamento} em andamento`:'todos despachados'}${totPacotes!==validos.length?` · ${validos.length} lançamentos`:''}</div></div>
       <div class="g-kpi"><div class="lbl">Valor em envios</div><div class="val">${brl(fat)}</div><div class="sub">${validos.length?brl(fat/validos.length):brl(0)} por envio</div></div>
       <div class="g-kpi"><div class="lbl">Como saíram</div><div class="val">${noPonto} / ${naLoja}</div><div class="sub">levados ao ponto / coletados na loja</div></div>
     </div>
