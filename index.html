@@ -929,6 +929,7 @@
   .env-aviso-wa{width:100%;justify-content:center;font-size:15px;padding:13px}
   .env-aviso-skip{display:block;width:100%;margin-top:10px;background:none;border:none;color:var(--text-mute);
     font-family:inherit;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px}
+  .env-tag.prog{background:rgba(111,176,166,.14);border-color:rgba(111,176,166,.4);color:var(--teal)}
   .env-tag.aviso{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
   .env-acts .btn:disabled{opacity:.38;cursor:not-allowed}
   .env-acts select.falta{border-color:rgba(224,106,82,.6);box-shadow:0 0 0 2px rgba(224,106,82,.13)}
@@ -1782,7 +1783,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v155</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v156</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5434,6 +5435,17 @@ function enviosDoDia(ymd){
   });
 }
 function enviosStatus(st, lista){ return (lista||enviosVisiveis()).filter(v=>v.status===st); }
+/* lançado depois do corte sai só amanhã — mas some da tela no dia do lançamento e dá a
+   impressão de que não salvou. Então ele também aparece hoje, numa seção à parte. */
+function enviosProgramados(){
+  const hoje=todayKey();
+  return enviosVisiveis().filter(v=>v.status!=='despachado' && v.status!=='cancelado' && dataEnvioDe(v)>hoje)
+    .sort((a,b)=>dataEnvioDe(a)<dataEnvioDe(b)?-1:1);
+}
+function envSaiEmTxt(v){
+  const d=dataEnvioDe(v), amanha=dateKey(new Date(Date.now()+86400000));
+  return d===amanha ? 'amanhã' : 'dia '+d.slice(8,10)+'/'+d.slice(5,7);
+}
 /* prontos que ainda precisam de alguém para levar ao ponto parceiro.
    Sem transportadora o pacote não tem ponto: fica de fora daqui e cai na lista de pendência. */
 function enviosParaLevar(lista){ return enviosStatus('embalado', lista).filter(v=>v.transportadora && !coletaNaLoja(v.transportadora)); }
@@ -5763,6 +5775,11 @@ function confirmarCancEnvio(){
   v.entregador=null; v.pontoId='';          // sai do roteiro e da rota de quem ia levar
   persistEnvios(); fecharCancEnvio(); render();
   toast('Envio cancelado — segue no histórico');
+}
+function trazerEnvioParaHoje(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  v.dataEnvio=todayKey(); persistEnvios(); render();
+  toast('Envio trazido para hoje');
 }
 function reabrirEnvio(id){
   const v=envios.find(x=>x.id===id); if(!v) return;
@@ -6152,6 +6169,12 @@ function envCardHTML(v, modo){
       <button class="btn btn-ghost btn-mini" onclick="envVoltar('${v.id}')">↩ Voltar p/ embalar</button>
       <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
     </div>`;
+  } else if(modo==='programado'){
+    acts=`<div class="env-acts">
+      <button class="btn btn-ghost btn-mini" onclick="trazerEnvioParaHoje('${v.id}')">📅 Trazer p/ hoje</button>
+      <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
+      <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
+    </div>`;
   } else if(modo==='cancelado' && dono0){
     acts=`<div class="env-acts">
       <button class="btn btn-ghost btn-mini" onclick="reabrirEnvio('${v.id}')">↩ Reabrir para hoje</button>
@@ -6185,6 +6208,7 @@ function envCardHTML(v, modo){
       ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`:'<span class="env-tag">transportadora a definir</span>'}
       ${(!ehLote(v) && v.status==='novo' && !v.avisoEdson)?`<span class="env-tag aviso">⚠️ Edson não avisado</span>`:''}
       ${envAtrasadoDia(v)?`<span class="env-tag aviso">⏱ era pra sair ${esc(envAtrasoTxt(v))}</span>`:''}
+      ${(dataEnvioDe(v)>todayKey() && v.status!=='despachado' && v.status!=='cancelado')?`<span class="env-tag prog">📅 sai ${esc(envSaiEmTxt(v))}</span>`:''}
       ${envEsperandoColetaDesde(v)?`<span class="env-tag coleta">🚚 na loja desde ${esc(envEsperandoColetaDesde(v))}</span>`:''}
       ${v.rastreio?(/^https?:\/\//i.test(v.rastreio)
         ? `<a class="env-tag tr env-tag-lnk" href="${esc(v.rastreio)}" target="_blank">🔎 link de rastreio ↗</a>`
@@ -6236,12 +6260,13 @@ function renderEnvios(){
         coleta=enviosAguardandoColeta(doDia), emRota=enviosStatus('em_rota', doDia),
         semTr=enviosSemTransportadora(doDia);
   const feitos=enviosStatus('despachado', doDia).sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0));
+  const programados = diaAtivo===todayKey() ? enviosProgramados() : [];
   const cancelados=enviosStatus('cancelado', doDia).sort((a,b)=>(b.canceladoEm||0)-(a.canceladoEm||0));
   const abertos=doDia.filter(v=>v.status!=='despachado' && v.status!=='cancelado');
   const atrasados=doDia.filter(envAtrasadoDia);
   $('c-envios').textContent = abertos.length;
 
-  if(!doDia.length){
+  if(!doDia.length && !programados.length){
     box.innerHTML=`<div class="env-vazio">Nenhum envio ${diaAtivo===todayKey()?'hoje':'neste dia'}.<br><button class="btn btn-ghost btn-mini" style="margin-top:10px" onclick="novoEnvio()">📮 Lançar envio</button></div>`;
     return;
   }
@@ -6254,7 +6279,8 @@ function renderEnvios(){
     + envSubSec('🚚 Coleta na loja', coleta, 'coleta')
     + envSubSec('🛵 Em rota', emRota, 'rota')
     + envSubSec('✓ Despachados', feitos, 'feito')
-    + envSubSec('✕ Cancelados', cancelados, 'cancelado');
+    + envSubSec('✕ Cancelados', cancelados, 'cancelado')
+    + envSubSec('📅 Programados para depois', programados, 'programado');
 }
 
 /* ============ login / sessão / entregador ============ */
