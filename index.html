@@ -874,6 +874,7 @@
   .env-sub .n{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:1px 7px;font-size:10px}
   .env-sub.urg{color:var(--urgent)}
   .env-sub.urg .n{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
+  .campo-falta{border-color:rgba(224,106,82,.75)!important;box-shadow:0 0 0 3px rgba(224,106,82,.18)!important}
   .env-data-hint{display:block;margin-top:5px;font-size:11.5px;color:var(--text-mute);text-transform:none;letter-spacing:0}
   .g-corte{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px;padding-top:14px;
     border-top:1px solid var(--line)}
@@ -1781,7 +1782,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v154</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v155</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5518,8 +5519,8 @@ function fecharEnvio(){ $('env-modal').classList.remove('open'); _envEditId=null
 function salvarEnvio(){
   const cliente=$('env-cliente').value.trim();
   const cidade=$('env-cidade').value.trim();
-  if(!cliente){ toast('Preencha o nome do cliente'); return; }
-  if(!cidade){ toast('Preencha a cidade de destino'); return; }
+  if(!cliente){ envApontarCampo('env-cliente','Preencha o nome do cliente'); return; }
+  if(!cidade){ envApontarCampo('env-cidade','Preencha a cidade de destino'); return; }
   // sem link de rastreio o envio não fecha: é o que a cliente recebe para acompanhar
   if(!$('env-rast').value.trim()){ abrirEnvFaltaLink(); return; }
   // o link normalmente já diz a transportadora; quando não diz, ela escolhe aqui mesmo
@@ -5610,6 +5611,15 @@ function envDetectarTrsp(){
   if(!sel.value){ sel.value=t; hint.textContent = `Detectei ${TRSP[t].nome} pelo código — pode trocar se não for.`; }
   else if(sel.value!==t){ hint.textContent = `O código parece ser de ${TRSP[t].nome}, mas você escolheu ${TRSP[sel.value]?TRSP[sel.value].nome:'outra'}.`; }
   else { hint.textContent = `Confere: ${TRSP[t].nome}.`; }
+}
+/* campo obrigatório vazio: em vez de só um toast que some, mostra qual é */
+function envApontarCampo(id, msg){
+  const el=$(id); toast(msg);
+  if(!el) return;
+  el.classList.add('campo-falta');
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  setTimeout(()=>{ try{ el.focus(); }catch(_){ } }, 320);
+  el.addEventListener('input', ()=>el.classList.remove('campo-falta'), {once:true});
 }
 function abrirEnvFaltaTrsp(){ $('env-trsp-modal').classList.add('open'); }
 function fecharEnvFaltaTrsp(){
