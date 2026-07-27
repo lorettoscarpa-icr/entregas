@@ -1783,7 +1783,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v157</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v158</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2015,7 +2015,6 @@ const TRANSPORTADORAS = [
   {id:'azul',           nome:'Azul Express',   ico:'✈️', coleta:false},
 ];
 const TRSP = Object.fromEntries(TRANSPORTADORAS.map(t=>[t.id,t]));
-function trspNome(id){ const t=TRSP[id]; return t ? `${t.ico} ${t.nome}` : ''; }
 function coletaNaLoja(id){ return !!(TRSP[id] && TRSP[id].coleta); }
 
 /* pontos parceiros e o que cada um recebe.
