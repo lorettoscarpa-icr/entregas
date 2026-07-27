@@ -874,6 +874,9 @@
   .env-sub .n{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:1px 7px;font-size:10px}
   .env-sub.urg{color:var(--urgent)}
   .env-sub.urg .n{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
+  .env-fila{margin-top:12px;font-size:12.5px;color:var(--text-soft);background:var(--surface-2);
+    border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;text-align:center}
+  .env-fila b{color:var(--gold-lt)}
   .env-atraso-nota{background:rgba(224,179,65,.13);border:1px solid rgba(224,179,65,.36);color:var(--warn);
     border-radius:var(--radius-sm);padding:9px 11px;font-size:12px;line-height:1.45;margin-bottom:12px}
   .env-card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--surface-3);border-radius:var(--radius-sm);
@@ -1761,7 +1764,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v144</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v145</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5605,10 +5608,18 @@ function envEmbalar(id){
   const sel=$('env-trsp-'+id);
   const t=sel ? sel.value : v.transportadora;
   if(!t){ toast('Escolha a transportadora antes de marcar embalado'); return; }
-  v.transportadora=t; v.status='embalado'; v.embaladoEm=Date.now();
-  v.embaladoPor = session ? (session.vendedora||session.role) : '';
-  persistEnvios(); renderEnvios();
-  toast(coletaNaLoja(t) ? `Embalado ✓ — ${TRSP[t].nome} coleta na loja` : 'Embalado ✓ — entra no roteiro dos pontos parceiros');
+  const quem = session ? (session.vendedora||session.role) : '';
+  v.transportadora=t; v.embaladoEm=Date.now(); v.embaladoPor=quem;
+  if(coletaNaLoja(t)){
+    // Correios e Total Express coletam na loja: embalar já encerra o envio,
+    // sem uma segunda confirmação que não muda nada no processo
+    v.status='despachado'; v.coletadoNaLoja=true;
+    v.despachadoEm=Date.now(); v.despachadoPor=quem;
+  } else {
+    v.status='embalado';
+  }
+  persistEnvios(); render();
+  toast(coletaNaLoja(t) ? `Embalado ✓ — ${TRSP[t].nome} coleta na loja, envio finalizado` : 'Embalado ✓ — entra no roteiro dos pontos parceiros');
 }
 function envSetTrsp(id, valor){
   const v=envios.find(x=>x.id===id); if(!v || !podeOperarEnvios()) return;
@@ -5921,16 +5932,21 @@ function envAvisarCliente(id){
   persistEnvios(); renderEnvios();
   if(tabAtiva==='fin') renderFinalizadas();
 }
-/* manda o roteiro inteiro para um entregador: cada pacote já sai com o ponto onde deve ser deixado */
-function mandarEnviosRota(entId){
-  if(!entId){ toast('Escolha quem vai levar'); return; }
-  const ent=ENT[entId]; if(!ent || !podeOperarEnvios()) return;
-  const paradas=roteiroEnvios(enviosParaLevar());
-  if(!paradas.length){ toast('Não há envio pronto para levar'); return; }
+
+/* envio não gera pagamento por entrega, então só entra na fila de quem não recebe por entrega */
+const ENT_ENVIOS = ['gustavo','gregory','ewald'];
+function podeLevarEnvios(entId){ return ENT_ENVIOS.indexOf(entId)>=0; }
+/* o entregador pega a rota de envios inteira: todos vão para pontos, não faz sentido dividir */
+function pegarEnviosParaMim(){
+  if(!session || session.role!=='entregador' || !podeLevarEnvios(session.entregador)) return;
+  const paradas=roteiroEnvios(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v.transportadora)));
+  if(!paradas.length){ toast('Nenhum envio esperando'); return; }
   let n=0;
-  paradas.forEach(p=>p.itens.forEach(v=>{ v.status='em_rota'; v.entregador=entId; v.pontoId=p.ponto.id; v.roteadoEm=Date.now(); n+=envQtd(v); }));
-  persistEnvios(); renderEnvios();
-  toast(`${n} envio${n>1?'s':''} em ${paradas.length} parada${paradas.length>1?'s':''} → ${ent.nome}`);
+  paradas.forEach(p=>p.itens.forEach(v=>{
+    v.status='em_rota'; v.entregador=session.entregador; v.pontoId=p.ponto.id; v.roteadoEm=Date.now(); n+=envQtd(v);
+  }));
+  persistEnvios(); entTab='rota'; renderEntregador();
+  toast(`${n} pacote${n>1?'s':''} em ${paradas.length} parada${paradas.length>1?'s':''} na sua rota 📮`);
 }
 
 /* ---- tela ---- */
@@ -6046,10 +6062,7 @@ function roteiroHTML(){
       <ul>${p.itens.map(v=>`<li><span>${ehLote(v)?`📦 ${envQtd(v)} pacotes`:esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
     </div>`).join('')}
     ${sobrando>0?`<div class="env-vazio" style="margin-top:8px">${sobrando} pacote(s) com transportadora sem ponto parceiro cadastrado — leve à parte.</div>`:''}
-    ${opera?`<div class="env-acts" style="margin-top:12px">
-      <select id="env-ent-pick"><option value="">Quem vai levar…</option>${ENTREGADORES.map(e=>`<option value="${e.id}">${esc(e.nome)}</option>`).join('')}</select>
-      <button class="btn btn-primary btn-mini" onclick="mandarEnviosRota(document.getElementById('env-ent-pick').value)">Mandar para a rota ▸</button>
-    </div>`:''}
+    <div class="env-fila">⏳ Na fila de <b>aguardando rota</b> — o entregador pega quando sair.</div>
   </div>`;
 }
 function envSubSec(titulo, lista, modo, cls){
@@ -6859,7 +6872,9 @@ function renderEntregador(){
   // abas: rótulos, contadores e aba ativa
   const cR=$('c-tab-rota'), cA=$('c-tab-aguard'), cP=$('c-tab-pend');
   if(cR) cR.textContent = items.length ? ` ${items.length}` : '';
-  if(cA) cA.textContent = aguard.length ? ` ${aguard.length}` : '';
+  const _envFila = (typeof podeLevarEnvios==='function' && podeLevarEnvios(session.entregador))
+    ? somaQtd(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v.transportadora))) : 0;
+  if(cA) cA.textContent = (aguard.length+_envFila) ? ` ${aguard.length+_envFila}` : '';
   const pendEntTab = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !pendDismissed.has(e.id));
   const meuDinheiro = entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && !e.dinheiroEntregueLoja).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
   if(cP) cP.textContent = (pendEntTab.length+meuDinheiro.length) ? ` ${pendEntTab.length+meuDinheiro.length}` : '';
@@ -6903,9 +6918,10 @@ function renderEntregador(){
   if(entTab==='aguard'){
     $('ent-title').innerHTML=`Aguardando rota — <span style="color:${ent.cor}">${ent.nome}</span>`;
     [...pegarSel].forEach(id=>{ if(!aguard.some(e=>e.id===id)) pegarSel.delete(id); });
-    $('ent-aguard-list').innerHTML = aguard.length
+    const blocoEnv = enviosNaFilaHTML();
+    $('ent-aguard-list').innerHTML = blocoEnv + (aguard.length
       ? `<div class="pegar-hint">Confira os pacotes na bancada e marque os seus <b>na ordem que vai entregar</b> (1, 2, 3…) — depois toque em <b>Add na minha rota</b>.</div>` + aguard.map(cardPegar).join('')
-      : `<div class="empty">Nenhuma entrega aguardando rota agora. 👍</div>`;
+      : (blocoEnv ? '' : `<div class="empty">Nenhuma entrega aguardando rota agora. 👍</div>`));
     // barras de baixo: esconde a da rota, mostra a de adicionar quando há seleção
     $('ent-bb-rota').style.display='none';
     const addBar=$('ent-bb-add'); addBar.style.display = pegarSel.size ? '' : 'none';
@@ -6990,6 +7006,23 @@ function paradasEnvioDe(entId){
   const porPonto={};
   enviosDoEntregador(entId).forEach(v=>{ const p=v.pontoId; if(!PONTO[p]) return; (porPonto[p]=porPonto[p]||[]).push(v); });
   return PONTOS_PARCEIROS.filter(p=>porPonto[p.id]).map(p=>({ponto:p, itens:porPonto[p.id]}));
+}
+/* envios prontos esperando alguém levar — aparece na aba "Aguardando rota" */
+function enviosNaFilaHTML(){
+  if(!session || session.role!=='entregador' || !podeLevarEnvios(session.entregador)) return '';
+  const prontos=envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v.transportadora));
+  if(!prontos.length) return '';
+  const paradas=roteiroEnvios(prontos);
+  const tot=paradas.reduce((n,p)=>n+somaQtd(p.itens),0);
+  return `<div class="ent-envios">
+    <h3>📮 Envios esperando</h3>
+    <div class="sub">${tot} pacote${tot>1?'s':''} da loja e das vendedoras, em ${paradas.length} parada${paradas.length>1?'s':''}.</div>
+    ${paradas.map(p=>`<div class="env-parada">
+      <div class="pn">${p.ponto.ico} ${esc(p.ponto.nome)} <a class="pl" href="${esc(p.ponto.link)}" target="_blank">abrir no mapa ↗</a></div>
+      <ul>${p.itens.map(v=>`<li><span>${ehLote(v)?`📦 ${envQtd(v)} pacotes`:esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
+    </div>`).join('')}
+    <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="pegarEnviosParaMim()">📮 Pegar os ${tot} pacotes</button></div>
+  </div>`;
 }
 function enviosEntregadorHTML(){
   if(!session || session.role!=='entregador') return '';
