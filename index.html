@@ -1764,7 +1764,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v147</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v148</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -6021,7 +6021,9 @@ function envCardHTML(v, modo){
   // o link é obrigatório no cadastro, então o campo só reaparece quando falta (envio antigo);
   // o botão de avisar a cliente só faz sentido depois que o pacote saiu.
   const faltaLink = dono && !v.rastreio;
-  const podeAvisar = dono && tel && v.status==='despachado' && v.rastreio;
+  // a etiqueta já existe no lançamento, então a cliente pode ser avisada desde a fila
+  // de embalagem — não precisa esperar o Edson embalar nem o entregador deixar no ponto
+  const podeAvisar = dono && tel && v.rastreio && v.status!=='cancelado';
   const rastLinha = (modo!=='corrigir' && (faltaLink || podeAvisar)) ? `<div class="env-acts env-rast">
       ${faltaLink?`<input class="env-rast-inp falta" value="" placeholder="🔎 falta o link de rastreio" onchange="envSetRastreio('${v.id}', this.value)">`:''}
       ${podeAvisar?`<button class="btn ${jaAvisou?'btn-ghost':'btn-primary'} btn-mini" onclick="envAvisarCliente('${v.id}')">${jaAvisou?'✓ cliente avisado':'💬 Avisar cliente'}</button>`:''}
