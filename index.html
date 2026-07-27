@@ -1771,7 +1771,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v152</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v153</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5952,6 +5952,7 @@ const RASTREIO_TRSP = [
   [/^LTM[-\s]?/i,        'latam'],           // LTM-95731851035
   [/^AZL[-\s]?/i,        'azul'],            // AZL-UR96743916
   [/^LGI[-\s]?/i,        'loggi'],           // LGI-ME262ARS583BR
+  [/^TX[A-Z0-9]+TX$/i,   'total'],           // TXAQ324824671tx
   [/^888\d{12}$/,        'jt'],              // 888030802223422 · 888030828533914
   // Jadlog usa um número sequencial de 9 dígitos (611691293, 611652838): o prefixo
   // anda com o tempo, então vale o tamanho e não os primeiros dígitos
@@ -5963,16 +5964,20 @@ const RASTREIO_TRSP = [
 ];
 function codigoDoRastreio(link){
   const s=String(link||'').trim();
-  const m=s.match(/\/rastreio\/([^/?#\s]+)/i);          // link do Melhor Envio
+  const m=s.match(/\/(?:rastreio|app\/[^/?#\s]+)\/([^/?#\s]+)/i);   // /rastreio/COD ou /app/transportadora/COD
   if(m){ try{ return decodeURIComponent(m[1]); }catch(_){ return m[1]; } }
   if(/^https?:\/\//i.test(s)) return '';                 // outro link: não dá pra ler
   return /^[A-Za-z0-9][A-Za-z0-9\-]{7,}$/.test(s) ? s : '';   // colaram só o código
 }
+/* alguns links trazem a transportadora no caminho: /app/totalexpress/TXAQ...tx */
+function trspDoCaminho(link){
+  const m=String(link||'').match(/\/app\/([^/?#\s]+)\//i);
+  return m ? trspDoTray(m[1].replace(/[-_]/g,' ')) : '';
+}
 function trspPorRastreio(link){
   const c=codigoDoRastreio(link).toUpperCase();
-  if(!c) return '';
-  for(const [re,id] of RASTREIO_TRSP) if(re.test(c)) return id;
-  return '';
+  if(c){ for(const [re,id] of RASTREIO_TRSP) if(re.test(c)) return id; }
+  return trspDoCaminho(link);            // o código não disse, o caminho da URL pode dizer
 }
 
 /* ---- rastreio e aviso ao cliente ---- */
