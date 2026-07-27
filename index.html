@@ -1764,7 +1764,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v146</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v147</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5942,10 +5942,13 @@ function pegarEnviosParaMim(){
   const paradas=roteiroEnvios(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v.transportadora)));
   if(!paradas.length){ toast('Nenhum envio esperando'); return; }
   let n=0;
+  // grava só os campos da pegada: o entregador entra anônimo e as regras do Firestore
+  // liberam apenas esses campos para ele
   paradas.forEach(p=>p.itens.forEach(v=>{
-    v.status='em_rota'; v.entregador=session.entregador; v.pontoId=p.ponto.id; v.roteadoEm=Date.now(); n+=envQtd(v);
+    envAtualizarCampos(v, {status:'em_rota', entregador:session.entregador, pontoId:p.ponto.id, roteadoEm:Date.now()});
+    n+=envQtd(v);
   }));
-  persistEnvios(); entTab='rota'; renderEntregador();
+  entTab='rota'; renderEntregador();
   toast(`${n} pacote${n>1?'s':''} em ${paradas.length} parada${paradas.length>1?'s':''} na sua rota 📮`);
 }
 
