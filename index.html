@@ -1771,7 +1771,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v151</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v152</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5952,6 +5952,10 @@ const RASTREIO_TRSP = [
   [/^LTM[-\s]?/i,        'latam'],           // LTM-95731851035
   [/^AZL[-\s]?/i,        'azul'],            // AZL-UR96743916
   [/^LGI[-\s]?/i,        'loggi'],           // LGI-ME262ARS583BR
+  [/^888\d{12}$/,        'jt'],              // 888030802223422 · 888030828533914
+  // Jadlog usa um número sequencial de 9 dígitos (611691293, 611652838): o prefixo
+  // anda com o tempo, então vale o tamanho e não os primeiros dígitos
+  [/^\d{9}$/,            'jadlog'],
   [/^AD\d{9}BR$/i,       'correios_sedex'],  // AD712407422BR
   [/^AP\d{9}BR$/i,       'correios_pac'],    // AP199127400BR
   // outro prefixo dos Correios: a família é certa, o serviço não — o Edson ajusta
