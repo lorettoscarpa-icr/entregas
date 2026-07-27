@@ -16,6 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{
     /* Paleta Loretto — verde profundo + dourado (base do dashboard de Metas) */
@@ -924,6 +925,17 @@
   .env-card.falta{border-left-color:var(--urgent)}
   .env-card.parado{border-left-color:var(--warn)}
   .env-card.canc{border-left-color:var(--text-mute);opacity:.66}
+  /* importação de pedidos */
+  .imp-lista{display:flex;flex-direction:column;gap:9px;max-height:56vh;overflow-y:auto;margin-bottom:4px}
+  .imp-item{display:flex;gap:11px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:11px 13px;text-align:left}
+  .imp-item.ja{opacity:.5}
+  .imp-item input[type=checkbox]{margin-top:3px;width:17px;height:17px;flex:none;accent-color:var(--gold)}
+  .imp-item .ii-txt{flex:1;min-width:0}
+  .imp-item b{font-family:var(--ff-grand);font-size:15.5px;font-weight:500;display:block}
+  .imp-item small{display:block;color:var(--text-soft);font-size:12px;line-height:1.5;margin-top:2px}
+  .imp-item .ii-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .imp-vazio{color:var(--text-mute);font-size:13px;text-align:center;padding:22px}
   .env-canc{margin-top:7px;font-size:12.5px;color:var(--text-mute);background:rgba(255,255,255,.05);
     border:1px solid var(--line);border-radius:9px;padding:6px 10px;display:inline-block}
   .env-rast{border-top:1px dashed var(--line);padding-top:9px;margin-top:9px}
@@ -1290,6 +1302,8 @@
     <div class="filters" id="filters"></div>
     <button class="btn btn-primary" onclick="novaEntrega()">＋ Nova entrega</button>
     <button class="btn" onclick="novoEnvio()">📮 Novo envio</button>
+    <button class="btn" id="btn-importar-pdf" style="display:none" onclick="document.getElementById('pdf-input').click()">📄 Importar pedidos</button>
+    <input type="file" id="pdf-input" accept="application/pdf,.pdf" style="display:none" onchange="importarPedidosPDF(this)">
   </div>
 
   <div class="filters2" id="row-vend-filter">
@@ -1666,6 +1680,19 @@
   </div>
 </div>
 
+<!-- pedidos lidos do PDF da Tray -->
+<div class="modal-bg" id="imp-modal" onclick="fecharImportar()">
+  <div class="modal" style="max-width:720px" onclick="event.stopPropagation()">
+    <h3 style="margin-bottom:4px">Pedidos da loja virtual</h3>
+    <p class="env-aviso-sub" id="imp-sub">Confira o que veio no arquivo e escolha o que lançar.</p>
+    <div id="imp-lista" class="imp-lista"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="fecharImportar()">Cancelar</button>
+      <button class="btn btn-primary" id="imp-btn" onclick="confirmarImportar()">Lançar selecionados</button>
+    </div>
+  </div>
+</div>
+
 <!-- cancelar envio -->
 <div class="modal-bg" id="env-canc-modal" onclick="fecharCancEnvio()">
   <div class="modal" style="max-width:440px" onclick="event.stopPropagation()">
@@ -1703,7 +1730,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v142</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v143</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5609,6 +5636,160 @@ function excluirEnvio(id){
   if(FIREBASE_ON && fdb) fdb.collection('envios').doc(String(id)).delete().catch(e=>console.warn('Firebase: exclusão de envio falhou', e));
   renderEnvios(); toast('Envio excluído');
 }
+/* ============ importar pedidos da loja virtual (PDF da Tray) ============
+   O Edson não digita: ele lança a partir do arquivo de impressão de pedidos.
+   Cada pedido do PDF vira um envio já com cliente, endereço, produto,
+   transportadora e o dia em que deve sair. Ele só confere e embala. */
+const TRSP_TRAY = [
+  [/correios.*sedex|\bsedex\b/i, 'correios_sedex'],
+  [/correios.*pac|\bpac\b/i,     'correios_pac'],
+  [/total\s*express/i,           'total'],
+  [/jadlog/i,                    'jadlog'],
+  [/loggi/i,                     'loggi'],
+  [/j\s*&\s*t|\bjt\b/i,          'jt'],
+  [/latam/i,                     'latam'],
+  [/azul/i,                      'azul'],
+];
+function trspDoTray(txt){ for(const [re,id] of TRSP_TRAY) if(re.test(txt||'')) return id; return ''; }
+function _escRe(s){ return (s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+function parsePedidosTray(texto){
+  const corpo = texto.split(/\n\s*DESTINAT[ÁA]RIO\s*\n/)[0];   // depois disso vêm as etiquetas
+  const partes = corpo.split(/(?=Pedido #\d+\s*-\s*LOJA VIRTUAL)/);
+  const out=[];
+  for(const bloco of partes){
+    const mPed = bloco.match(/Pedido #(\d+)/);
+    if(!mPed || !/Dados do cliente/.test(bloco)) continue;
+    const L = bloco.split('\n').map(l=>l.trim());
+    const idx = t => L.findIndex(l=>new RegExp(t,'i').test(l));
+    const p = {pedido:mPed[1]};
+
+    p.cliente = (L[idx('^Dados do cliente$')+1]||'').trim();
+    p.contato = ((bloco.match(/Celular:\s*([()\d\s\-]+)/)||[])[1]||'').trim();
+    p.cpf     = ((bloco.match(/CPF:\s*([\d.\-]+)/)||[])[1]||'').trim();
+
+    // o endereço vem quebrado em linhas e nem sempre há vírgula antes da cidade:
+    // a linha com "- Brasil" marca onde começa cidade / UF / CEP
+    const iEnt = idx('^Endereço de entrega$'), iCob = idx('^Endereço de cobrança$');
+    const linhas = (iEnt>=0) ? L.slice(iEnt+1, iCob>iEnt?iCob:L.length) : [];
+    const iBr = linhas.findIndex(l=>/-\s*Brasil/i.test(l));
+    const rua = linhas.slice(0, iBr>=0?iBr:linhas.length).join(' ')
+      .replace(/^Aos cuidados:\s*/i,'')
+      .replace(new RegExp('^'+_escRe(p.cliente)+'\\s*','i'),'')
+      .trim().replace(/^,\s*/,'');
+    const loc = iBr>=0 ? linhas.slice(iBr).join(' ') : '';
+    const mLoc = loc.match(/^(.+?)\s*-\s*([A-Z]{2})\s*-\s*Brasil\s*-?\s*(\d{5}\s*-?\s*\d{3})?/i);
+    p.cidade = mLoc ? mLoc[1].trim() : '';
+    p.uf     = mLoc ? (mLoc[2]||'').toUpperCase() : '';
+    p.cep    = mLoc ? (mLoc[3]||'').replace(/\s/g,'').replace(/^(\d{5})-?(\d{3})$/,'$1-$2') : '';
+
+    const pe = rua.split(',').map(x=>x.trim()).filter(Boolean);   // Rua, número, bairro[, complemento]
+    if(pe.length>=3){
+      p.bairro = pe[2];
+      const compl = pe.slice(3).join(', ');
+      p.endereco = pe.slice(0,2).join(', ') + (compl?', '+compl:'');
+    } else { p.bairro=''; p.endereco=pe.join(', '); }
+
+    const prods=[];
+    L.forEach((l,i)=>{
+      const mTam = l.match(/^Tamanho:\s*(.+?)\s*\|\s*Cor:\s*(.+)$/i);
+      if(!mTam) return;
+      const nome=(L[i-1]||'').trim();
+      let val='';
+      for(let j=i+1;j<Math.min(i+6,L.length);j++){ const mv=L[j].match(/^R\$\s*([\d.,]+)$/); if(mv){ val=mv[1]; break; } }
+      prods.push(nome+' '+mTam[1]+(val?' - '+val:''));
+    });
+    p.produto = prods.join('\n');
+    p.valor = ((bloco.match(/Subtotal\s*\(\d+\)\s*R\$\s*([\d.,]+)/)||[])[1]||'').trim();
+
+    const iEnv = idx('^Forma de envio$');
+    p.transportadoraTxt = (iEnv>=0 ? (L[iEnv+1]||'') : '').trim();
+    p.transportadora = trspDoTray(p.transportadoraTxt);
+    p.rastreio  = ((bloco.match(/^Código:\s*([A-Z0-9][A-Z0-9\-]{7,})\s*$/mi)||[])[1]||'').trim();
+    const mData = bloco.match(/Data do envio:\s*(\d{2})\/(\d{2})\/(\d{4})/);
+    p.dataEnvio = mData ? (mData[3]+'-'+mData[2]+'-'+mData[1]) : '';
+    out.push(p);
+  }
+  return out;
+}
+
+let _impPedidos=[];
+async function importarPedidosPDF(input){
+  const f = input && input.files && input.files[0];
+  input.value='';                                  // permite reenviar o mesmo arquivo depois
+  if(!f) return;
+  if(typeof pdfjsLib==='undefined'){ toast('Leitor de PDF indisponível — recarregue a página'); return; }
+  toast('📄 Lendo o arquivo…');
+  try{
+    if(!pdfjsLib.GlobalWorkerOptions.workerSrc)   // respeita configuração já definida
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const buf=await f.arrayBuffer();
+    const doc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+    let texto='';
+    for(let i=1;i<=doc.numPages;i++){
+      const tc=await (await doc.getPage(i)).getTextContent();
+      let ult=null;
+      tc.items.forEach(it=>{ const y=Math.round(it.transform[5]); if(ult!==null && Math.abs(y-ult)>3) texto+='\n'; texto+=it.str; ult=y; });
+      texto+='\n';
+    }
+    _impPedidos=parsePedidosTray(texto);
+    if(!_impPedidos.length){ toast('Não encontrei pedidos neste arquivo'); return; }
+    abrirImportar();
+  }catch(e){ console.warn('PDF', e); toast('Não consegui ler este PDF'); }
+}
+function abrirImportar(){
+  const jaTem = id => envios.some(v=>String(v.pedido||'')===String(id));
+  const novos = _impPedidos.filter(p=>!jaTem(p.pedido)).length;
+  $('imp-sub').innerHTML = `<b>${_impPedidos.length}</b> ${_impPedidos.length===1?'pedido encontrado':'pedidos encontrados'}${
+    novos<_impPedidos.length ? ` · ${_impPedidos.length-novos} já ${_impPedidos.length-novos===1?'lançado':'lançados'} antes` : ''}. Confira e lance os que faltam.`;
+  $('imp-lista').innerHTML = _impPedidos.map((p,i)=>{
+    const ja=jaTem(p.pedido);
+    const t=TRSP[p.transportadora];
+    const dest=[p.cidade,p.uf].filter(Boolean).join(' - ');
+    return `<label class="imp-item${ja?' ja':''}">
+      <input type="checkbox" data-i="${i}" ${ja?'disabled':'checked'}>
+      <span class="ii-txt">
+        <b>#${esc(p.pedido)} · ${esc(p.cliente||'(sem nome)')}</b>
+        <small>${esc([p.endereco,p.bairro].filter(Boolean).join(' · '))}${dest?`<br>${esc(dest)}`:''}${p.cep?` · CEP ${esc(p.cep)}`:''}</small>
+        <small>${esc((p.produto||'').replace(/\n/g,' + '))}${p.valor?` · <b>R$ ${esc(p.valor)}</b>`:''}</small>
+        <span class="ii-tags">
+          ${t?`<span class="env-tag ${t.coleta?'coleta':'tr'}">${t.ico} ${esc(t.nome)}</span>`
+             :`<span class="env-tag aviso">⚠️ ${esc(p.transportadoraTxt||'transportadora não reconhecida')}</span>`}
+          <span class="env-tag">📅 sai ${p.dataEnvio?esc(rotuloDia(p.dataEnvio)):'hoje'}</span>
+          ${p.rastreio?`<span class="env-tag tr">🔎 ${esc(p.rastreio)}</span>`:`<span class="env-tag aviso">sem rastreio</span>`}
+          ${ja?'<span class="env-tag">já lançado</span>':''}
+        </span>
+      </span>
+    </label>`;
+  }).join('') || '<div class="imp-vazio">Nada para lançar.</div>';
+  $('imp-modal').classList.add('open');
+}
+function fecharImportar(){ $('imp-modal').classList.remove('open'); _impPedidos=[]; }
+function confirmarImportar(){
+  const marcados=[...document.querySelectorAll('#imp-lista input[type=checkbox]:checked:not(:disabled)')].map(c=>+c.dataset.i);
+  if(!marcados.length){ toast('Nenhum pedido selecionado'); return; }
+  marcados.forEach(i=>{
+    const p=_impPedidos[i]; if(!p) return;
+    const id=uid();
+    envios.push({
+      id, pedido:p.pedido, origem:'loja virtual',
+      cliente:p.cliente, cpf:p.cpf, nascimento:'', contato:p.contato,
+      cep:p.cep, endereco:p.endereco, bairro:p.bairro, cidade:p.cidade, uf:p.uf,
+      vendedora:'Loja Virtual',
+      produto:p.produto, valor:p.valor,
+      transportadora:p.transportadora, rastreio:p.rastreio,
+      observacao:'Pedido #'+p.pedido+' da loja virtual',
+      dataEnvio:p.dataEnvio || todayKey(),
+      status:'novo', entregador:null, pontoId:'',
+      avisoEdson:Date.now(),                       // veio pelo arquivo: não precisa avisar o Edson
+      criadoEm:Date.now(), atualizadoEm:Date.now()
+    });
+    _envPend[id]=Date.now();
+  });
+  persistEnvios(); fecharImportar(); render();
+  toast(marcados.length+' pedido'+(marcados.length>1?'s':'')+' lançado'+(marcados.length>1?'s':'')+' ✓');
+}
+
 /* ---- rastreio e aviso ao cliente ---- */
 function envSetRastreio(id, valor){
   const v=envios.find(x=>x.id===id); if(!v) return;
@@ -5622,8 +5803,14 @@ function envMsgCliente(v){
   const t=TRSP[v.transportadora];
   let m=`Oi, ${nome||'tudo bem'} 😊\nSeu pedido da Loretto Scarpa já foi enviado!\n`;
   if(t) m+=`\n🚚 Transportadora: ${t.nome}\n`;
-  m+='\nClique no link abaixo para acompanhar o andamento do seu pedido 👇\n';
-  m+=`\nLink de rastreio: ${v.rastreio||''}`;
+  // o Melhor Envio dá um link; o pedido da loja virtual dá um código — a mensagem se adapta
+  if(/^https?:\/\//i.test(v.rastreio||'')){
+    m+='\nClique no link abaixo para acompanhar o andamento do seu pedido 👇\n';
+    m+=`\nLink de rastreio: ${v.rastreio}`;
+  }else{
+    m+='\nUse o código abaixo para acompanhar o andamento do seu pedido 👇\n';
+    m+=`\nCódigo de rastreio: ${v.rastreio||''}`;
+  }
   return m;
 }
 function envAvisarCliente(id){
@@ -5918,7 +6105,8 @@ function applyRole(){
     { const _ff=$('filters'); if(_ff) _ff.style.display = ehGeral ? '' : 'none'; }
     { const _cfg=document.querySelector('.settings-box'); if(_cfg) _cfg.style.display = ehGeral ? '' : 'none'; }
     $('area-operacao').style.display='';
-    if(ehGeral) document.body.classList.add('role-operacao');   // no celular, a coluna de Envios sobe pro topo de quem embala
+    if(ehGeral) document.body.classList.add('role-operacao');
+    { const _bi=$('btn-importar-pdf'); if(_bi) _bi.style.display = ehGeral ? '' : 'none'; }   // no celular, a coluna de Envios sobe pro topo de quem embala
     if(_rb) _rb.style.display='';                     // operação pode montar rota
     renderFiltersVend();
     switchTab('painel');  // sempre entra no Painel (a coluna "Minhas entregas" aparece nele)
