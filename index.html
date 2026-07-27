@@ -1697,7 +1697,7 @@
       <div><label>Valor</label><input id="env-valor" placeholder="Valor R$" inputmode="decimal"></div>
       <div><label>Transportadora <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o Edson confirma)</span></label>
         <select id="env-trsp"><option value="">A definir na operação</option></select></div>
-      <div class="full"><label>Link de rastreio * <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o link do Melhor Envio que a cliente abre para acompanhar)</span></label><input id="env-rast" placeholder="Cole aqui o link de rastreio" autocomplete="off"></div>
+      <div class="full"><label>Link de rastreio * <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">(o link do Melhor Envio que a cliente abre para acompanhar)</span></label><input id="env-rast" placeholder="Cole aqui o link de rastreio" autocomplete="off" oninput="envDetectarTrsp()"><small id="env-trsp-hint" class="env-data-hint"></small></div>
       <div class="full"><label>Observação</label><input id="env-obs" placeholder="Ex: já está no Melhor Envio · embalar como presente"></div>
     </div>
     <div class="form-actions">
@@ -1771,7 +1771,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v149</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v150</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5454,6 +5454,7 @@ function novoEnvio(){
   ['env-paste','env-cliente','env-cpf','env-nasc','env-contato','env-cep','env-end','env-bairro','env-cidade','env-uf','env-prod','env-valor','env-rast','env-obs']
     .forEach(i=>{ const el=$(i); if(el) el.value=''; });
   $('env-trsp').innerHTML=opcoesTrsp('');
+  { const h=$('env-trsp-hint'); if(h) h.textContent=''; }
   $('env-data').value = (diaAtivo && diaAtivo>todayKey()) ? diaAtivo : dataEnvioPadrao();
   { const h=$('env-data-hint');
     if(h) h.textContent = passouDoCorte()
@@ -5556,6 +5557,21 @@ function pularAvisoEdson(){
 function fecharAvisoEdson(){
   $('env-aviso-modal').classList.remove('open'); _envAvisoId=null;
   renderEnvios(); toast('Edson avisado ✓');
+}
+/* sugere a transportadora assim que a vendedora cola o link */
+function envDetectarTrsp(){
+  const hint=$('env-trsp-hint'), sel=$('env-trsp');
+  if(!hint || !sel) return;
+  const link=$('env-rast').value.trim();
+  if(!link){ hint.textContent=''; return; }
+  const t=trspPorRastreio(link);
+  if(!t){
+    hint.textContent = codigoDoRastreio(link) ? 'Não reconheci a transportadora por este código — o Edson define ao embalar.' : '';
+    return;
+  }
+  if(!sel.value){ sel.value=t; hint.textContent = `Detectei ${TRSP[t].nome} pelo código — pode trocar se não for.`; }
+  else if(sel.value!==t){ hint.textContent = `O código parece ser de ${TRSP[t].nome}, mas você escolheu ${TRSP[sel.value]?TRSP[sel.value].nome:'outra'}.`; }
+  else { hint.textContent = `Confere: ${TRSP[t].nome}.`; }
 }
 function abrirEnvFaltaLink(){ $('env-falta-modal').classList.add('open'); }
 function fecharEnvFaltaLink(){
@@ -5928,12 +5944,41 @@ function confirmarImportar(){
   toast(marcados.length+' pedido'+(marcados.length>1?'s':'')+' lançado'+(marcados.length>1?'s':'')+' ✓');
 }
 
+/* ---- transportadora pelo código do rastreio ----
+   O link do Melhor Envio carrega o código, e o formato do código identifica a
+   transportadora. Serve como sugestão: o Edson confirma (e às vezes troca) na
+   hora de embalar. Só entram aqui os formatos confirmados nos envios da loja. */
+const RASTREIO_TRSP = [
+  [/^LTM[-\s]?/i,        'latam'],           // LTM-95731851035
+  [/^AZL[-\s]?/i,        'azul'],            // AZL-UR96743916
+  [/^LGI[-\s]?/i,        'loggi'],           // LGI-ME262ARS583BR
+  [/^[A-Z]{2}\d{9}BR$/i, 'correios_sedex'],  // AD712407422BR · AP199127400BR
+];
+function codigoDoRastreio(link){
+  const s=String(link||'').trim();
+  const m=s.match(/\/rastreio\/([^/?#\s]+)/i);          // link do Melhor Envio
+  if(m){ try{ return decodeURIComponent(m[1]); }catch(_){ return m[1]; } }
+  if(/^https?:\/\//i.test(s)) return '';                 // outro link: não dá pra ler
+  return /^[A-Za-z0-9][A-Za-z0-9\-]{7,}$/.test(s) ? s : '';   // colaram só o código
+}
+function trspPorRastreio(link){
+  const c=codigoDoRastreio(link).toUpperCase();
+  if(!c) return '';
+  for(const [re,id] of RASTREIO_TRSP) if(re.test(c)) return id;
+  return '';
+}
+
 /* ---- rastreio e aviso ao cliente ---- */
 function envSetRastreio(id, valor){
   const v=envios.find(x=>x.id===id); if(!v) return;
   const novo=(valor||'').trim();
   if(novo===(v.rastreio||'')) return;
-  v.rastreio=novo; persistEnvios(); renderEnvios();
+  v.rastreio=novo;
+  if(novo && !v.transportadora){                       // sem transportadora ainda: o código já diz qual é
+    const t=trspPorRastreio(novo);
+    if(t) v.transportadora=t;
+  }
+  persistEnvios(); render();
   if(novo) toast('Link de rastreio salvo ✓');
 }
 function envMsgCliente(v){
