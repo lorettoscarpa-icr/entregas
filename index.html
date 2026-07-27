@@ -1764,7 +1764,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v145</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v146</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2002,7 +2002,7 @@ function coletaNaLoja(id){ return !!(TRSP[id] && TRSP[id].coleta); }
 /* pontos parceiros e o que cada um recebe.
    A ordem importa no desempate: cobrindo a mesma coisa, vence quem vem antes. */
 const PONTOS_PARCEIROS = [
-  {id:'lucci', nome:'Lucci',        ico:'🏬', link:'https://maps.app.goo.gl/WnisDgSJvfyqXQDq6', aceita:['jadlog','jt','loggi']},
+  {id:'lucci', nome:'Luci Luci',    ico:'🏬', link:'https://maps.app.goo.gl/WnisDgSJvfyqXQDq6', aceita:['jadlog','jt','loggi']},
   {id:'amo',   nome:'Amo Outlet',   ico:'🏬', link:'https://maps.app.goo.gl/UYos71jmrHxYPQph8', aceita:['jadlog','jt','loggi','latam']},
   {id:'azulx', nome:'Azul Express', ico:'✈️', link:'https://maps.app.goo.gl/QLrT1rXfpCGrWiJd6', aceita:['azul']},
 ];
@@ -6097,7 +6097,7 @@ function renderEnvios(){
   box.innerHTML =
       (atrasados.length?`<div class="env-atraso-nota">⏱ ${atrasados.length} ${atrasados.length===1?'envio veio':'envios vieram'} de ${atrasados.length===1?'dia anterior':'dias anteriores'} e ${atrasados.length===1?'ainda não saiu':'ainda não saíram'}.</div>`:'')
     + envSubSec('⚠️ Sem transportadora', semTr, 'corrigir', 'urg')
-    + roteiroHTML()
+    + (podeOperarEnvios() ? roteiroHTML() : '')
     + envSubSec('📥 A embalar', novos, 'embalar')
     + envSubSec('📦 Levar ao ponto', levar, 'levar')
     + envSubSec('🚚 Coleta na loja', coleta, 'coleta')
@@ -7021,7 +7021,7 @@ function enviosNaFilaHTML(){
       <div class="pn">${p.ponto.ico} ${esc(p.ponto.nome)} <a class="pl" href="${esc(p.ponto.link)}" target="_blank">abrir no mapa ↗</a></div>
       <ul>${p.itens.map(v=>`<li><span>${ehLote(v)?`📦 ${envQtd(v)} pacotes`:esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
     </div>`).join('')}
-    <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="pegarEnviosParaMim()">📮 Pegar os ${tot} pacotes</button></div>
+    <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="pegarEnviosParaMim()">📮 Pegar ${tot>1?`os ${tot} pacotes`:'o pacote'}</button></div>
   </div>`;
 }
 function enviosEntregadorHTML(){
