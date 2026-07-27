@@ -1783,7 +1783,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v158</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v159</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2015,13 +2015,23 @@ const TRANSPORTADORAS = [
   {id:'azul',           nome:'Azul Express',   ico:'✈️', coleta:false},
 ];
 const TRSP = Object.fromEntries(TRANSPORTADORAS.map(t=>[t.id,t]));
-function coletaNaLoja(id){ return !!(TRSP[id] && TRSP[id].coleta); }
+/* Quem coleta na loja depende de quem lançou: os pedidos da loja virtual (importados
+   do PDF ou lançados no envio rápido) a Total Express busca aqui; os das vendedoras
+   precisam ser levados ao ponto. Correios sempre coleta na loja. */
+function coletaNaLoja(v){
+  const id = (v && typeof v==='object') ? v.transportadora : v;
+  const t = TRSP[id];
+  if(!t || !t.coleta) return false;
+  if(id==='total') return !!(v && typeof v==='object' && v.origem);   // só os lançados pela operação
+  return true;
+}
 
 /* pontos parceiros e o que cada um recebe.
    A ordem importa no desempate: cobrindo a mesma coisa, vence quem vem antes. */
 const PONTOS_PARCEIROS = [
   {id:'lucci', nome:'Luci Luci',    ico:'🏬', link:'https://maps.app.goo.gl/WnisDgSJvfyqXQDq6', aceita:['jadlog','jt','loggi']},
   {id:'amo',   nome:'Amo Outlet',   ico:'🏬', link:'https://maps.app.goo.gl/UYos71jmrHxYPQph8', aceita:['jadlog','jt','loggi','latam']},
+  {id:'total', nome:'Total Express', ico:'🚚', link:'https://maps.app.goo.gl/nhxfW9p8akACYUz66', aceita:['total','jadlog','jt']},
   {id:'azulx', nome:'Azul Express', ico:'✈️', link:'https://maps.app.goo.gl/QLrT1rXfpCGrWiJd6', aceita:['azul']},
 ];
 const PONTO = Object.fromEntries(PONTOS_PARCEIROS.map(p=>[p.id,p]));
@@ -2033,7 +2043,7 @@ const PONTO = Object.fromEntries(PONTOS_PARCEIROS.map(p=>[p.id,p]));
    Outlet levando os outros junto. Azul só existe no Azul Express, então quando
    aparece vira parada própria. */
 function roteiroEnvios(lista){
-  let faltam = (lista||[]).filter(v => v.transportadora && !coletaNaLoja(v.transportadora));
+  let faltam = (lista||[]).filter(v => v.transportadora && !coletaNaLoja(v));
   const paradas = [];
   while(faltam.length){
     let melhor=null, melhorItens=[];
@@ -2703,7 +2713,7 @@ function buscarEntrega(termo){ _buscarRender(termo, 'busca-res'); }       // pai
 function buscarEntregaEnt(termo){ _buscarRender(termo, 'busca-res-ent'); } // tela do entregador
 function _statusBuscaEnvio(v){
   if(v.status==='novo')     return ['A embalar','rgba(224,179,65,.18)','#e0b341'];
-  if(v.status==='embalado') return coletaNaLoja(v.transportadora)
+  if(v.status==='embalado') return coletaNaLoja(v)
     ? ['Aguardando coleta','rgba(111,176,166,.2)','#6fb0a6']
     : ['A levar ao ponto','rgba(212,180,90,.2)','#d4b45a'];
   if(v.status==='em_rota')  return ['Em rota','rgba(127,174,107,.2)','#7fae6b'];
@@ -5413,12 +5423,12 @@ function envAtrasadoDia(v){
   if(v.status==='despachado' || v.status==='cancelado') return false;
   // embalado esperando a coleta: quem define o dia é a transportadora, não a loja —
   // cobrar isso todo dia viraria alarme falso e ensinaria a equipe a ignorar o aviso
-  if(v.status==='embalado' && coletaNaLoja(v.transportadora)) return false;
+  if(v.status==='embalado' && coletaNaLoja(v)) return false;
   return dataEnvioDe(v) < todayKey();
 }
 /* há quantos dias o pacote de coleta está embalado esperando o caminhão (informativo, não é atraso) */
 function envEsperandoColetaDesde(v){
-  if(!(v.status==='embalado' && coletaNaLoja(v.transportadora))) return '';
+  if(!(v.status==='embalado' && coletaNaLoja(v))) return '';
   const d=dataEnvioDe(v); if(d>=todayKey()) return '';
   const ontem=dateKey(new Date(Date.now()-86400000));
   return d===ontem ? 'ontem' : d.slice(8,10)+'/'+d.slice(5,7);
@@ -5447,8 +5457,8 @@ function envSaiEmTxt(v){
 }
 /* prontos que ainda precisam de alguém para levar ao ponto parceiro.
    Sem transportadora o pacote não tem ponto: fica de fora daqui e cai na lista de pendência. */
-function enviosParaLevar(lista){ return enviosStatus('embalado', lista).filter(v=>v.transportadora && !coletaNaLoja(v.transportadora)); }
-function enviosAguardandoColeta(lista){ return enviosStatus('embalado', lista).filter(v=>coletaNaLoja(v.transportadora)); }
+function enviosParaLevar(lista){ return enviosStatus('embalado', lista).filter(v=>v.transportadora && !coletaNaLoja(v)); }
+function enviosAguardandoColeta(lista){ return enviosStatus('embalado', lista).filter(v=>coletaNaLoja(v)); }
 function enviosSemTransportadora(lista){ return enviosStatus('embalado', lista).filter(v=>!v.transportadora); }
 
 /* ---- envio atrasado: o prazo é o próprio dia do envio ----
@@ -5456,7 +5466,7 @@ function enviosSemTransportadora(lista){ return enviosStatus('embalado', lista).
    brigar com a regra do dia e acabava apontando o envio errado — foi removida. */
 function envMotivoParado(v){
   if(v.status==='novo') return 'esperando embalagem';
-  return coletaNaLoja(v.transportadora) ? 'esperando a coleta na loja' : 'embalado, esperando ir ao ponto';
+  return coletaNaLoja(v) ? 'esperando a coleta na loja' : 'embalado, esperando ir ao ponto';
 }
 function envAtrasoTxt(v){
   const d=dataEnvioDe(v), ontem=dateKey(new Date(Date.now()-86400000));
@@ -5721,7 +5731,7 @@ function envEmbalar(id){
   if(!t){ toast('Escolha a transportadora antes de marcar embalado'); return; }
   const quem = session ? (session.vendedora||session.role) : '';
   v.transportadora=t; v.embaladoEm=Date.now(); v.embaladoPor=quem;
-  if(coletaNaLoja(t)){
+  if(coletaNaLoja(v)){
     // Correios e Total Express coletam na loja: embalar já encerra o envio,
     // sem uma segunda confirmação que não muda nada no processo
     v.status='despachado'; v.coletadoNaLoja=true;
@@ -5730,7 +5740,7 @@ function envEmbalar(id){
     v.status='embalado';
   }
   persistEnvios(); render();
-  toast(coletaNaLoja(t) ? `Embalado ✓ — ${TRSP[t].nome} coleta na loja, envio finalizado` : 'Embalado ✓ — entra no roteiro dos pontos parceiros');
+  toast(coletaNaLoja(v) ? `Embalado ✓ — ${TRSP[t].nome} coleta na loja, envio finalizado` : 'Embalado ✓ — entra no roteiro dos pontos parceiros');
 }
 function envSetTrsp(id, valor){
   const v=envios.find(x=>x.id===id); if(!v || !podeOperarEnvios()) return;
@@ -6096,7 +6106,7 @@ function podeLevarEnvios(entId){ return ENT_ENVIOS.indexOf(entId)>=0; }
 /* o entregador pega a rota de envios inteira: todos vão para pontos, não faz sentido dividir */
 function pegarEnviosParaMim(){
   if(!session || session.role!=='entregador' || !podeLevarEnvios(session.entregador)) return;
-  const paradas=roteiroEnvios(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v.transportadora)));
+  const paradas=roteiroEnvios(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v)));
   if(!paradas.length){ toast('Nenhum envio esperando'); return; }
   let n=0;
   // grava só os campos da pegada: o entregador entra anônimo e as regras do Firestore
@@ -7056,7 +7066,7 @@ function renderEntregador(){
   const cR=$('c-tab-rota'), cA=$('c-tab-aguard'), cP=$('c-tab-pend');
   if(cR) cR.textContent = items.length ? ` ${items.length}` : '';
   const _envFila = (typeof podeLevarEnvios==='function' && podeLevarEnvios(session.entregador))
-    ? somaQtd(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v.transportadora))) : 0;
+    ? somaQtd(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v))) : 0;
   if(cA) cA.textContent = (aguard.length+_envFila) ? ` ${aguard.length+_envFila}` : '';
   const pendEntTab = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !pendDismissed.has(e.id));
   const meuDinheiro = entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && !e.dinheiroEntregueLoja).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
@@ -7193,7 +7203,7 @@ function paradasEnvioDe(entId){
 /* envios prontos esperando alguém levar — aparece na aba "Aguardando rota" */
 function enviosNaFilaHTML(){
   if(!session || session.role!=='entregador' || !podeLevarEnvios(session.entregador)) return '';
-  const prontos=envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v.transportadora));
+  const prontos=envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v));
   if(!prontos.length) return '';
   const paradas=roteiroEnvios(prontos);
   const tot=paradas.reduce((n,p)=>n+somaQtd(p.itens),0);
