@@ -1783,7 +1783,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v159</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v160</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -7228,7 +7228,10 @@ function enviosEntregadorHTML(){
     ${paradas.map(p=>`<div class="env-parada">
       <div class="pn">${p.ponto.ico} ${esc(p.ponto.nome)} <a class="pl" href="${esc(p.ponto.link)}" target="_blank">abrir no mapa ↗</a></div>
       <ul>${p.itens.map(v=>`<li><span>${ehLote(v)?`📦 ${envQtd(v)} pacotes`:esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
-      <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="envEntregueNoPonto('${p.ponto.id}')">✓ Deixei no ${esc(p.ponto.nome)} (${somaQtd(p.itens)})</button></div>
+      <div class="env-acts">
+        <button class="btn btn-primary btn-mini" onclick="envEntregueNoPonto('${p.ponto.id}')">✓ Deixei no ${esc(p.ponto.nome)} (${somaQtd(p.itens)})</button>
+        <button class="btn btn-ghost btn-mini" onclick="devolverEnviosParada('${p.ponto.id}')">↩ Devolver pra fila</button>
+      </div>
     </div>`).join('')}
   </div>`;
 }
@@ -7246,6 +7249,17 @@ function envAtualizarCampos(v, campos){
     fdb.collection('envios').doc(String(v.id)).update(payload)
       .catch(err=>console.warn('Firebase: envio não atualizou (id '+v.id+')', err));
   }
+}
+/* devolve os pacotes de uma parada para a fila, para outro entregador pegar */
+function devolverEnviosParada(pontoId){
+  if(!session || session.role!=='entregador') return;
+  const meus=envios.filter(v=>v.status==='em_rota' && v.entregador===session.entregador && v.pontoId===pontoId);
+  if(!meus.length) return;
+  const p=PONTO[pontoId], n=somaQtd(meus);
+  if(!confirm(`Devolver ${n} pacote${n>1?'s':''} do ${p?p.nome:'ponto'} para a fila? Eles saem da sua rota e voltam a ficar disponíveis.`)) return;
+  meus.forEach(v=>envAtualizarCampos(v, {status:'embalado', entregador:null, pontoId:'', roteadoEm:null}));
+  renderEntregador();
+  toast(`${n} pacote${n>1?'s':''} de volta na fila ↩`);
 }
 function envEntregueNoPonto(pontoId){
   if(!session || session.role!=='entregador') return;
