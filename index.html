@@ -869,6 +869,10 @@
   .col-vazio{color:var(--text-mute);font-size:12px;padding:8px 2px}
   .env-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
   body.on-envios .kpis, body.on-envios .toolbar, body.on-envios #row-vend-filter{display:none!important}
+  body.painel-envios .tabs, body.painel-envios .settings-box, body.painel-envios #avisos,
+  body.painel-envios #agendadas, body.painel-envios #destaques-topo, body.painel-envios .kpis,
+  body.painel-envios .toolbar, body.painel-envios #row-vend-filter{display:none!important}
+  body.painel-envios #view-envios{max-width:1240px}
   .board.with-envios{grid-template-columns:1.1fr 1fr .85fr .95fr}
   @media(max-width:1200px){ .board.with-envios{grid-template-columns:repeat(2,1fr)} }
   @media(max-width:920px){ .board.with-envios{grid-template-columns:1fr} }
@@ -1293,7 +1297,7 @@
       </svg>
       <div class="brand-text">
         <span class="mark">Loretto Scarpa</span>
-        <h1>Central de <span>Entregas</span></h1>
+        <h1>Central de <span id="brand-sub">Entregas</span></h1>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:18px">
@@ -1623,11 +1627,11 @@
           <div class="av-wrap"><div class="sel-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 8h13l-1 11.5H6.5L5.5 8z"/><path d="M9 8.5V6.2a3 3 0 0 1 6 0v2.3"/></svg></div></div>
           <div class="sel-nome">Vendedora</div><span class="sel-tag">seu perfil</span>
         </div>
-        <div class="sel-card" onclick="loginStepEntregador()">
+        <div class="sel-card" id="login-card-ent" onclick="loginStepEntregador()">
           <div class="av-wrap"><div class="sel-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></div></div>
           <div class="sel-nome">Entregador</div><span class="sel-tag">minha rota</span>
         </div>
-        <div class="sel-card" onclick="loginGestor()">
+        <div class="sel-card" id="login-card-gestor" onclick="loginGestor()">
           <div class="av-wrap"><div class="sel-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><rect x="6" y="11" width="3" height="6.5" rx="0.6"/><rect x="10.5" y="7" width="3" height="10.5" rx="0.6"/><rect x="15" y="13" width="3" height="4.5" rx="0.6"/></svg></div></div>
           <div class="sel-nome">Gestor</div><span class="sel-tag">relatórios e custos</span>
         </div>
@@ -1798,7 +1802,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v164</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v165</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2392,6 +2396,7 @@ const FIREBASE_CONFIG = {
   appId: "1:428188657366:web:091e9d32ddfd712c83cb77"
 };
 let fdb=null, FIREBASE_ON=false, _fbAssinado=false, _fbMigrou=false, _fbSynced=false, _clienteMode=false;
+const _envioMode = (function(){ try{ return new URLSearchParams(location.search).get('painel')==='envios'; }catch(_){ return false; } })();
 /* COLE AQUI a URL da Cloud Function da IA (passo 3). Vazio = usa a IA só dentro do Claude. */
 const AI_PROXY_URL = "https://lorettoia.lorettoscarpa.workers.dev/";
 // links encurtados de mapa (pin do WhatsApp) não trazem a coordenada — precisam ser expandidos no servidor (worker)
@@ -2696,13 +2701,14 @@ function _buscarRender(termo, resId){
   const box=$(resId); if(!box) return;
   const q=norm((termo||'').trim()); const qd=q.replace(/\D/g,'');
   if(q.length<2){ box.innerHTML=''; return; }
-  const hits=entregas.filter(e=>{
+  const hits=_envioMode ? [] : entregas.filter(e=>{
     if(!_podeVerBusca(e)) return false;
     const nome=norm(e.cliente||''); const tel=(e.contato||'').replace(/\D/g,'');
     return nome.includes(q) || (qd.length>=4 && tel.includes(qd));
   }).sort((a,b)=>String(dataDe(b)||'').localeCompare(String(dataDe(a)||'')));
   // envios entram na mesma busca: o cliente liga e ninguém precisa lembrar em qual aba procurar
-  const hitsEnv=(typeof envios!=='undefined'?envios:[]).filter(v=>{
+  const _buscaEnv = _envioMode || (session && session.role==='entregador');   // envios: no painel próprio ou pro entregador na rota
+  const hitsEnv=(_buscaEnv && typeof envios!=='undefined'?envios:[]).filter(v=>{
     if(!podeVerEnvio(v)) return false;
     const nome=norm(v.cliente||''); const tel=(v.contato||'').replace(/\D/g,''); const rast=norm(v.rastreio||'');
     return nome.includes(q) || (qd.length>=4 && tel.includes(qd)) || (q.length>=5 && rast.includes(q));
@@ -6415,6 +6421,7 @@ function restaurarSessao(){
   let s; try{ s=JSON.parse(localStorage.getItem('loretto_session')||'null'); }catch(_){ s=null; }
   if(!s || !s.role) return false;
   if(s.role==='entregador' && !ENT[s.entregador]) return false;
+  if(_envioMode && s.role!=='vendedora') return false;   // painel de Envios: só vendedoras/operação
   session = Object.assign({role:null,entregador:null,vendedora:null,geral:false}, s);
   applyRole();
   // garante autenticação no Firebase (anônima basta pras coleções de entregas) caso a persistência tenha caído
@@ -6441,7 +6448,6 @@ function applyRole(){
     if(fvend){ fvend.readOnly=!ehGeral; fvend.style.opacity=ehGeral?'':'.65'; if(!ehGeral) fvend.value=session.vendedora; }
     if(vchips) vchips.style.display = ehGeral ? '' : 'none';
     $('tab-fin').style.display='';                   // aba de finalizadas (pagamento/foto) p/ vendedoras
-    $('tab-envios').style.display='';                // aba de Envios: vendedoras e operação
     $('tab-mapa').style.display = ehGeral ? '' : 'none';   // Mapa & Rotas só pra operação (vendedora não monta rota)
     { const _te=$('tab-entlive'); if(_te) _te.style.display=''; }   // Entregadores ao vivo: operação E vendedoras
     // filtro por entregador e Configurações: só operação (vendedora não usa)
@@ -6453,7 +6459,7 @@ function applyRole(){
     { const _br=$('btn-envio-rapido'); if(_br) _br.style.display = ehGeral ? '' : 'none'; }   // no celular, a coluna de Envios sobe pro topo de quem embala
     if(_rb) _rb.style.display='';                     // operação pode montar rota
     renderFiltersVend();
-    switchTab('painel');  // sempre entra no Painel (a coluna "Minhas entregas" aparece nele)
+    switchTab(_envioMode ? 'envios' : 'painel');  // link próprio de Envios entra direto na tela de envios
     if(mapInited && map) setTimeout(()=>map.invalidateSize(),80);
   } else if(session.role==='gestor'){
     $('role-label').innerHTML='<b>Gestor</b>';
@@ -8316,6 +8322,14 @@ if(_trackId){
   $('track-st').textContent='Link de rastreio inválido'; const tp=$('track-pulse'); if(tp) tp.className='track-pulse off';
 } else {
   if(/Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent||'')) document.body.classList.add('is-mobile');
+  // painel de Envios: link próprio (?painel=envios) — abre direto na tela de envios, sem as entregas
+  if(_envioMode){
+    document.body.classList.add('painel-envios');
+    const bs=$('brand-sub'); if(bs) bs.textContent='Envios';
+    const lce=$('login-card-ent'); if(lce) lce.style.display='none';
+    const lcg=$('login-card-gestor'); if(lcg) lcg.style.display='none';
+    const bi=$('busca-entrega'); if(bi) bi.placeholder='🔎 Buscar envio por nome, telefone ou código de rastreio';
+  }
   renderFilters(); renderEntPick(); animateNext(); render(); tick();
   initFirebase();   // conecta ao Firestore (sincroniza em tempo real); se indisponível, segue no localStorage
   restaurarSessao();   // manter conectado: se já logou neste aparelho, abre direto no painel
@@ -8334,6 +8348,7 @@ if(_trackId){
           if(!u || !u.email) return;                 // entregador (anônimo) ou sem login → deixa escolher
           const cfg = MAPA[(u.email||'').trim().toLowerCase()];
           if(!cfg) return;                            // e-mail não mapeado → tela de escolha normal
+          if(_envioMode && cfg.role!=='vendedora') return;   // painel de Envios: só vendedoras/operação
           if(session && session.role===cfg.role && session.vendedora===cfg.vendedora) return; // já é a pessoa certa
           session = Object.assign({role:null, entregador:null, vendedora:null, geral:false}, cfg);
           applyRole();                                // entra direto, sem "Quem está acessando?"
