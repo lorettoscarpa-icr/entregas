@@ -857,6 +857,9 @@
     border-radius:var(--radius-sm);padding:16px;text-align:center}
 
   /* ---- envios ---- */
+  #view-envios{max-width:1040px;margin:4px auto 0}
+  .env-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  body.on-envios .kpis, body.on-envios .toolbar, body.on-envios #row-vend-filter{display:none!important}
   .board.with-envios{grid-template-columns:1.1fr 1fr .85fr .95fr}
   @media(max-width:1200px){ .board.with-envios{grid-template-columns:repeat(2,1fr)} }
   @media(max-width:920px){ .board.with-envios{grid-template-columns:1fr} }
@@ -1329,10 +1332,6 @@
   <div class="toolbar">
     <div class="filters" id="filters"></div>
     <button class="btn btn-primary" onclick="novaEntrega()">＋ Nova entrega</button>
-    <button class="btn" onclick="novoEnvio()">📮 Novo envio</button>
-    <button class="btn" id="btn-importar-pdf" style="display:none" onclick="document.getElementById('pdf-input').click()">📄 Importar pedidos</button>
-    <button class="btn" id="btn-envio-rapido" style="display:none" onclick="abrirEnvioRapido()">⚡ Envio rápido</button>
-    <input type="file" id="pdf-input" accept="application/pdf,.pdf" style="display:none" onchange="importarPedidosPDF(this)">
   </div>
 
   <div class="filters2" id="row-vend-filter">
@@ -1469,6 +1468,7 @@
   <div class="tabs">
     <button class="tab on" id="tab-painel" onclick="switchTab('painel')">Painel</button>
     <button class="tab" id="tab-pendentes" onclick="switchTab('pendentes')">⏳ Pendentes<span id="c-tab-pendentes"></span></button>
+    <button class="tab" id="tab-envios" onclick="switchTab('envios')" style="display:none">📮 Envios<span id="c-tab-envios"></span></button>
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
     <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">Entregadores ↗</button>
@@ -1478,6 +1478,16 @@
   <div id="view-ranking" style="display:none"></div>
 
   <div id="view-pendentes" style="display:none"></div>
+
+  <div id="view-envios" style="display:none">
+    <div class="env-head">
+      <button class="btn btn-primary" onclick="novoEnvio()">📮 Novo envio</button>
+      <button class="btn" id="btn-importar-pdf" style="display:none" onclick="document.getElementById('pdf-input').click()">📄 Importar pedidos</button>
+      <button class="btn" id="btn-envio-rapido" style="display:none" onclick="abrirEnvioRapido()">⚡ Envio rápido</button>
+      <input type="file" id="pdf-input" accept="application/pdf,.pdf" style="display:none" onchange="importarPedidosPDF(this)">
+    </div>
+    <div id="list-envios"></div>
+  </div>
 
   <!-- board -->
   <div id="view-painel">
@@ -1498,10 +1508,6 @@
     <div class="col">
       <div class="col-head"><span class="title"><span class="tick entregue"></span>Finalizadas</span><span class="count" id="c-entregue">0</span></div>
       <div id="list-entregue"></div>
-    </div>
-    <div class="col col-envios" id="col-envios" style="display:none">
-      <div class="col-head"><span class="title"><span class="tick envios"></span>Envios</span><span class="count" id="c-envios">0</span></div>
-      <div id="list-envios"></div>
     </div>
   </div>
   </div>
@@ -1783,7 +1789,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v162</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v163</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2729,9 +2735,9 @@ function irParaEnvio(id){
   ['busca-res','busca-res-ent'].forEach(i=>{ const b=$(i); if(b) b.innerHTML=''; });
   if(session && session.role==='entregador'){ renderEntregador(); return; }   // ele vê os envios dentro da rota
   const v=envios.find(x=>x.id===id);
-  if(typeof switchTab==='function') switchTab('painel');
   // atrasado aparece no dia de hoje, não no dia original
-  if(v) setDia(envAtrasadoDia(v) ? todayKey() : dataEnvioDe(v));
+  if(v){ diaAtivo = envAtrasadoDia(v) ? todayKey() : dataEnvioDe(v); renderDayNav(); }
+  if(typeof switchTab==='function') switchTab('envios');
   setTimeout(()=>{
     const el=document.querySelector('[data-vid="'+id+'"]');
     if(el){ el.scrollIntoView({behavior:'smooth',block:'center'});
@@ -5124,21 +5130,25 @@ const ROUTE_COLORS=['#d4b45a','#6fb0a6','#c97b5a','#8e9cd6','#cf8aa8','#9bbf6f']
 
 function switchTab(name){
   tabAtiva = name;
-  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes';
-  $('view-painel').style.display = (isMapa||isFin||isRank||isPend)?'none':'';
+  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes', isEnv = name==='envios';
+  $('view-painel').style.display = (isMapa||isFin||isRank||isPend||isEnv)?'none':'';
   $('view-mapa').style.display = isMapa?'':'none';
   $('view-fin').style.display = isFin?'':'none';
   $('view-ranking').style.display = isRank?'':'none';
   $('view-pendentes').style.display = isPend?'':'none';
+  $('view-envios').style.display = isEnv?'':'none';
+  // na aba de Envios, o cabeçalho de entregas (KPIs, filtros, nova entrega) sai de cena
+  document.body.classList.toggle('on-envios', isEnv);
   $('tab-painel').classList.toggle('on', name==='painel');
   $('tab-mapa').classList.toggle('on', isMapa);
   $('tab-fin').classList.toggle('on', isFin);
   $('tab-ranking').classList.toggle('on', isRank);
   $('tab-pendentes').classList.toggle('on', isPend);
+  $('tab-envios').classList.toggle('on', isEnv);
   const dt=$('destaques-topo');
   if(dt){ if(name==='painel'){ dt.innerHTML=destaquesHTML(true); dt.style.display=''; } else dt.style.display='none'; }  // destaques só no Painel
   if(isMapa){ assinarRastreio(); ensureMap(); renderMap(); if(!suggestion && aguardandoHoje().some(e=>coordOf(e))) sugerirRotas(); }
-  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else { animateNext(); render(); } }
+  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else if(isEnv){ renderEnvios(); } else { animateNext(); render(); } }
 }
 function ensureMap(){
   if(mapInited){ if(map) setTimeout(()=>map.invalidateSize(),50); return; }
@@ -6264,12 +6274,14 @@ function envSubSec(titulo, lista, modo, cls){
 /* coluna de Envios dentro do quadro do Painel — no lugar da antiga aba */
 function renderEnvios(){
   checkNotificacoesEnvios();                    // avisa a vendedora, esteja ela em qual aba estiver
-  const col=$('col-envios'), box=$('list-envios');
-  if(!col || !box) return;
-  const ehOperacaoOuVend = session && session.role==='vendedora';
-  const board=document.querySelector('#view-painel .board');
-  if(!ehOperacaoOuVend){ col.style.display='none'; if(board) board.classList.remove('with-envios'); return; }
-  col.style.display=''; if(board) board.classList.add('with-envios');
+  const box=$('list-envios'), badge=$('c-tab-envios');
+  if(!box) return;
+  const ehVend = session && session.role==='vendedora';
+  if(!ehVend){ if(badge) badge.textContent=''; return; }
+  // contador da aba: envios de hoje ainda em aberto (inclui os atrasados que rolaram)
+  const _abHoje = enviosDoDia(todayKey()).filter(v=>v.status!=='despachado' && v.status!=='cancelado').length;
+  if(badge) badge.textContent = _abHoje ? ' '+_abHoje : '';
+  if($('view-envios').style.display==='none') return;   // só monta a lista quando a aba está aberta
 
   const doDia=enviosDoDia(diaAtivo);
   // fila por ordem de chegada, com o que já devia ter saído na frente:
@@ -6287,7 +6299,7 @@ function renderEnvios(){
   const cancelados=enviosStatus('cancelado', doDia).sort((a,b)=>(b.canceladoEm||0)-(a.canceladoEm||0));
   const abertos=doDia.filter(v=>v.status!=='despachado' && v.status!=='cancelado');
   const atrasados=doDia.filter(envAtrasadoDia);
-  $('c-envios').textContent = abertos.length;
+
 
   if(!doDia.length && !programados.length){
     box.innerHTML=`<div class="env-vazio">Nenhum envio ${diaAtivo===todayKey()?'hoje':'neste dia'}.<br><button class="btn btn-ghost btn-mini" style="margin-top:10px" onclick="novoEnvio()">📮 Lançar envio</button></div>`;
@@ -6410,6 +6422,7 @@ function applyRole(){
     if(fvend){ fvend.readOnly=!ehGeral; fvend.style.opacity=ehGeral?'':'.65'; if(!ehGeral) fvend.value=session.vendedora; }
     if(vchips) vchips.style.display = ehGeral ? '' : 'none';
     $('tab-fin').style.display='';                   // aba de finalizadas (pagamento/foto) p/ vendedoras
+    $('tab-envios').style.display='';                // aba de Envios: vendedoras e operação
     $('tab-mapa').style.display = ehGeral ? '' : 'none';   // Mapa & Rotas só pra operação (vendedora não monta rota)
     { const _te=$('tab-entlive'); if(_te) _te.style.display=''; }   // Entregadores ao vivo: operação E vendedoras
     // filtro por entregador e Configurações: só operação (vendedora não usa)
