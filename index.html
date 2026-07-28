@@ -501,6 +501,18 @@
   .det-inline-fotos{margin-top:8px}
   .det-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
   .det-thumb{width:84px;height:84px;object-fit:cover;border-radius:11px;border:1px solid var(--line-strong);cursor:pointer;transition:transform .15s}
+  .galimg-dica{font-size:11.5px;color:var(--text-mute);margin-top:2px}
+  .zoom-ov{position:fixed;inset:0;z-index:120;display:none;background:rgba(8,10,6,.95)}
+  .zoom-ov.open{display:block}
+  .zoom-scroll{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    overflow:auto;touch-action:pinch-zoom;-webkit-overflow-scrolling:touch}
+  .zoom-scroll img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;cursor:zoom-in}
+  .zoom-scroll.zoomed{align-items:flex-start;justify-content:flex-start}
+  .zoom-scroll.zoomed img{max-width:none;max-height:none;cursor:zoom-out}
+  .zoom-x{position:fixed;top:14px;right:16px;z-index:121;width:44px;height:44px;border-radius:50%;
+    background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.32);font-size:20px;
+    line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .zoom-x:hover{background:rgba(255,255,255,.24)}
   .det-thumb:hover{transform:scale(1.04)}
   .desf-grp{width:100%;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute);margin:9px 0 3px}
   .troco-wrap{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
@@ -1682,6 +1694,14 @@
 </div>
 
 <!-- image viewer -->
+<!-- zoom em tela cheia das fotos do entregador -->
+<div class="zoom-ov" id="zoom-ov" onclick="fecharZoom(event)">
+  <button class="zoom-x" onclick="fecharZoom()" aria-label="Fechar">✕</button>
+  <div class="zoom-scroll" id="zoom-scroll">
+    <img id="zoom-img" src="" alt="foto ampliada" onclick="toggleZoom(event)" ondblclick="toggleZoom(event)">
+  </div>
+</div>
+
 <div class="modal-bg" id="img-modal" onclick="closeImg()">
   <div class="modal" style="max-width:520px;text-align:center" onclick="event.stopPropagation()">
     <h3 id="img-modal-title" style="margin-bottom:12px">Comprovante</h3>
@@ -1812,7 +1832,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v166</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v167</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -3656,7 +3676,7 @@ function verFotoLocal(id){
 function mostrarImagens(titulo, fotos){
   const t=$('img-modal-title'); if(t) t.textContent=titulo;
   const arr=[].concat(fotos).filter(Boolean);
-  const g=$('img-gallery'); if(g) g.innerHTML = arr.length ? arr.map(b=>`<img src="${b}" style="max-width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:10px">`).join('') : '<div class="foto-load">sem imagem</div>';
+  const g=$('img-gallery'); if(g) g.innerHTML = arr.length ? arr.map(b=>`<img class="galimg" src="${b}" onclick="abrirZoom(this.src)" title="Toque para ampliar" style="max-width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:10px;cursor:zoom-in">`).join('') + '<div class="galimg-dica">Toque na foto para ampliar · no celular, use a pinça para dar zoom</div>' : '<div class="foto-load">sem imagem</div>';
   $('img-modal').classList.add('open');
 }
 /* visão completa de uma entrega finalizada — expande INLINE no próprio card (sem janela em tela cheia) */
@@ -4315,6 +4335,31 @@ function verComprovante(id){
   fotoCloudGet(id).then(arr=>{ if(arr.length){ fotoLocalSet(id,arr); mostrarImagens('Comprovante', arr); } else toast('Comprovante não encontrado'); });
 }
 function closeImg(){ $('img-modal').classList.remove('open'); }
+/* ---- zoom em tela cheia (comprovante / foto do produto) ---- */
+function abrirZoom(src){
+  const ov=$('zoom-ov'), img=$('zoom-img'), sc=$('zoom-scroll');
+  if(!ov||!img) return;
+  sc.classList.remove('zoomed'); img.style.width=''; img.src=src;
+  ov.classList.add('open');
+}
+function toggleZoom(e){
+  if(e){ e.stopPropagation(); e.preventDefault(); }
+  const sc=$('zoom-scroll'), img=$('zoom-img'); if(!sc||!img) return;
+  const z=sc.classList.toggle('zoomed');
+  if(z){
+    img.style.width=(img.naturalWidth||1400)+'px';    // 1:1 pra ler comprovante; o container rola pra ver tudo
+    // centraliza o ponto tocado
+    const r=img.getBoundingClientRect(), px=(e?e.clientX:sc.clientWidth/2), py=(e?e.clientY:sc.clientHeight/2);
+    setTimeout(()=>{ try{ sc.scrollLeft=(sc.scrollWidth-sc.clientWidth)/2; sc.scrollTop=(sc.scrollHeight-sc.clientHeight)/2; }catch(_){ } },0);
+  } else { img.style.width=''; }
+}
+function fecharZoom(e){
+  if(e && e.target && e.target.id==='zoom-img') return;   // clicar na foto só dá zoom, não fecha
+  $('zoom-ov').classList.remove('open');
+  const sc=$('zoom-scroll'); if(sc) sc.classList.remove('zoomed');
+  const img=$('zoom-img'); if(img) img.style.width='';
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape' && $('zoom-ov') && $('zoom-ov').classList.contains('open')) fecharZoom(); });
 function marcarEntregue(id){ abrirPagamento(id); } // agora passa pela confirmação de pagamento
 function voltarAguardando(id){
   if(_bloqueado(id)) return;
