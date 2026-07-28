@@ -857,7 +857,16 @@
     border-radius:var(--radius-sm);padding:16px;text-align:center}
 
   /* ---- envios ---- */
-  #view-envios{max-width:1040px;margin:4px auto 0}
+  #view-envios{max-width:1200px;margin:4px auto 0}
+  .envios-board{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:1100px){ .envios-board{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:640px){ .envios-board{grid-template-columns:1fr} }
+  .envios-board .tick.te1{background:var(--warn)}
+  .envios-board .tick.te2{background:var(--gold)}
+  .envios-board .tick.te3{background:var(--teal)}
+  .envios-board .tick.te4{background:var(--calm)}
+  .envios-board .env-sub:first-child{margin-top:0}
+  .col-vazio{color:var(--text-mute);font-size:12px;padding:8px 2px}
   .env-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
   body.on-envios .kpis, body.on-envios .toolbar, body.on-envios #row-vend-filter{display:none!important}
   .board.with-envios{grid-template-columns:1.1fr 1fr .85fr .95fr}
@@ -1789,7 +1798,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v163</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v164</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -6271,6 +6280,11 @@ function envSubSec(titulo, lista, modo, cls){
   return `<div class="env-sub${cls?' '+cls:''}">${titulo}<span class="n">${lista.length}</span></div>`
     + lista.map(v=>envCardHTML(v,modo)).join('');
 }
+/* uma coluna do quadro de Envios, no mesmo formato do quadro de entregas */
+function envColuna(titulo, tick, n, conteudo){
+  return `<div class="col"><div class="col-head"><span class="title"><span class="tick ${tick}"></span>${titulo}</span><span class="count">${n}</span></div>`
+    + (conteudo || '<div class="col-vazio">—</div>') + `</div>`;
+}
 /* coluna de Envios dentro do quadro do Painel — no lugar da antiga aba */
 function renderEnvios(){
   checkNotificacoesEnvios();                    // avisa a vendedora, esteja ela em qual aba estiver
@@ -6305,17 +6319,22 @@ function renderEnvios(){
     box.innerHTML=`<div class="env-vazio">Nenhum envio ${diaAtivo===todayKey()?'hoje':'neste dia'}.<br><button class="btn btn-ghost btn-mini" style="margin-top:10px" onclick="novoEnvio()">📮 Lançar envio</button></div>`;
     return;
   }
+  const colEmbalar = envColuna('📥 A embalar', 'te1', novos.length,
+      envSubSec('⚠️ Sem transportadora', semTr, 'corrigir', 'urg')
+    + novos.map(v=>envCardHTML(v,'embalar')).join('')
+    + envSubSec('📅 Programados p/ depois', programados, 'programado'));
+  const colLevar = envColuna('📦 Levar ao ponto', 'te2', levar.length,
+      levar.map(v=>envCardHTML(v,'levar')).join('')
+    + envSubSec('🚚 Coleta na loja', coleta, 'coleta'));
+  const colRota = envColuna('🛵 Em rota', 'te3', emRota.length,
+      emRota.map(v=>envCardHTML(v,'rota')).join(''));
+  const colFeito = envColuna('✓ Despachados', 'te4', feitos.length,
+      feitos.map(v=>envCardHTML(v,'feito')).join('')
+    + envSubSec('✕ Cancelados', cancelados, 'cancelado'));
   box.innerHTML =
       (atrasados.length?`<div class="env-atraso-nota">⏱ ${atrasados.length} ${atrasados.length===1?'envio veio':'envios vieram'} de ${atrasados.length===1?'dia anterior':'dias anteriores'} e ${atrasados.length===1?'ainda não saiu':'ainda não saíram'}.</div>`:'')
-    + envSubSec('⚠️ Sem transportadora', semTr, 'corrigir', 'urg')
     + (podeOperarEnvios() ? roteiroHTML() : '')
-    + envSubSec('📥 A embalar', novos, 'embalar')
-    + envSubSec('📦 Levar ao ponto', levar, 'levar')
-    + envSubSec('🚚 Coleta na loja', coleta, 'coleta')
-    + envSubSec('🛵 Em rota', emRota, 'rota')
-    + envSubSec('✓ Despachados', feitos, 'feito')
-    + envSubSec('✕ Cancelados', cancelados, 'cancelado')
-    + envSubSec('📅 Programados para depois', programados, 'programado');
+    + `<div class="board envios-board">${colEmbalar}${colLevar}${colRota}${colFeito}</div>`;
 }
 
 /* ============ login / sessão / entregador ============ */
