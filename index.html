@@ -1783,7 +1783,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v161</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v162</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2013,6 +2013,7 @@ const TRANSPORTADORAS = [
   {id:'jadlog',         nome:'Jadlog',         ico:'📦', coleta:false},
   {id:'latam',          nome:'Latam',          ico:'✈️', coleta:false},
   {id:'azul',           nome:'Azul Express',   ico:'✈️', coleta:false},
+  {id:'ml',             nome:'Mercado Livre',  ico:'🛒', coleta:false},
 ];
 const TRSP = Object.fromEntries(TRANSPORTADORAS.map(t=>[t.id,t]));
 /* Quem coleta na loja depende de quem lançou: os pedidos da loja virtual (importados
@@ -2033,6 +2034,8 @@ const PONTOS_PARCEIROS = [
   {id:'amo',   nome:'Amo Outlet',   ico:'🏬', link:'https://maps.app.goo.gl/UYos71jmrHxYPQph8', aceita:['jadlog','jt','loggi','latam']},
   {id:'total', nome:'Total Express', ico:'🚚', link:'https://maps.app.goo.gl/nhxfW9p8akACYUz66', aceita:['total','jadlog','jt']},
   {id:'azulx', nome:'Azul Express', ico:'✈️', link:'https://maps.app.goo.gl/QLrT1rXfpCGrWiJd6', aceita:['azul']},
+  {id:'mayber', nome:'Mayber Eletrônicos', ico:'🏬', aceita:['ml'],
+   link:'https://www.google.com/maps/place/MAYBER+ELETRONICOS+E+ACESSORIOS/@-16.708869,-49.2918898,17z/data=!3m1!4b1!4m6!3m5!1s0x935ef7f002779f8b:0xb9ca244f0643bb23!8m2!3d-16.708869!4d-49.2918898!16s%2Fg%2F11hfz4s9kh'},
 ];
 const PONTO = Object.fromEntries(PONTOS_PARCEIROS.map(p=>[p.id,p]));
 
