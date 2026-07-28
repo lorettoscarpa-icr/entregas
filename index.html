@@ -1783,7 +1783,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v160</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v161</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -6103,10 +6103,12 @@ function envAvisarCliente(id){
 /* envio não gera pagamento por entrega, então só entra na fila de quem não recebe por entrega */
 const ENT_ENVIOS = ['gustavo','gregory','ewald'];
 function podeLevarEnvios(entId){ return ENT_ENVIOS.indexOf(entId)>=0; }
-/* o entregador pega a rota de envios inteira: todos vão para pontos, não faz sentido dividir */
-function pegarEnviosParaMim(){
+/* pega uma parada da fila: dá para dois entregadores dividirem os pontos entre si,
+   do mesmo jeito que dá para devolver só uma parada */
+function pegarEnviosParaMim(pontoId){
   if(!session || session.role!=='entregador' || !podeLevarEnvios(session.entregador)) return;
-  const paradas=roteiroEnvios(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v)));
+  const paradas=roteiroEnvios(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v)))
+    .filter(p=>!pontoId || p.ponto.id===pontoId);
   if(!paradas.length){ toast('Nenhum envio esperando'); return; }
   let n=0;
   // grava só os campos da pegada: o entregador entra anônimo e as regras do Firestore
@@ -6116,7 +6118,9 @@ function pegarEnviosParaMim(){
     n+=envQtd(v);
   }));
   entTab='rota'; renderEntregador();
-  toast(`${n} pacote${n>1?'s':''} em ${paradas.length} parada${paradas.length>1?'s':''} na sua rota 📮`);
+  toast(paradas.length===1
+    ? `${n} pacote${n>1?'s':''} do ${paradas[0].ponto.nome} na sua rota 📮`
+    : `${n} pacote${n>1?'s':''} em ${paradas.length} paradas na sua rota 📮`);
 }
 
 /* ---- tela ---- */
@@ -7209,12 +7213,12 @@ function enviosNaFilaHTML(){
   const tot=paradas.reduce((n,p)=>n+somaQtd(p.itens),0);
   return `<div class="ent-envios">
     <h3>📮 Envios esperando</h3>
-    <div class="sub">${tot} pacote${tot>1?'s':''} da loja e das vendedoras, em ${paradas.length} parada${paradas.length>1?'s':''}.</div>
+    <div class="sub">${tot} pacote${tot>1?'s':''} da loja e das vendedoras. Pegue as paradas que você vai fazer.</div>
     ${paradas.map(p=>`<div class="env-parada">
       <div class="pn">${p.ponto.ico} ${esc(p.ponto.nome)} <a class="pl" href="${esc(p.ponto.link)}" target="_blank">abrir no mapa ↗</a></div>
       <ul>${p.itens.map(v=>`<li><span>${ehLote(v)?`📦 ${envQtd(v)} pacotes`:esc(v.cliente)}</span><span class="t">${esc(TRSP[v.transportadora]?TRSP[v.transportadora].nome:'')}</span></li>`).join('')}</ul>
+      <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="pegarEnviosParaMim('${p.ponto.id}')">📮 Pegar ${somaQtd(p.itens)>1?`os ${somaQtd(p.itens)} pacotes`:'o pacote'}</button></div>
     </div>`).join('')}
-    <div class="env-acts"><button class="btn btn-primary btn-mini" onclick="pegarEnviosParaMim()">📮 Pegar ${tot>1?`os ${tot} pacotes`:'o pacote'}</button></div>
   </div>`;
 }
 function enviosEntregadorHTML(){
