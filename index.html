@@ -882,7 +882,6 @@
   .env-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
   .env-subtabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .env-subtabs::-webkit-scrollbar{display:none}
-  .env-subtabs .ent-tab{flex:0 1 auto;min-width:120px}
   body.on-envios .kpis, body.on-envios .toolbar, body.on-envios #row-vend-filter{display:none!important}
   body.painel-envios .tabs, body.painel-envios .settings-box, body.painel-envios #avisos,
   body.painel-envios #agendadas, body.painel-envios #destaques-topo, body.painel-envios .kpis,
@@ -1356,12 +1355,6 @@
   <div id="avisos"></div>
   <div id="agendadas"></div>
 
-  <div class="kpis">
-    <div class="kpi k-warn"><span class="kpi-ico">⏳</span><div class="lbl">Aguardando rota</div><div class="val" id="k-aguard">0</div></div>
-    <div class="kpi k-terra" id="k-old-box"><span class="kpi-ico">⌛</span><div class="lbl">Espera mais antiga</div><div class="val" id="k-old">—</div></div>
-    <div class="kpi k-teal"><span class="kpi-ico">🛵</span><div class="lbl">Em rota</div><div class="val" id="k-rota">0</div></div>
-    <div class="kpi k-calm"><span class="kpi-ico">✓</span><div class="lbl" id="k-ent-lbl">Entregues no dia</div><div class="val" id="k-entregue">0</div></div>
-  </div>
 
   <div class="toolbar">
     <div class="filters" id="filters"></div>
@@ -1514,7 +1507,7 @@
   <div id="view-pendentes" style="display:none"></div>
 
   <div id="view-envios" style="display:none">
-    <div class="ent-tabs env-subtabs" id="env-subtabs"></div>
+    <div class="tabs env-subtabs" id="env-subtabs"></div>
     <div id="env-pane-board">
       <div class="env-head">
         <button class="btn btn-primary" onclick="novoEnvio()">📮 Novo envio</button>
@@ -1838,7 +1831,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v168</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v169</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2712,7 +2705,7 @@ function renderDayNav(){
   $('dia-label').textContent = rotuloDia(diaAtivo);
   $('dia-input').value = diaAtivo;
   $('btn-hoje').classList.toggle('hidden', diaAtivo===todayKey());
-  $('k-ent-lbl').textContent = diaAtivo===todayKey() ? 'Entregues hoje' : 'Entregues no dia';
+  { const _kl=$('k-ent-lbl'); if(_kl) _kl.textContent = diaAtivo===todayKey() ? 'Entregues hoje' : 'Entregues no dia'; }
 }
 function setDia(ymd){ if(!ymd) return; diaAtivo=ymd; selected.clear(); animateNext(); renderDayNav(); render(); }
 function mudarDia(delta){
@@ -5039,16 +5032,18 @@ function render(){
   if(tabAtiva==='pendentes') renderPendentes();
   checkNotificacoes();
 
-  // KPIs (do dia em foco)
-  $('k-aguard').textContent = aguard.length;
-  $('k-rota').textContent = rota.length;
-  $('k-entregue').textContent = entregue.length;
-  const ehFuturo = diaAtivo > today;
-  if(aguard.length && !ehFuturo){
-    const oldest=minutesSince(aguard[0].criadoEm);
-    $('k-old').textContent=fmtDur(oldest);
-    $('k-old-box').classList.toggle('alert', oldest>=URGENCIA.urgente);
-  } else { $('k-old').textContent='—'; $('k-old-box').classList.remove('alert'); }
+  // KPIs (do dia em foco) — cards removidos do topo; atualiza só se existirem
+  { const _ka=$('k-aguard'); if(_ka){
+    _ka.textContent = aguard.length;
+    $('k-rota').textContent = rota.length;
+    $('k-entregue').textContent = entregue.length;
+    const ehFuturo = diaAtivo > today;
+    if(aguard.length && !ehFuturo){
+      const oldest=minutesSince(aguard[0].criadoEm);
+      $('k-old').textContent=fmtDur(oldest);
+      $('k-old-box').classList.toggle('alert', oldest>=URGENCIA.urgente);
+    } else { $('k-old').textContent='—'; $('k-old-box').classList.remove('alert'); }
+  } }
 
   // route bar
   $('sel-count').textContent=selected.size;
@@ -6390,9 +6385,9 @@ function renderEnvios(){
 let envSub = 'board';
 let _envMesRel = null;   // mês em foco nos relatórios (gestor)
 const ENV_SUBTABS_VEND = [
-  {id:'board', lbl:'📋 Painel'},
+  {id:'board', lbl:'Painel'},
   {id:'pend',  lbl:'⏳ Pendências'},
-  {id:'fin',   lbl:'📥 Finalizados'},
+  {id:'fin',   lbl:'Finalizados'},
   {id:'rank',  lbl:'🏅 Ranking'},
 ];
 function renderEnvSubtabs(){
@@ -6404,7 +6399,7 @@ function renderEnvSubtabs(){
   if(!tabs.some(t=>t.id===envSub)) envSub=tabs[0].id;
   const _pend = envPendencias();
   const _nPend = _pend.total;
-  bar.innerHTML = tabs.map(t=>`<button class="ent-tab${t.id===envSub?' on':''}" onclick="envSetSub('${t.id}')">${t.lbl}${t.id==='pend'&&_nPend?`<span class="ent-tab-c">${_nPend}</span>`:''}</button>`).join('');
+  bar.innerHTML = tabs.map(t=>`<button class="tab${t.id===envSub?' on':''}" onclick="envSetSub('${t.id}')">${t.lbl}${t.id==='pend'&&_nPend?` ${_nPend}`:''}</button>`).join('');
   // painéis
   [['board','env-pane-board'],['pend','env-pane-pend'],['fin','env-pane-fin'],['rank','env-pane-rank'],['rel','env-pane-rel']]
     .forEach(([id,pane])=>{ const el=$(pane); if(el) el.style.display = (id===envSub)?'':'none'; });
