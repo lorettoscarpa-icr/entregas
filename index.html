@@ -868,6 +868,9 @@
   .envios-board .env-sub:first-child{margin-top:0}
   .col-vazio{color:var(--text-mute);font-size:12px;padding:8px 2px}
   .env-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .env-subtabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .env-subtabs::-webkit-scrollbar{display:none}
+  .env-subtabs .ent-tab{flex:0 1 auto;min-width:120px}
   body.on-envios .kpis, body.on-envios .toolbar, body.on-envios #row-vend-filter{display:none!important}
   body.painel-envios .tabs, body.painel-envios .settings-box, body.painel-envios #avisos,
   body.painel-envios #agendadas, body.painel-envios #destaques-topo, body.painel-envios .kpis,
@@ -1493,13 +1496,20 @@
   <div id="view-pendentes" style="display:none"></div>
 
   <div id="view-envios" style="display:none">
-    <div class="env-head">
-      <button class="btn btn-primary" onclick="novoEnvio()">📮 Novo envio</button>
-      <button class="btn" id="btn-importar-pdf" style="display:none" onclick="document.getElementById('pdf-input').click()">📄 Importar pedidos</button>
-      <button class="btn" id="btn-envio-rapido" style="display:none" onclick="abrirEnvioRapido()">⚡ Envio rápido</button>
-      <input type="file" id="pdf-input" accept="application/pdf,.pdf" style="display:none" onchange="importarPedidosPDF(this)">
+    <div class="ent-tabs env-subtabs" id="env-subtabs"></div>
+    <div id="env-pane-board">
+      <div class="env-head">
+        <button class="btn btn-primary" onclick="novoEnvio()">📮 Novo envio</button>
+        <button class="btn" id="btn-importar-pdf" style="display:none" onclick="document.getElementById('pdf-input').click()">📄 Importar pedidos</button>
+        <button class="btn" id="btn-envio-rapido" style="display:none" onclick="abrirEnvioRapido()">⚡ Envio rápido</button>
+        <input type="file" id="pdf-input" accept="application/pdf,.pdf" style="display:none" onchange="importarPedidosPDF(this)">
+      </div>
+      <div id="list-envios"></div>
     </div>
-    <div id="list-envios"></div>
+    <div id="env-pane-pend" style="display:none"></div>
+    <div id="env-pane-fin" style="display:none"></div>
+    <div id="env-pane-rank" style="display:none"></div>
+    <div id="env-pane-rel" style="display:none"></div>
   </div>
 
   <!-- board -->
@@ -1802,7 +1812,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v165</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v166</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -6293,34 +6303,67 @@ function envColuna(titulo, tick, n, conteudo){
 }
 /* coluna de Envios dentro do quadro do Painel — no lugar da antiga aba */
 function renderEnvios(){
-  checkNotificacoesEnvios();                    // avisa a vendedora, esteja ela em qual aba estiver
-  const box=$('list-envios'), badge=$('c-tab-envios');
-  if(!box) return;
-  const ehVend = session && session.role==='vendedora';
-  if(!ehVend){ if(badge) badge.textContent=''; return; }
-  // contador da aba: envios de hoje ainda em aberto (inclui os atrasados que rolaram)
+  checkNotificacoesEnvios();
+  const badge=$('c-tab-envios');
+  if(!$('list-envios')) return;
+  const podeVer = session && (session.role==='vendedora' || (session.role==='gestor' && _envioMode));
+  if(!podeVer){ if(badge) badge.textContent=''; return; }
   const _abHoje = enviosDoDia(todayKey()).filter(v=>v.status!=='despachado' && v.status!=='cancelado').length;
   if(badge) badge.textContent = _abHoje ? ' '+_abHoje : '';
-  if($('view-envios').style.display==='none') return;   // só monta a lista quando a aba está aberta
+  if($('view-envios').style.display==='none') return;
+  renderEnvSubtabs();
+  const sub = envSub;
+  if(sub==='pend') renderEnvPend();
+  else if(sub==='fin') renderEnvFin();
+  else if(sub==='rank') $('env-pane-rank').innerHTML = rankingEnviosHTML();
+  else if(sub==='rel') renderEnvRelatorios();
+  else renderEnvBoard();
+}
+/* ---- sub-abas do painel de Envios ---- */
+let envSub = 'board';
+let _envMesRel = null;   // mês em foco nos relatórios (gestor)
+const ENV_SUBTABS_VEND = [
+  {id:'board', lbl:'📋 Painel'},
+  {id:'pend',  lbl:'⏳ Pendências'},
+  {id:'fin',   lbl:'📥 Finalizados'},
+  {id:'rank',  lbl:'🏅 Ranking'},
+];
+function renderEnvSubtabs(){
+  const bar=$('env-subtabs'); if(!bar) return;
+  const ehGestor = session && session.role==='gestor';
+  const tabs = ehGestor ? [{id:'rel', lbl:'📊 Relatórios'}] : ENV_SUBTABS_VEND.slice();
+  if(ehGestor && envSub!=='rel') envSub='rel';
+  if(!ehGestor && envSub==='rel') envSub='board';
+  if(!tabs.some(t=>t.id===envSub)) envSub=tabs[0].id;
+  const _pend = envPendencias();
+  const _nPend = _pend.total;
+  bar.innerHTML = tabs.map(t=>`<button class="ent-tab${t.id===envSub?' on':''}" onclick="envSetSub('${t.id}')">${t.lbl}${t.id==='pend'&&_nPend?`<span class="ent-tab-c">${_nPend}</span>`:''}</button>`).join('');
+  // painéis
+  [['board','env-pane-board'],['pend','env-pane-pend'],['fin','env-pane-fin'],['rank','env-pane-rank'],['rel','env-pane-rel']]
+    .forEach(([id,pane])=>{ const el=$(pane); if(el) el.style.display = (id===envSub)?'':'none'; });
+  // botões de lançar só no Painel e só pra quem opera
+  const head=document.querySelector('#env-pane-board .env-head');
+  if(head) head.style.display = (envSub==='board' && !ehGestor) ? '' : 'none';
+}
+function envSetSub(name){ envSub=name; renderEnvios(); window.scrollTo({top:0}); }
 
+/* fila ordenada: o que devia sair antes vem primeiro, depois por hora de lançamento */
+function _envFila(l){ return l.slice().sort((a,b)=>{
+  const da=dataEnvioDe(a), db=dataEnvioDe(b);
+  if(da!==db) return da<db?-1:1;
+  return (a.criadoEm||0)-(b.criadoEm||0);
+}); }
+
+function renderEnvBoard(){
+  const box=$('list-envios'); if(!box) return;
   const doDia=enviosDoDia(diaAtivo);
-  // fila por ordem de chegada, com o que já devia ter saído na frente:
-  // primeiro o dia em que o pacote deveria sair, depois a hora do lançamento
-  const _fila = l => l.slice().sort((a,b)=>{
-    const da=dataEnvioDe(a), db=dataEnvioDe(b);
-    if(da!==db) return da<db?-1:1;
-    return (a.criadoEm||0)-(b.criadoEm||0);
-  });
-  const novos=_fila(enviosStatus('novo', doDia)), levar=_fila(enviosParaLevar(doDia)),
-        coleta=_fila(enviosAguardandoColeta(doDia)), emRota=_fila(enviosStatus('em_rota', doDia)),
-        semTr=_fila(enviosSemTransportadora(doDia));
+  const novos=_envFila(enviosStatus('novo', doDia)), levar=_envFila(enviosParaLevar(doDia)),
+        coleta=_envFila(enviosAguardandoColeta(doDia)), emRota=_envFila(enviosStatus('em_rota', doDia)),
+        semTr=_envFila(enviosSemTransportadora(doDia));
   const feitos=enviosStatus('despachado', doDia).sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0));
   const programados = diaAtivo===todayKey() ? enviosProgramados() : [];
   const cancelados=enviosStatus('cancelado', doDia).sort((a,b)=>(b.canceladoEm||0)-(a.canceladoEm||0));
-  const abertos=doDia.filter(v=>v.status!=='despachado' && v.status!=='cancelado');
   const atrasados=doDia.filter(envAtrasadoDia);
-
-
   if(!doDia.length && !programados.length){
     box.innerHTML=`<div class="env-vazio">Nenhum envio ${diaAtivo===todayKey()?'hoje':'neste dia'}.<br><button class="btn btn-ghost btn-mini" style="margin-top:10px" onclick="novoEnvio()">📮 Lançar envio</button></div>`;
     return;
@@ -6330,17 +6373,88 @@ function renderEnvios(){
     + novos.map(v=>envCardHTML(v,'embalar')).join('')
     + envSubSec('📅 Programados p/ depois', programados, 'programado'));
   const colLevar = envColuna('📦 Levar ao ponto', 'te2', levar.length,
-      levar.map(v=>envCardHTML(v,'levar')).join('')
-    + envSubSec('🚚 Coleta na loja', coleta, 'coleta'));
-  const colRota = envColuna('🛵 Em rota', 'te3', emRota.length,
-      emRota.map(v=>envCardHTML(v,'rota')).join(''));
+      levar.map(v=>envCardHTML(v,'levar')).join('') + envSubSec('🚚 Coleta na loja', coleta, 'coleta'));
+  const colRota = envColuna('🛵 Em rota', 'te3', emRota.length, emRota.map(v=>envCardHTML(v,'rota')).join(''));
   const colFeito = envColuna('✓ Despachados', 'te4', feitos.length,
-      feitos.map(v=>envCardHTML(v,'feito')).join('')
-    + envSubSec('✕ Cancelados', cancelados, 'cancelado'));
+      feitos.map(v=>envCardHTML(v,'feito')).join('') + envSubSec('✕ Cancelados', cancelados, 'cancelado'));
   box.innerHTML =
       (atrasados.length?`<div class="env-atraso-nota">⏱ ${atrasados.length} ${atrasados.length===1?'envio veio':'envios vieram'} de ${atrasados.length===1?'dia anterior':'dias anteriores'} e ${atrasados.length===1?'ainda não saiu':'ainda não saíram'}.</div>`:'')
     + (podeOperarEnvios() ? roteiroHTML() : '')
     + `<div class="board envios-board">${colEmbalar}${colLevar}${colRota}${colFeito}</div>`;
+}
+
+/* ---- Pendências ---- */
+function envPendencias(){
+  const vis = enviosVisiveis();
+  const faltaLancar = naoLancadasEnviosList();
+  const prazoEmbalagem = vis.filter(envEsperandoEmbalagem);
+  const semTransp = vis.filter(v=>v.status==='embalado' && !v.transportadora);
+  const semRastreio = vis.filter(v=>v.status==='despachado' && v.rastreio && !v.avisoCliente && waNumero(v.contato));
+  const distintos=new Set([...faltaLancar,...prazoEmbalagem,...semTransp,...semRastreio].map(v=>v.id));
+  return { faltaLancar, prazoEmbalagem, semTransp, semRastreio, total: distintos.size };
+}
+function envPendRow(v, sub, acao){
+  const dest=[v.cidade,v.uf].filter(Boolean).join(' - ');
+  return `<div class="pend-row"><div class="pend-info"><b>📮 ${esc(v.cliente||'(sem nome)')}</b>${v.valor?` <span class="pend-val">R$ ${esc(v.valor)}</span>`:''}<small>${esc(sub)}${dest?' · '+esc(dest):''}${v.vendedora?' · 👤 '+esc(v.vendedora):''}</small></div><div class="pend-acts">${acao}</div></div>`;
+}
+function renderEnvPend(){
+  const box=$('env-pane-pend'); if(!box) return;
+  const P=envPendencias();
+  if(!P.total){ box.innerHTML='<div class="empty">Nenhuma pendência de envio. Tudo em dia 👍</div>'; return; }
+  const bloco=(tit,sub,lista,acaoFn)=> lista.length
+    ? `<div class="env-sub">${tit}<span class="n">${lista.length}</span></div>`+lista.map(v=>envPendRow(v,sub,acaoFn(v))).join('')
+    : '';
+  box.innerHTML =
+      bloco('⚠️ Sem transportadora','embalado sem transportadora — não entra no roteiro',P.semTransp,
+        v=>`<button class="pend-b sis" onclick="editarEnvio('${v.id}')">Definir transportadora</button>`)
+    + bloco('⏰ Passou do prazo de embalagem','ainda não embalado',P.prazoEmbalagem,
+        v=>`<button class="pend-b no" onclick="cobrarEdson('${v.id}')">⏰ Cobrar o Edson</button>`)
+    + bloco('💬 Cliente sem o rastreio','despachado, cliente não avisado',P.semRastreio,
+        v=>`<button class="pend-b ok" onclick="envAvisarCliente('${v.id}')">💬 Avisar cliente</button>`)
+    + bloco('📥 Falta lançar no sistema','despachado, ainda não lançado',P.faltaLancar,
+        v=>`<button class="pend-b sis" onclick="toggleLancadoEnvio('${v.id}')">☐ Lançado no sistema</button>`);
+}
+
+/* ---- Finalizados (despachados do dia, com pós-venda e lançar) ---- */
+function renderEnvFin(){
+  const box=$('env-pane-fin'); if(!box) return;
+  const fin = enviosVisiveis().filter(v=>v.status==='despachado' && v.despachadoEm && dateKey(new Date(v.despachadoEm))===diaAtivo)
+                .sort((a,b)=>(a.despachadoEm||0)-(b.despachadoEm||0));
+  const _lanc=fin.filter(v=>v.lancado).length, _falta=fin.length-_lanc;
+  const resumo = fin.length?`<p class="vmin-sub" style="margin-bottom:14px">Envios despachados em <b>${esc(rotuloDia(diaAtivo))}</b> · 📥 <b style="color:#7fb0e0">${_lanc}</b> lançados · <b style="color:var(--gold)">${_falta}</b> a lançar</p>`:'';
+  box.innerHTML = resumo + (fin.length ? fin.map(fcardEnvio).join('') : '<div class="empty">Nenhum envio despachado neste dia.</div>');
+}
+
+/* ---- Ranking de envios ---- */
+function rankingEnviosHTML(){
+  const e=rankingEnviosDados();
+  const tot=e.mes.reduce((s,r)=>s+r.val,0);
+  return `<div class="rk-wrap">
+    <div class="dest-eyebrow">Envios do mês · disputa por vendedora</div>
+    <div class="rk-sub-nota">Vendas para fora de Goiânia. Cancelados não contam.</div>
+    ${tot?`<div class="rk-cols">
+      <div class="rk-card">${rankBlock('Envios no mês','📮', e.mes, false)}</div>
+      <div class="rk-card">${rankBlock('Envios hoje','☀️', e.dia, false)}</div>
+      <div class="rk-card">${rankBlock('Ticket médio','💰', e.tick, true)}</div>
+    </div>`:`<div class="rk-vazio">Nenhum envio lançado neste mês ainda.</div>`}
+  </div>`;
+}
+
+/* ---- Relatórios (gestor) ---- */
+function envMudarMesRel(delta){
+  const base=_envMesRel||monthKey(new Date());
+  const [y,m]=base.split('-').map(Number);
+  _envMesRel=monthKey(new Date(y, m-1+delta, 1));
+  renderEnvRelatorios();
+}
+function renderEnvRelatorios(){
+  const box=$('env-pane-rel'); if(!box) return;
+  const mes=_envMesRel||monthKey(new Date());
+  box.innerHTML = `<div class="daynav" style="max-width:420px;margin:0 auto 16px">
+      <button class="daynav-btn" onclick="envMudarMesRel(-1)" aria-label="Mês anterior">‹</button>
+      <div class="daynav-center"><span class="daynav-label">${esc(rotuloMes(mes))}</span></div>
+      <button class="daynav-btn" onclick="envMudarMesRel(1)" aria-label="Próximo mês">›</button>
+    </div>` + gestorEnviosHTML(mes);
 }
 
 /* ============ login / sessão / entregador ============ */
@@ -6463,8 +6577,13 @@ function applyRole(){
     if(mapInited && map) setTimeout(()=>map.invalidateSize(),80);
   } else if(session.role==='gestor'){
     $('role-label').innerHTML='<b>Gestor</b>';
-    $('area-gestor').style.display='';
-    renderGestor();
+    if(_envioMode){
+      $('area-operacao').style.display='';
+      envSub='rel'; switchTab('envios');
+    } else {
+      $('area-gestor').style.display='';
+      renderGestor();
+    }
   } else {
     document.body.classList.add('role-entregador');
     const ent=ENT[session.entregador];
@@ -6792,19 +6911,14 @@ function renderFinalizadas(){
   const dia=diaAtivo, ehGeral=!!session.geral;
   const base = ehGeral ? entregas.filter(e=>dataDe(e)===dia) : entregasDaVendedora(dia);
   const fin = base.filter(e=>e.status==='entregue').sort((a,b)=>(a.entregueEm||0)-(b.entregueEm||0)); // em fila: feito primeiro
-  // envios já despachados entram aqui pelo dia em que SAÍRAM da loja (é o que fechou no dia)
-  const finEnv = enviosVisiveis()
-    .filter(v=>!ehLote(v) && v.status==='despachado' && v.despachadoEm && dateKey(new Date(v.despachadoEm))===dia)
-    .sort((a,b)=>(a.despachadoEm||0)-(b.despachadoEm||0));
-  const todos=[...fin, ...finEnv];
-  const _lanc = todos.filter(e=>e.lancado).length, _falta = todos.length - _lanc;
-  const _resumoSis = todos.length ? `<div style="margin-top:7px;font-size:12.5px;color:var(--text-soft)">📥 <b style="color:#7fb0e0">${_lanc}</b> lançados no sistema · <b style="color:var(--gold)">${_falta}</b> a lançar${finEnv.length?` · inclui <b>${finEnv.length}</b> ${finEnv.length===1?'envio':'envios'}`:''}</div>` : '';
+  const _lanc = fin.filter(e=>e.lancado).length, _falta = fin.length - _lanc;
+  const _resumoSis = fin.length ? `<div style="margin-top:7px;font-size:12.5px;color:var(--text-soft)">📥 <b style="color:#7fb0e0">${_lanc}</b> lançados no sistema · <b style="color:var(--gold)">${_falta}</b> a lançar</div>` : '';
   $('fin-sub').innerHTML = (ehGeral
-    ? `Entregas e envios <b>finalizados</b> de <b>${esc(rotuloDia(dia))}</b> — confira como cada cliente pagou.`
-    : `Suas entregas e envios <b>finalizados</b> de <b>${esc(rotuloDia(dia))}</b> — forma de pagamento, comprovante e detalhes.`) + _resumoSis;
-  $('fin-list').innerHTML = todos.length
-    ? fin.map(fcard).join('') + finEnv.map(fcardEnvio).join('')
-    : `<div class="empty">Nenhuma entrega ou envio finalizado neste dia ainda.</div>`;
+    ? `Entregas <b>finalizadas</b> de <b>${esc(rotuloDia(dia))}</b> — confira como cada cliente pagou.`
+    : `Suas entregas <b>finalizadas</b> de <b>${esc(rotuloDia(dia))}</b> — forma de pagamento, comprovante e detalhes.`) + _resumoSis;
+  $('fin-list').innerHTML = fin.length
+    ? fin.map(fcard).join('')
+    : `<div class="empty">Nenhuma entrega finalizada neste dia ainda.</div>`;
 }
 function toggleLancadoEnvio(id){
   const v=envios.find(x=>x.id===id); if(!v) return;
@@ -8327,7 +8441,6 @@ if(_trackId){
     document.body.classList.add('painel-envios');
     const bs=$('brand-sub'); if(bs) bs.textContent='Envios';
     const lce=$('login-card-ent'); if(lce) lce.style.display='none';
-    const lcg=$('login-card-gestor'); if(lcg) lcg.style.display='none';
     const bi=$('busca-entrega'); if(bi) bi.placeholder='🔎 Buscar envio por nome, telefone ou código de rastreio';
   }
   renderFilters(); renderEntPick(); animateNext(); render(); tick();
