@@ -913,10 +913,16 @@
   .g-corte input{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);
     border-radius:9px;padding:8px 10px;font-family:inherit;font-size:14px}
   .g-corte span{flex:1 1 100%;font-size:11.5px;color:var(--text-mute);line-height:1.5}
+  .g-cortes{display:grid;grid-template-columns:1fr 1fr;gap:2px 26px;margin-top:14px;padding-top:14px;
+    border-top:1px solid var(--line)}
+  .g-cortes .g-corte{margin-top:0;padding-top:0;border-top:0}
+  @media(max-width:640px){ .g-cortes{grid-template-columns:1fr;gap:0} }
   .env-fila{margin-top:12px;font-size:12.5px;color:var(--text-soft);background:var(--surface-2);
     border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;text-align:center}
   .env-fila b{color:var(--gold-lt)}
   .env-atraso-nota{background:rgba(224,179,65,.13);border:1px solid rgba(224,179,65,.36);color:var(--warn);
+    border-radius:var(--radius-sm);padding:9px 11px;font-size:12px;line-height:1.45;margin-bottom:12px}
+  .env-corte-nota{background:rgba(90,155,120,.12);border:1px solid rgba(90,155,120,.34);color:var(--calm);
     border-radius:var(--radius-sm);padding:9px 11px;font-size:12px;line-height:1.45;margin-bottom:12px}
   .env-card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--surface-3);border-radius:var(--radius-sm);
     padding:12px 14px;margin-bottom:9px;box-shadow:var(--elev-1)}
@@ -1832,7 +1838,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v167</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v168</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2209,7 +2215,8 @@ const CFG_KEY = 'loretto_entregas_cfg_v1';
 /* ============ config (loja de origem + estimativa por distância) ============ */
 const CFG_DEFAULT = {
   minPorEntrega: 15,            // fallback p/ entregas sem pin no mapa
-  corteEnvio: '12:30',         // envio lançado depois deste horário já entra para o dia seguinte
+  corteEnvio: '12:30',         // corte de LANÇAMENTO (vendedoras): envio lançado depois já entra para o dia seguinte
+  corteEmbalagem: '14:00',     // corte de EMBALAGEM (Edson): embalado até aqui pega o caminhão do mesmo dia
   velocidadeKmh: 45,           // velocidade média da moto em Goiânia (usada na previsão do painel; a previsão por rua vem desligada)
   fatorRota: 1.4,              // distância em linha reta -> distância de rua (fallback)
   servicoMin: 4,               // tempo parado por entrega (estacionar/entregar)
@@ -5491,13 +5498,26 @@ function setCorteEnvio(v){
   if(!m){ toast('Horário inválido'); return; }
   config.corteEnvio = String(m[1]).padStart(2,'0')+':'+m[2];
   saveCfg(); renderGestor();
-  toast('Corte dos envios: '+config.corteEnvio);
+  toast('Corte de lançamento: '+config.corteEnvio);
 }
-function passouDoCorte(){
-  const m=corteEnvio().match(/^(\d{1,2}):(\d{2})$/); if(!m) return false;
+/* segundo corte, do Edson: até esse horário todo envio do dia tem que estar embalado
+   para pegar o caminhão da transportadora no mesmo dia. É outro horário, separado do
+   corte de lançamento das vendedoras, e também editável pelo gestor. */
+function corteEmbalagem(){ return String((config && config.corteEmbalagem) || '14:00'); }
+function setCorteEmbalagem(v){
+  const m=String(v||'').match(/^(\d{1,2}):(\d{2})$/);
+  if(!m){ toast('Horário inválido'); return; }
+  config.corteEmbalagem = String(m[1]).padStart(2,'0')+':'+m[2];
+  saveCfg(); renderGestor();
+  toast('Corte de embalagem: '+config.corteEmbalagem);
+}
+function _passouDe(hhmm){
+  const m=String(hhmm||'').match(/^(\d{1,2}):(\d{2})$/); if(!m) return false;
   const agora=new Date();
   return (agora.getHours()*60+agora.getMinutes()) > (+m[1]*60 + +m[2]);
 }
+function passouDoCorte(){ return _passouDe(corteEnvio()); }
+function passouDoCorteEmbalagem(){ return _passouDe(corteEmbalagem()); }
 function dataEnvioPadrao(){
   return passouDoCorte() ? dateKey(new Date(Date.now()+86400000)) : todayKey();
 }
@@ -5555,11 +5575,13 @@ function envAtrasoTxt(v){
   const d=dataEnvioDe(v), ontem=dateKey(new Date(Date.now()-86400000));
   return d===ontem ? 'ontem' : d.slice(8,10)+'/'+d.slice(5,7);
 }
-/* prazo do Edson: envio de dia anterior, ou de hoje depois do corte, já devia estar embalado */
+/* prazo do Edson: envio de dia anterior, ou de hoje depois do CORTE DE EMBALAGEM,
+   já devia estar embalado. Repare que aqui o horário é o corte de embalagem (o do Edson),
+   não o de lançamento (o das vendedoras) — são dois prazos distintos. */
 function envEsperandoEmbalagem(v){
   if(!v || v.status!=='novo') return false;
   const d=dataEnvioDe(v), hoje=todayKey();
-  return d<hoje || (d===hoje && passouDoCorte());
+  return d<hoje || (d===hoje && passouDoCorteEmbalagem());
 }
 function envMsgCobrarEdson(v){
   const d=dataEnvioDe(v), hoje=todayKey();
@@ -6399,6 +6421,15 @@ function _envFila(l){ return l.slice().sort((a,b)=>{
   return (a.criadoEm||0)-(b.criadoEm||0);
 }); }
 
+/* nota do prazo de embalagem do dia: lembra o Edson do horário-limite para o caminhão de hoje.
+   Só aparece no dia de hoje e enquanto houver pacote sem embalar. */
+function envCorteEmbNotaHTML(novos){
+  if(diaAtivo!==todayKey() || !novos || !novos.length) return '';
+  const emb=corteEmbalagem();
+  return passouDoCorteEmbalagem()
+    ? `<div class="env-atraso-nota">⏰ Passou das ${esc(emb)} — ${novos.length===1?'o pacote que ainda não foi':'os pacotes que ainda não foram'} embalado${novos.length===1?'':'s'} pode${novos.length===1?'':'m'} perder o caminhão de hoje.</div>`
+    : `<div class="env-corte-nota">📦 Embale até <b>${esc(emb)}</b> para pegar o caminhão da transportadora ainda hoje · faltam <b>${novos.length}</b>.</div>`;
+}
 function renderEnvBoard(){
   const box=$('list-envios'); if(!box) return;
   const doDia=enviosDoDia(diaAtivo);
@@ -6424,6 +6455,7 @@ function renderEnvBoard(){
       feitos.map(v=>envCardHTML(v,'feito')).join('') + envSubSec('✕ Cancelados', cancelados, 'cancelado'));
   box.innerHTML =
       (atrasados.length?`<div class="env-atraso-nota">⏱ ${atrasados.length} ${atrasados.length===1?'envio veio':'envios vieram'} de ${atrasados.length===1?'dia anterior':'dias anteriores'} e ${atrasados.length===1?'ainda não saiu':'ainda não saíram'}.</div>`:'')
+    + envCorteEmbNotaHTML(novos)
     + (podeOperarEnvios() ? roteiroHTML() : '')
     + `<div class="board envios-board">${colEmbalar}${colLevar}${colRota}${colFeito}</div>`;
 }
@@ -8213,17 +8245,30 @@ function _paRender(){
     +semHtml
     +'<div class="pa-hint">'+esc(_paTarifaTxt(_paSel))+' Conta as concluídas + as "não comprou" (o entregador foi até o cliente, mas a venda não fechou). Não conta as "não entregue" (cliente ausente/não localizado) nem as agendadas que não saíram.</div>';
 }
+/* os dois horários de corte, lado a lado — separados de propósito:
+   1) lançamento (vendedoras): até esse horário o envio ainda pega o dia; depois vai p/ amanhã
+   2) embalagem (Edson): até esse horário o pacote tem que estar embalado p/ pegar o caminhão hoje */
+function cortesEnviosHTML(){
+  return `<div class="g-cortes">
+    <div class="g-corte">
+      <label for="cfg-corte">⏰ Corte de lançamento · vendedoras</label>
+      <input type="time" id="cfg-corte" value="${esc(corteEnvio())}" onchange="setCorteEnvio(this.value)">
+      <span>Até esse horário as vendedoras lançam e o envio sai hoje. Depois dele, entra para o dia seguinte.</span>
+    </div>
+    <div class="g-corte">
+      <label for="cfg-corte-emb">📦 Corte de embalagem · Edson</label>
+      <input type="time" id="cfg-corte-emb" value="${esc(corteEmbalagem())}" onchange="setCorteEmbalagem(this.value)">
+      <span>Até esse horário o Edson tem que deixar tudo embalado para pegar o caminhão da transportadora no mesmo dia. Depois dele, o que ainda estiver sem embalar vira pendência.</span>
+    </div>
+  </div>`;
+}
 /* bloco de envios do gestor: volume do mês, para onde vai e por onde sai */
 function gestorEnviosHTML(mes){
   const doMes=(typeof envios!=='undefined'?envios:[]).filter(v=>dataEnvioDe(v).startsWith(mes));
   if(!doMes.length){
     return `<div class="g-card"><h3>📮 Envios</h3>
       <div class="g-env-vazio">Nenhum envio lançado em ${esc(rotuloMes(mes))}.</div>
-      <div class="g-corte">
-        <label for="cfg-corte">⏰ Horário de corte dos envios</label>
-        <input type="time" id="cfg-corte" value="${esc(corteEnvio())}" onchange="setCorteEnvio(this.value)">
-        <span>Envio lançado até esse horário sai no mesmo dia. Depois dele, já entra para o dia seguinte.</span>
-      </div></div>`;
+      ${cortesEnviosHTML()}</div>`;
   }
   const cancelados=doMes.filter(v=>v.status==='cancelado');
   const validos=doMes.filter(v=>v.status!=='cancelado');       // cancelado não infla volume nem valor
@@ -8260,11 +8305,7 @@ function gestorEnviosHTML(mes){
       <div><h4 class="g-env-h">Por vendedora</h4>${barras(porVend,'var(--calm)')}</div>
       ${porPonto.length?`<div><h4 class="g-env-h">Por ponto parceiro</h4>${barras(porPonto,'var(--terra)')}</div>`:''}
     </div>
-    <div class="g-corte">
-      <label for="cfg-corte">⏰ Horário de corte dos envios</label>
-      <input type="time" id="cfg-corte" value="${esc(corteEnvio())}" onchange="setCorteEnvio(this.value)">
-      <span>Envio lançado até esse horário sai no mesmo dia. Depois dele, já entra para o dia seguinte.</span>
-    </div>
+    ${cortesEnviosHTML()}
     ${cancelados.length?`<p class="g-set-hint" style="margin-top:10px">✕ <b>${cancelados.length}</b> ${cancelados.length===1?'envio cancelado':'envios cancelados'} no mês (fora das contas acima): ${esc([...new Set(cancelados.map(v=>v.motivo).filter(Boolean))].join(' · '))||'sem motivo registrado'}.</p>`:''}
     <p class="g-set-hint" style="margin-top:12px">Envio não entra no faturamento de entregas nem no ranking de entregas — é contado à parte. Correios e Total Express coletam na própria loja; o resto vai de carona na rota do entregador até o ponto parceiro.</p>
   </div>`;
