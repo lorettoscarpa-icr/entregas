@@ -883,7 +883,7 @@
   .env-subtabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .env-subtabs::-webkit-scrollbar{display:none}
   body.on-envios .kpis, body.on-envios .toolbar, body.on-envios #row-vend-filter{display:none!important}
-  body.painel-envios .tabs, body.painel-envios .settings-box, body.painel-envios #avisos,
+  body.painel-envios .tabs:not(.env-subtabs), body.painel-envios .settings-box, body.painel-envios #avisos,
   body.painel-envios #agendadas, body.painel-envios #destaques-topo, body.painel-envios .kpis,
   body.painel-envios .toolbar, body.painel-envios #row-vend-filter{display:none!important}
   body.painel-envios #view-envios{max-width:1240px}
@@ -1831,7 +1831,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v170</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v171</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
