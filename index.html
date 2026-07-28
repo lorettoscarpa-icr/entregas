@@ -1507,14 +1507,14 @@
   <div id="view-pendentes" style="display:none"></div>
 
   <div id="view-envios" style="display:none">
+    <div class="env-head">
+      <button class="btn btn-primary" onclick="novoEnvio()">📮 Novo envio</button>
+      <button class="btn" id="btn-importar-pdf" style="display:none" onclick="document.getElementById('pdf-input').click()">📄 Importar pedidos</button>
+      <button class="btn" id="btn-envio-rapido" style="display:none" onclick="abrirEnvioRapido()">⚡ Envio rápido</button>
+      <input type="file" id="pdf-input" accept="application/pdf,.pdf" style="display:none" onchange="importarPedidosPDF(this)">
+    </div>
     <div class="tabs env-subtabs" id="env-subtabs"></div>
     <div id="env-pane-board">
-      <div class="env-head">
-        <button class="btn btn-primary" onclick="novoEnvio()">📮 Novo envio</button>
-        <button class="btn" id="btn-importar-pdf" style="display:none" onclick="document.getElementById('pdf-input').click()">📄 Importar pedidos</button>
-        <button class="btn" id="btn-envio-rapido" style="display:none" onclick="abrirEnvioRapido()">⚡ Envio rápido</button>
-        <input type="file" id="pdf-input" accept="application/pdf,.pdf" style="display:none" onchange="importarPedidosPDF(this)">
-      </div>
       <div id="list-envios"></div>
     </div>
     <div id="env-pane-pend" style="display:none"></div>
@@ -1831,7 +1831,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v171</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v172</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -6427,9 +6427,10 @@ function renderEnvSubtabs(){
   // painéis
   [['board','env-pane-board'],['pend','env-pane-pend'],['fin','env-pane-fin'],['rank','env-pane-rank'],['rel','env-pane-rel']]
     .forEach(([id,pane])=>{ const el=$(pane); if(el) el.style.display = (id===envSub)?'':'none'; });
-  // botões de lançar só no Painel e só pra quem opera
-  const head=document.querySelector('#env-pane-board .env-head');
-  if(head) head.style.display = (envSub==='board' && !ehGestor) ? '' : 'none';
+  // botões de lançar ficam acima das abas (como nas entregas) e valem para todas as
+  // sub-abas de quem lança; o gestor não lança envios, então some para ele
+  const head=document.querySelector('#view-envios > .env-head');
+  if(head) head.style.display = ehGestor ? 'none' : '';
 }
 function envSetSub(name){ envSub=name; renderEnvios(); window.scrollTo({top:0}); }
 
