@@ -1831,7 +1831,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v169</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v170</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5636,6 +5636,30 @@ function editarEnvio(id){
   const fv=$('env-vend'); fv.readOnly=ehVend; fv.style.opacity=ehVend?'.65':'';
   $('env-modal').classList.add('open');
 }
+/* relança um envio já despachado: reaproveita cliente/endereço/produto e abre um lançamento
+   NOVO, já sem rastreio nem transportadora — o reenvio ganha um link novo (que define a transportadora). */
+function relancarEnvio(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  _envEditId=null;
+  $('env-modal-title').textContent='Novo envio';
+  $('env-paste').value='';
+  $('env-cliente').value=v.cliente||''; $('env-cpf').value=v.cpf||''; $('env-nasc').value=v.nascimento||'';
+  $('env-contato').value=v.contato||''; $('env-cep').value=v.cep||''; $('env-end').value=v.endereco||'';
+  $('env-bairro').value=v.bairro||''; $('env-cidade').value=v.cidade||''; $('env-uf').value=v.uf||'';
+  $('env-prod').value=v.produto||''; $('env-valor').value=v.valor||''; $('env-obs').value=v.observacao||'';
+  $('env-rast').value='';                    // reenvio = novo link de rastreio
+  $('env-trsp').innerHTML=opcoesTrsp('');    // transportadora vem do link novo
+  { const h=$('env-trsp-hint'); if(h) h.textContent=''; }
+  $('env-data').value = dataEnvioPadrao();
+  { const h=$('env-data-hint'); if(h) h.textContent = passouDoCorte()
+      ? `Já passou das ${corteEnvio()} — este envio sai amanhã. Pode mudar a data se precisar.`
+      : `Lançado até ${corteEnvio()}, sai hoje.`; }
+  const ehVend = session.role==='vendedora' && !session.geral;
+  const fv=$('env-vend'); fv.value = ehVend ? session.vendedora : (v.vendedora||''); fv.readOnly=ehVend; fv.style.opacity=ehVend?'.65':'';
+  $('env-modal').classList.add('open');
+  try{ window.scrollTo(0,0); }catch(_){}
+  toast('Envio relançado — cole o novo link de rastreio para concluir');
+}
 function fecharEnvio(){ $('env-modal').classList.remove('open'); _envEditId=null; }
 function salvarEnvio(){
   const cliente=$('env-cliente').value.trim();
@@ -7042,6 +7066,7 @@ function fcardEnvio(v){
       <button class="vbtn ${v.lancado?'sis-on':'sis-off'}" onclick="toggleLancadoEnvio('${v.id}')">${v.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>
       ${tel?`<button class="vbtn ${v.avisoCliente?'ghost':''}" onclick="envAvisarCliente('${v.id}')">${WA_ICON} ${v.avisoCliente?'Reenviar rastreio':'Avisar cliente — rastreio'}</button>`:'<span class="vbtn disabled">sem telefone</span>'}
       ${tel?`<a class="vbtn wa" href="https://wa.me/${tel}?text=${encodeURIComponent(msgPosVenda(v))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:''}
+      <button class="vbtn relancar" onclick="relancarEnvio('${v.id}')">🔁 Relançar envio</button>
     </div>
   </div>`;
 }
