@@ -1852,7 +1852,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v173</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v174</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4423,14 +4423,6 @@ function pendListVend(){
   const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
   return entregas.filter(e=>['aguardando','em_rota','nao_entregue','cancelado'].includes(e.status) && dataDe(e) < today && inEsc(e) && !e.pendResolvido && !e.pendDescartado);
 }
-/* entregues que ainda NÃO foram lançadas no sistema (hoje + dias anteriores), no escopo da vendedora */
-function naoLancadasEnviosList(){
-  if(!session || session.role!=='vendedora') return [];
-  const ehVendPessoal = !session.geral && !!session.vendedora;
-  const alvo = ehVendPessoal ? norm(session.vendedora) : null;
-  return envios.filter(v=> !ehLote(v) && v.status==='despachado' && !v.lancado
-    && (!ehVendPessoal || (v.vendedora && norm(v.vendedora)===alvo)));
-}
 function naoLancadasList(){
   const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
   const alvo = ehVendPessoal ? norm(session.vendedora) : null;
@@ -4455,18 +4447,16 @@ function togglePend(k){
 function renderPendentes(){
   const box=$('view-pendentes'); if(!box) return;
   const naoLanc = naoLancadasList().slice().sort((a,b)=>{ const da=dataDe(a), db=dataDe(b); return da<db?-1:da>db?1:0; });
-  const naoLancEnv = naoLancadasEnviosList().slice().sort((a,b)=>(a.despachadoEm||0)-(b.despachadoEm||0));
   const pend=pendListVend();
   const dinRec=dinheiroReceberList();
-  if(!naoLanc.length && !naoLancEnv.length && !pend.length && !dinRec.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
+  if(!naoLanc.length && !pend.length && !dinRec.length){ box.innerHTML='<div class="empty">Nenhuma pendência por aqui. Tudo em dia 👍</div>'; return; }
   const fmtBRL = n => 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const _vNum = v => { if(v==null) return 0; let s=String(v).replace(/[^\d.,-]/g,'').trim(); if(s==='') return 0; if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); return Number(s)||0; };
   let html = `<p class="vmin-sub" style="margin-bottom:14px">Tudo que precisa da sua atenção: o que falta <b>lançar no sistema</b>, as <b>pendências de entrega</b> e o <b>dinheiro a receber</b>.</p>`;
 
   // ===== PARTE 1 — Não lançadas no sistema (entregues, hoje + dias anteriores, ainda não lançadas) =====
-  if(naoLanc.length || naoLancEnv.length){
-    const _totNL = naoLanc.length + naoLancEnv.length;
-    html += `<div class="pend-part${_pendOpen.nl?'':' collapsed'}" id="pend-head-nl" onclick="togglePend('nl')"><div class="n">1</div><div class="t">Não lançadas no sistema<small>Entregas e envios concluídos que ainda faltam lançar no Kigi</small></div><div class="c">${_totNL} a lançar</div><span class="pend-chev">▾</span></div>`;
+  if(naoLanc.length){
+    html += `<div class="pend-part${_pendOpen.nl?'':' collapsed'}" id="pend-head-nl" onclick="togglePend('nl')"><div class="n">1</div><div class="t">Não lançadas no sistema<small>Entregas concluídas que ainda faltam lançar no Kigi</small></div><div class="c">${naoLanc.length} a lançar</div><span class="pend-chev">▾</span></div>`;
     html += `<div id="pend-body-nl"${_pendOpen.nl?'':' style="display:none"'}>` + naoLanc.map(e=>{
       const dias=_diasAtras(dataDe(e));
       const quando = dias<=0 ? 'hoje' : `há ${dias} dia${dias>1?'s':''}`;
@@ -4474,16 +4464,6 @@ function renderPendentes(){
       const valTag = vN>0 ? ` <span class="pend-val">${fmtBRL(vN)}</span>` : '';
       const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
       return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b>${valTag}<small>${quando}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}</small></div><div class="pend-acts"><button class="pend-b sis" onclick="toggleLancado('${e.id}')">☐ Marcar: lançado no sistema</button></div></div>`;
-    }).join('') + naoLancEnv.map(v=>{
-      const dkDesp=dateKey(new Date(v.despachadoEm||Date.now()));
-      const quando = dkDesp===todayKey() ? 'hoje'
-        : dkDesp===dateKey(new Date(Date.now()-86400000)) ? 'ontem'
-        : `há ${_diasAtras(dkDesp)} dias`;
-      const vN=_vNum(v.valor);
-      const valTag = vN>0 ? ` <span class="pend-val">${fmtBRL(vN)}</span>` : '';
-      const vnd = (session.geral && v.vendedora) ? ` · 👤 ${esc(v.vendedora)}` : '';
-      const dest = [v.cidade,v.uf].filter(Boolean).join(' - ');
-      return `<div class="pend-row"><div class="pend-info"><b>📮 ${esc(v.cliente)}</b>${valTag}<small>envio · ${quando}${dest?` · ${esc(dest)}`:''}${vnd}</small></div><div class="pend-acts"><button class="pend-b sis" onclick="toggleLancadoEnvio('${v.id}')">☐ Marcar: lançado no sistema</button></div></div>`;
     }).join('') + `</div>`;
   }
 
@@ -5049,7 +5029,7 @@ function render(){
   renderMinhasColuna();
   if(tabAtiva==='fin') renderFinalizadas();
   // aba Pendentes (vendedora/gestor)
-  const _cPend=$('c-tab-pendentes'); if(_cPend){ const _np=pendListVend().length + naoLancadasList().length + naoLancadasEnviosList().length; _cPend.textContent = _np ? ` ${_np}` : ''; }
+  const _cPend=$('c-tab-pendentes'); if(_cPend){ const _np=pendListVend().length + naoLancadasList().length; _cPend.textContent = _np ? ` ${_np}` : ''; }
   if(tabAtiva==='pendentes') renderPendentes();
   checkNotificacoes();
 
@@ -6555,12 +6535,11 @@ function renderEnvBoard(){
 /* ---- Pendências ---- */
 function envPendencias(){
   const vis = enviosVisiveis();
-  const faltaLancar = naoLancadasEnviosList();
   const prazoEmbalagem = vis.filter(envEsperandoEmbalagem);
   const semTransp = vis.filter(v=>v.status==='embalado' && !v.transportadora);
   const semRastreio = vis.filter(v=>v.status==='despachado' && v.rastreio && !v.avisoCliente && waNumero(v.contato));
-  const distintos=new Set([...faltaLancar,...prazoEmbalagem,...semTransp,...semRastreio].map(v=>v.id));
-  return { faltaLancar, prazoEmbalagem, semTransp, semRastreio, total: distintos.size };
+  const distintos=new Set([...prazoEmbalagem,...semTransp,...semRastreio].map(v=>v.id));
+  return { prazoEmbalagem, semTransp, semRastreio, total: distintos.size };
 }
 function envPendRow(v, sub, acao){
   const dest=[v.cidade,v.uf].filter(Boolean).join(' - ');
@@ -6579,9 +6558,7 @@ function renderEnvPend(){
     + bloco('⏰ Passou do prazo de embalagem','ainda não embalado',P.prazoEmbalagem,
         v=>`<button class="pend-b no" onclick="cobrarEdson('${v.id}')">⏰ Cobrar o Edson</button>`)
     + bloco('💬 Cliente sem o rastreio','despachado, cliente não avisado',P.semRastreio,
-        v=>`<button class="pend-b ok" onclick="envAvisarCliente('${v.id}')">💬 Avisar cliente</button>`)
-    + bloco('📥 Falta lançar no sistema','despachado, ainda não lançado',P.faltaLancar,
-        v=>`<button class="pend-b sis" onclick="toggleLancadoEnvio('${v.id}')">☐ Lançado no sistema</button>`);
+        v=>`<button class="pend-b ok" onclick="envAvisarCliente('${v.id}')">💬 Avisar cliente</button>`);
 }
 
 /* ---- Finalizados (despachados do dia, com pós-venda e lançar) ---- */
@@ -6589,8 +6566,7 @@ function renderEnvFin(){
   const box=$('env-pane-fin'); if(!box) return;
   const fin = enviosVisiveis().filter(v=>v.status==='despachado' && v.despachadoEm && dateKey(new Date(v.despachadoEm))===diaAtivo)
                 .sort((a,b)=>(a.despachadoEm||0)-(b.despachadoEm||0));
-  const _lanc=fin.filter(v=>v.lancado).length, _falta=fin.length-_lanc;
-  const resumo = fin.length?`<p class="vmin-sub" style="margin-bottom:14px">Envios despachados em <b>${esc(rotuloDia(diaAtivo))}</b> · 📥 <b style="color:#7fb0e0">${_lanc}</b> lançados · <b style="color:var(--gold)">${_falta}</b> a lançar</p>`:'';
+  const resumo = fin.length?`<p class="vmin-sub" style="margin-bottom:14px">Envios despachados em <b>${esc(rotuloDia(diaAtivo))}</b>.</p>`:'';
   box.innerHTML = resumo + (fin.length ? fin.map(fcardEnvio).join('') : '<div class="empty">Nenhum envio despachado neste dia.</div>');
 }
 
@@ -7089,14 +7065,6 @@ function renderFinalizadas(){
     ? fin.map(fcard).join('')
     : `<div class="empty">Nenhuma entrega finalizada neste dia ainda.</div>`;
 }
-function toggleLancadoEnvio(id){
-  const v=envios.find(x=>x.id===id); if(!v) return;
-  v.lancado=!v.lancado;
-  if(v.lancado){ v.lancadoEm=Date.now(); v.lancadoPor=session?(session.vendedora||session.role):''; }
-  else { v.lancadoEm=null; v.lancadoPor=''; }
-  persistEnvios(); render(); if(typeof renderFinalizadas==='function') renderFinalizadas();
-  toast(v.lancado?'Marcado como lançado no sistema ✓':'Desmarcado — falta lançar');
-}
 /* card do envio despachado na aba Finalizadas — mesma casca da entrega */
 function fcardEnvio(v){
   const hora = v.despachadoEm ? fmtClock(v.despachadoEm) : '';
@@ -7108,7 +7076,6 @@ function fcardEnvio(v){
       <span class="vbadge ok">📮 Despachado${hora?' · '+hora:''}</span>
       ${t?`<span class="vbadge" style="background:rgba(212,180,90,.16);color:var(--gold-lt)">${t.ico} ${esc(t.nome)}</span>`:''}
       ${quem?`<span class="vbadge" style="background:${quem.cor}22;color:${quem.cor}">🛵 ${esc(quem.nome)}</span>`:''}
-      ${v.lancado?`<span class="vbadge sis">✓ Lançado no sistema</span>`:''}
     </div>
     <div class="fcard-name">${esc(v.cliente)}</div>
 
@@ -7136,7 +7103,6 @@ function fcardEnvio(v){
     </div></div>
 
     <div class="vcard-acts">
-      <button class="vbtn ${v.lancado?'sis-on':'sis-off'}" onclick="toggleLancadoEnvio('${v.id}')">${v.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>
       ${tel?`<button class="vbtn ${v.avisoCliente?'ghost':''}" onclick="envAvisarCliente('${v.id}')">${WA_ICON} ${v.avisoCliente?'Reenviar rastreio':'Avisar cliente — rastreio'}</button>`:'<span class="vbtn disabled">sem telefone</span>'}
       ${tel?`<a class="vbtn wa" href="https://wa.me/${tel}?text=${encodeURIComponent(msgPosVenda(v))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:''}
       <button class="vbtn relancar" onclick="relancarEnvio('${v.id}')">🔁 Relançar envio</button>
