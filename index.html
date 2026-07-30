@@ -965,6 +965,13 @@
   .env-aviso-wa{width:100%;justify-content:center;font-size:15px;padding:13px}
   .env-aviso-skip{display:block;width:100%;margin-top:10px;background:none;border:none;color:var(--text-mute);
     font-family:inherit;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px}
+  .env-etq-chips{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 12px}
+  .env-etq-chip{background:var(--surface-2);color:var(--text-soft);border:1px solid var(--line-strong);border-radius:999px;
+    padding:7px 12px;font-family:inherit;font-size:12.5px;cursor:pointer;transition:.14s;-webkit-tap-highlight-color:transparent}
+  .env-etq-chip.on{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.5);color:var(--urgent);font-weight:700}
+  .env-etq-txt{width:100%;background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:11px;
+    padding:11px 13px;font-family:inherit;font-size:14px;resize:vertical;margin-bottom:12px;box-sizing:border-box}
+  .btn.etq-warn{border-color:rgba(224,106,82,.5);color:var(--urgent)}
   .env-tag.prog{background:rgba(111,176,166,.14);border-color:rgba(111,176,166,.4);color:var(--teal)}
   .env-tag.aviso{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
   .env-acts .btn:disabled{opacity:.38;cursor:not-allowed}
@@ -1831,7 +1838,21 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v172</div>
+<div class="modal-bg" id="env-etq-modal">
+  <div class="modal" style="max-width:480px">
+    <div style="font-size:38px;line-height:1;text-align:center">🏷️</div>
+    <h3 style="margin:8px 0 4px;text-align:center">Problema na etiqueta</h3>
+    <p class="env-aviso-sub" id="env-etq-sub" style="text-align:center"></p>
+    <div class="env-etq-chips" id="env-etq-chips"></div>
+    <textarea id="env-etq-txt" class="env-etq-txt" rows="3" placeholder="Descreva o que está errado na etiqueta…" oninput="envEtqPreview()"></textarea>
+    <pre id="env-etq-prev" class="env-aviso-prev"></pre>
+    <button class="btn btn-primary env-aviso-wa" id="env-etq-btn" onclick="avisarVendEtqWhats()">Avisar a vendedora no WhatsApp</button>
+    <button class="btn btn-primary env-aviso-wa" id="env-etq-fechar" style="display:none" onclick="fecharEtq()">✓ Pronto, avisei</button>
+    <button type="button" class="env-aviso-skip" onclick="cancelarEtq()">cancelar</button>
+  </div>
+</div>
+
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v173</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5742,6 +5763,56 @@ function fecharAvisoEdson(){
   $('env-aviso-modal').classList.remove('open'); _envAvisoId=null;
   renderEnvios(); toast('Edson avisado ✓');
 }
+/* ---- Edson avisa a vendedora sobre problema na etiqueta ---- */
+const ETQ_MOTIVOS = ['Endereço divergente','CEP não confere','Nome do cliente errado','Transportadora errada','Etiqueta ilegível','Faltou a etiqueta','Produto diferente do pedido'];
+let _envEtqId=null;
+function abrirAvisoVendEtiqueta(id){
+  const v=envios.find(x=>x.id===id); if(!v) return;
+  _envEtqId=id;
+  $('env-etq-sub').innerHTML = `📮 <b>${esc(v.cliente||'(sem nome)')}</b>${v.vendedora?` · vendedora <b>${esc(v.vendedora)}</b>`:` · <span style="color:var(--warn)">sem vendedora definida</span>`}`;
+  $('env-etq-chips').innerHTML = ETQ_MOTIVOS.map(m=>`<button type="button" class="env-etq-chip" onclick="envEtqChip(this)">${esc(m)}</button>`).join('');
+  $('env-etq-txt').value='';
+  $('env-etq-btn').style.display=''; $('env-etq-fechar').style.display='none';
+  envEtqPreview();
+  $('env-etq-modal').classList.add('open');
+}
+function envEtqChip(btn){
+  const txt=btn.textContent;
+  const on=btn.classList.toggle('on');
+  const ta=$('env-etq-txt');
+  const lines=ta.value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const i=lines.indexOf(txt);
+  if(on){ if(i<0) lines.push(txt); } else { if(i>=0) lines.splice(i,1); }
+  ta.value=lines.join('\n');
+  envEtqPreview();
+}
+function envMsgEtiqueta(v){
+  const nomeV = v.vendedora ? v.vendedora.split(' ')[0] : '';
+  let m = `Oi${nomeV?' '+nomeV:''}! 🏷️\n\nAchei um problema na etiqueta deste envio, você consegue verificar?\n\n`;
+  m += `📮 *${v.cliente||'(sem nome)'}*\n`;
+  const destino=[v.cidade,v.uf].filter(Boolean).join(' - ');
+  if(destino) m += `📍 ${destino}${v.cep?' · CEP '+v.cep:''}\n`;
+  if(v.transportadora && TRSP[v.transportadora]) m += `🚚 ${TRSP[v.transportadora].nome}\n`;
+  if(v.rastreio) m += `🔎 ${v.rastreio}\n`;
+  const det = ($('env-etq-txt')?$('env-etq-txt').value:'').trim();
+  if(det) m += '\n' + det.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>`⚠️ ${s}`).join('\n');
+  m += `\n\n— Edson`;
+  return m;
+}
+function envEtqPreview(){ const v=envios.find(x=>x.id===_envEtqId); if(!v) return; $('env-etq-prev').textContent=envMsgEtiqueta(v); }
+function avisarVendEtqWhats(){
+  const v=envios.find(x=>x.id===_envEtqId); if(!v) return;
+  const tel=telVend(v.vendedora||'');
+  if(!tel){ toast('Sem telefone da vendedora responsável — avise pelo grupo'); return; }
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(envMsgEtiqueta(v))}`,'_blank');
+  v.avisoEtiqueta=Date.now();
+  v.avisoEtiquetaPor = session ? (session.vendedora||session.role) : '';
+  v.avisoEtiquetaMotivo = ($('env-etq-txt').value||'').trim();
+  persistEnvios(); renderEnvios();
+  $('env-etq-btn').style.display='none'; $('env-etq-fechar').style.display='';
+}
+function fecharEtq(){ $('env-etq-modal').classList.remove('open'); _envEtqId=null; renderEnvios(); toast('Vendedora avisada ✓'); }
+function cancelarEtq(){ $('env-etq-modal').classList.remove('open'); _envEtqId=null; }
 /* sugere a transportadora assim que a vendedora cola o link */
 function envDetectarTrsp(){
   const hint=$('env-trsp-hint'), sel=$('env-trsp');
@@ -6274,6 +6345,7 @@ function envCardHTML(v, modo){
       ${falta?`<select id="env-trsp-${v.id}" class="falta" onchange="envSetTrsp('${v.id}', this.value)">${opcoesTrsp('')}</select>`:''}
       <button class="btn btn-primary btn-mini" onclick="envEmbalar('${v.id}')"${falta?' disabled':''}>📦 Embalado</button>
       ${envEsperandoEmbalagem(v)?`<span class="env-tag aviso">⏰ passou do prazo</span>`:''}
+      <button class="btn btn-ghost btn-mini${v.avisoEtiqueta?'':' etq-warn'}" onclick="abrirAvisoVendEtiqueta('${v.id}')">🏷️ ${v.avisoEtiqueta?'Etiqueta — reavisar':'Problema na etiqueta'}</button>
       <button class="btn btn-ghost btn-mini" onclick="editarEnvio('${v.id}')">✎ Editar</button>
       <button class="btn btn-ghost btn-mini" onclick="abrirCancEnvio('${v.id}')">✕ Cancelar</button>
       <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
