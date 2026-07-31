@@ -1853,7 +1853,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v175</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v176</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2953,8 +2953,16 @@ function confirmarTodoDinheiroEntregue(){
   persist(); if(typeof renderEntregador==='function') renderEntregador();
   toast(`${meus.length} confirmada(s) — dinheiro entregue na loja ✓`);
 }
+/* Trava da Larissa: venda em DINHEIRO fica bloqueada pra vendedora até o entregador
+   confirmar que entregou o dinheiro na loja. Enquanto isso ela não vê os detalhes do
+   pagamento — e sem essa informação também não tem como lançar a venda no sistema. */
+function bloqDinheiro(e){
+  const ehDin = (e.pagamento==='dinheiro' || e.pagamento2==='dinheiro');
+  return ehDin && !e.dinheiroEntregueLoja && !!session && session.role==='vendedora';
+}
 function toggleLancado(id){
   const e=entregas.find(x=>x.id===id); if(!e||!podeMexer(e)) return;
+  if(!e.lancado && bloqDinheiro(e)){ toast('Venda em dinheiro — só dá pra lançar depois que o entregador entregar o dinheiro na loja 🔒'); return; }
   e.lancado=!e.lancado;
   if(e.lancado){ e.lancadoEm=Date.now(); e.lancadoPor=session?(session.vendedora||session.role):''; }
   else { e.lancadoEm=null; e.lancadoPor=''; }
@@ -4464,7 +4472,11 @@ function renderPendentes(){
       const vN=_vNum(e.valor);
       const valTag = vN>0 ? ` <span class="pend-val">${fmtBRL(vN)}</span>` : '';
       const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
-      return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b>${valTag}<small>${quando}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}</small></div><div class="pend-acts"><button class="pend-b sis" onclick="toggleLancado('${e.id}')">☐ Marcar: lançado no sistema</button></div></div>`;
+      // venda em dinheiro ainda com o entregador: não dá pra lançar sem saber o que entrou
+      const acao = bloqDinheiro(e)
+        ? `<span class="pend-b sis" style="opacity:.55;cursor:default" title="Libera quando o entregador entregar o dinheiro na loja">🔒 Aguardando o dinheiro na loja</span>`
+        : `<button class="pend-b sis" onclick="toggleLancado('${e.id}')">☐ Marcar: lançado no sistema</button>`;
+      return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b>${valTag}<small>${quando}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}</small></div><div class="pend-acts">${acao}</div></div>`;
     }).join('') + `</div>`;
   }
 
@@ -7001,12 +7013,14 @@ function vcard(e, eta){
   const _min = minutesSince(e.criadoEm);
   const timerTag = (e.status==='aguardando'||e.status==='em_rota') ? `<span class="vtimer ${urgClass(_min)}" title="Tempo desde que a entrega foi lançada">⏱ há ${fmtDur(_min)}</span>` : '';
   /* marcação de lançamento no sistema, direto no card das Finalizadas do painel:
-     a vendedora vê se já lançou (ou não) sem precisar abrir a aba Finalizadas */
-  const sisTag = e.status==='entregue'
-    ? (e.lancado
-        ? `<span class="vbadge sis" title="Já lançada no sistema${e.lancadoPor?' por '+esc(e.lancadoPor):''}">✓ Lançado no sistema</span>`
-        : `<span class="vbadge nsis" title="Ainda falta lançar esta entrega no sistema">☐ Falta lançar no sistema</span>`)
-    : '';
+     a vendedora vê se já lançou (ou não) sem precisar abrir a aba Finalizadas.
+     Venda em dinheiro ainda com o entregador fica travada: sem saber quanto entrou,
+     não há como lançar — então mostra o cadeado no lugar do "falta lançar". */
+  const _bloqSis = bloqDinheiro(e);
+  const sisTag = e.status!=='entregue' ? ''
+    : e.lancado ? `<span class="vbadge sis" title="Já lançada no sistema${e.lancadoPor?' por '+esc(e.lancadoPor):''}">✓ Lançado no sistema</span>`
+    : _bloqSis ? `<span class="vbadge lock" title="Venda em dinheiro: libera pra lançar quando o entregador entregar o dinheiro na loja">🔒 Aguardando dinheiro p/ lançar</span>`
+    : `<span class="vbadge nsis" title="Ainda falta lançar esta entrega no sistema">☐ Falta lançar no sistema</span>`;
   return `<div data-eid="${e.id}" class="vcard ${aberto?'open':'mini'} ${_selv?'sel':''}" style="border-left-color:${accent}">
     <div class="vhead" onclick="toggleVcard('${e.id}')">
       <div class="vhead-content">
@@ -7026,7 +7040,11 @@ function vcard(e, eta){
         ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
       </div>
       <div class="vcard-acts">
-        ${(podeMexer(e)&&e.status==='entregue')?`<button class="vbtn ${e.lancado?'sis-on':'sis-off'}" onclick="toggleLancado('${e.id}')">${e.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>`:''}
+        ${(podeMexer(e)&&e.status==='entregue')
+          ? (_bloqSis && !e.lancado
+              ? `<span class="vbtn disabled" title="Venda em dinheiro: libera quando o entregador entregar o dinheiro na loja">🔒 Falta o dinheiro chegar na loja</span>`
+              : `<button class="vbtn ${e.lancado?'sis-on':'sis-off'}" onclick="toggleLancado('${e.id}')">${e.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>`)
+          : ''}
         ${(!!session.geral && podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
         ${['entregue','nao_entregue','cancelado'].includes(e.status)
           ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
@@ -7120,9 +7138,7 @@ function fcardEnvio(v){
 }
 function fcard(e){
   const hora = e.entregueEm?fmtClock(e.entregueEm):'';
-  // Trava da Larissa: venda em DINHEIRO fica bloqueada pra vendedora até o entregador confirmar que entregou o dinheiro na loja
-  const _ehDin = (e.pagamento==='dinheiro' || e.pagamento2==='dinheiro');
-  const _bloq = _ehDin && !e.dinheiroEntregueLoja && session && session.role==='vendedora';
+  const _bloq = bloqDinheiro(e);   // trava da Larissa (venda em dinheiro ainda com o entregador)
   if(_bloq){
     const entBadge = (e.entregador && (ENT[e.entregador]||{}).nome)?`<span class="vbadge" style="background:${(ENT[e.entregador]||{}).cor||'#888'}22;color:${(ENT[e.entregador]||{}).cor||'#ccc'}">${esc((ENT[e.entregador]||{}).nome)}</span>`:'';
     return `<div class="fcard fcard-locked" data-eid="${e.id}">
