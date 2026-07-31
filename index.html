@@ -835,6 +835,7 @@
   .vbadge.cancel{background:rgba(138,145,122,.2);color:var(--text-mute)}
   .vbadge.presente{background:rgba(212,180,90,.18);color:var(--gold-lt)}
   .vbadge.sis{background:rgba(91,140,200,.18);color:#7fb0e0}
+  .vbadge.nsis{background:rgba(212,180,90,.18);color:var(--gold-lt);border:1px dashed rgba(212,180,90,.5)}
   .vtimer{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:rgba(138,145,122,.16);color:var(--text-soft)}
   .vtimer.warn{background:rgba(224,179,65,.16);color:var(--warn)}
   .vtimer.urgent{background:rgba(224,106,82,.18);color:var(--urgent)}
@@ -1852,7 +1853,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v174</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v175</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -6999,10 +7000,17 @@ function vcard(e, eta){
   const aberto = vAberto.has(e.id);
   const _min = minutesSince(e.criadoEm);
   const timerTag = (e.status==='aguardando'||e.status==='em_rota') ? `<span class="vtimer ${urgClass(_min)}" title="Tempo desde que a entrega foi lançada">⏱ há ${fmtDur(_min)}</span>` : '';
+  /* marcação de lançamento no sistema, direto no card das Finalizadas do painel:
+     a vendedora vê se já lançou (ou não) sem precisar abrir a aba Finalizadas */
+  const sisTag = e.status==='entregue'
+    ? (e.lancado
+        ? `<span class="vbadge sis" title="Já lançada no sistema${e.lancadoPor?' por '+esc(e.lancadoPor):''}">✓ Lançado no sistema</span>`
+        : `<span class="vbadge nsis" title="Ainda falta lançar esta entrega no sistema">☐ Falta lançar no sistema</span>`)
+    : '';
   return `<div data-eid="${e.id}" class="vcard ${aberto?'open':'mini'} ${_selv?'sel':''}" style="border-left-color:${accent}">
     <div class="vhead" onclick="toggleVcard('${e.id}')">
       <div class="vhead-content">
-        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${timerTag}</div>
+        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${sisTag}${timerTag}</div>
         <div class="vhead-name">${esc(e.cliente)}</div>
         ${track}
       </div>
@@ -7018,6 +7026,7 @@ function vcard(e, eta){
         ${(e.motivo&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<div class="row"><span class="ico">📝</span><span style="color:var(--text-soft)">${esc(e.motivo)}</span></div>`:''}
       </div>
       <div class="vcard-acts">
+        ${(podeMexer(e)&&e.status==='entregue')?`<button class="vbtn ${e.lancado?'sis-on':'sis-off'}" onclick="toggleLancado('${e.id}')">${e.lancado?'✓ Lançado no sistema — desfazer':'☐ Marcar: lançado no sistema'}</button>`:''}
         ${(!!session.geral && podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
         ${['entregue','nao_entregue','cancelado'].includes(e.status)
           ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
