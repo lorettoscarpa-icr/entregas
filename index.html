@@ -1853,7 +1853,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v176</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v177</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4889,6 +4889,7 @@ function cardEntregue(e){
       <div class="card-actions norail">
         ${podeMexer(e)?`
         <button class="btn btn-ghost btn-mini" onclick="abrirReag('${e.id}')">📅 Reagendar</button>
+        <button class="btn btn-ghost btn-mini" onclick="relancar('${e.id}')" title="Cria uma entrega nova com os dados desta">🔁 Relançar</button>
         <button class="iconbtn" onclick="voltarAguardando('${e.id}')" title="Voltar para aguardando">↩</button>
         `:`<span class="ro-note">👁 de ${esc(e.vendedora||'outra')} · somente leitura</span>`}
       </div>
@@ -5123,7 +5124,11 @@ function sairModoEdicao(){   // zera o estado de edição: nada de editId penden
 function novaEntrega(){ sairModoEdicao(); clearForm(); togglePanel(true); }   // sempre abre um formulário NOVO e limpo
 function fecharForm(){ togglePanel(false); sairModoEdicao(); }                 // fechar no ✕ não deixa edição pendente
 function cancelarEdicao(){ sairModoEdicao(); clearForm(); togglePanel(false); toast('Edição cancelada'); }
-function relancar(id){                          // cria uma entrega NOVA a partir de outra (mesmo cliente/endereço) — só revisar e trocar o produto
+/* cria uma entrega NOVA a partir de outra (mesmo cliente/endereço) — só revisar e trocar o produto.
+   Serve tanto pra entrega que deu certo (cliente quer outro par) quanto pra que não deu
+   (não entregue / não comprou): a de antes fica no histórico e nasce uma nova pra hoje. */
+function relancar(id){
+  if(_bloqueado(id)) return;
   const e=entregas.find(x=>x.id===id); if(!e) return;
   sairModoEdicao(); clearForm();               // garante entrada nova (saveEntrega), sem editId pendente
   $('f-cliente').value=e.cliente||'';
@@ -7055,6 +7060,7 @@ function vcard(e, eta){
         ${(!!session.geral && podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="enviarParaEntregador('${e.id}')">🛵 Trocar entregador</button>`:''}
         ${(podeMexer(e)&&e.status==='em_rota')?`<button class="vbtn ghost" onclick="voltarAguardando('${e.id}')">↩ Voltar p/ aguardando</button>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='nao_entregue'||e.status==='cancelado'))?`<button class="vbtn ghost" onclick="abrirReag('${e.id}')">📅 Reagendar</button>`:''}
+        ${(podeMexer(e)&&(e.status==='nao_entregue'||e.status==='cancelado'))?`<button class="vbtn relancar" onclick="relancar('${e.id}')" title="Cria uma entrega nova com os dados desta — reagendar mantém a mesma entrega, relançar começa outra">🔁 Relançar entrega</button>`:''}
         ${(podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn ghost danger" onclick="excluir('${e.id}')">🗑 Excluir</button>`:''}
       </div>
     </div>`:''}
