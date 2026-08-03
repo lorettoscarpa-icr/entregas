@@ -1195,13 +1195,19 @@
   .pa-sem-acts{display:flex;gap:8px;padding:10px 14px;border-top:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.02)}
   .pa-mini{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;flex:1}
   .pa-mini:active{transform:scale(.97)}
-  /* navegação de mês do "Meu pagamento" — o entregador consulta os meses já fechados */
+  /* navegação de mês — usada no "Meu pagamento" do entregador e no histórico de Envios */
   .pa-mesnav{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:12px;padding:7px 9px;margin-bottom:12px}
   .pa-mesnav b{font-size:14px;color:var(--text);font-weight:600;text-align:center;flex:1}
   .pa-mesnav small{display:block;font-size:10.5px;font-weight:400;color:var(--text-mute);letter-spacing:.04em;text-transform:uppercase;margin-top:1px}
   .pa-seta{background:rgba(212,180,90,.16);color:var(--gold-lt);border:1px solid var(--line-strong);border-radius:9px;min-width:40px;height:38px;font-size:17px;font-weight:700;cursor:pointer;flex:none}
   .pa-seta:active{transform:scale(.94)}
   .pa-seta:disabled{opacity:.25;cursor:default;background:transparent}
+  /* histórico de envios despachados: busca + separador de dia */
+  .envfin-busca{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-family:var(--ff-body);font-size:14px;color:var(--text);margin-bottom:10px}
+  .envfin-busca::placeholder{color:var(--text-mute)}
+  .envfin-busca:focus{outline:none;border-color:var(--gold);background:var(--surface-3)}
+  .envfin-dia{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:16px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;color:var(--gold-lt);text-transform:capitalize}
+  .envfin-dia span{font-size:11.5px;font-weight:400;color:var(--text-mute);text-transform:none}
   .pegar-atrasada{background:rgba(224,179,65,.18);color:#e8c766;border:1px solid rgba(224,179,65,.45);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700}
   .ag{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:16px}
   .ag-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);border-left:3px solid #8f9cd6}
@@ -1860,7 +1866,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v178</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v179</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -6586,13 +6592,69 @@ function renderEnvPend(){
         v=>`<button class="pend-b ok" onclick="envAvisarCliente('${v.id}')">💬 Avisar cliente</button>`);
 }
 
-/* ---- Finalizados (despachados do dia, com pós-venda e lançar) ---- */
+/* ---- Finalizados: histórico dos envios despachados ----
+   Antes esta aba mostrava só o dia em foco (diaAtivo, que é o dia das ENTREGAS), então
+   na virada do dia o envio "sumia" e não dava mais pra conferir o que saiu, a que horas
+   e pra quem. Agora tem mês próprio + busca por cliente/telefone/rastreio em qualquer mês. */
+let _envFinMes = monthKey();
+let _envFinQ = '';
+function _envFinDespachados(){ return enviosVisiveis().filter(v=>v.status==='despachado' && v.despachadoEm); }
+function _envFinMesDe(v){ return dateKey(new Date(v.despachadoEm)).slice(0,7); }
+function _envFinMesMin(){
+  let min='';
+  _envFinDespachados().forEach(v=>{ const k=_envFinMesDe(v); if(!min||k<min) min=k; });
+  return min || monthKey();
+}
+function envFinMes(delta){
+  const alvo=_paMesShift(_envFinMes, delta);
+  if(alvo>monthKey() || alvo<_envFinMesMin()) return;   // não passa do mês atual nem do 1º envio despachado
+  _envFinMes=alvo; renderEnvFin();
+}
+function envFinBuscar(q){ _envFinQ=String(q||''); renderEnvFin(); }
 function renderEnvFin(){
   const box=$('env-pane-fin'); if(!box) return;
-  const fin = enviosVisiveis().filter(v=>v.status==='despachado' && v.despachadoEm && dateKey(new Date(v.despachadoEm))===diaAtivo)
-                .sort((a,b)=>(a.despachadoEm||0)-(b.despachadoEm||0));
-  const resumo = fin.length?`<p class="vmin-sub" style="margin-bottom:14px">Envios despachados em <b>${esc(rotuloDia(diaAtivo))}</b>.</p>`:'';
-  box.innerHTML = resumo + (fin.length ? fin.map(fcardEnvio).join('') : '<div class="empty">Nenhum envio despachado neste dia.</div>');
+  // a casca é montada uma vez só: assim o campo de busca não perde o foco a cada render
+  if(!$('envfin-list')){
+    box.innerHTML = '<div class="pa-mesnav">'
+      +'<button class="pa-seta" id="envfin-prev" onclick="envFinMes(-1)" aria-label="Mês anterior">‹</button>'
+      +'<b id="envfin-mes">—</b>'
+      +'<button class="pa-seta" id="envfin-next" onclick="envFinMes(1)" aria-label="Próximo mês">›</button>'
+      +'</div>'
+      +'<input id="envfin-busca" class="envfin-busca" type="search" autocomplete="off" oninput="envFinBuscar(this.value)"'
+      +' placeholder="🔎 Buscar cliente, telefone ou rastreio — em qualquer mês">'
+      +'<p class="vmin-sub" id="envfin-sub"></p><div id="envfin-list"></div>';
+  }
+  const todos=_envFinDespachados();
+  const q=norm(_envFinQ.trim()), qd=_envFinQ.replace(/\D/g,'');
+  const buscando=q.length>=2;
+  const lista=(buscando
+    ? todos.filter(v=>{
+        const nome=norm(v.cliente||''), tel=(v.contato||'').replace(/\D/g,''), rast=norm(v.rastreio||''), prod=norm(v.produto||'');
+        return nome.includes(q) || prod.includes(q) || (qd.length>=4 && tel.includes(qd)) || (q.length>=4 && rast.includes(q));
+      })
+    : todos.filter(v=>_envFinMesDe(v)===_envFinMes)
+  ).sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0));   // mais recente primeiro
+  const min=_envFinMesMin(), hoje=monthKey();
+  $('envfin-mes').textContent = buscando ? 'Buscando em todos os meses' : rotuloMes(_envFinMes);
+  $('envfin-prev').disabled = buscando || _envFinMes<=min;
+  $('envfin-next').disabled = buscando || _envFinMes>=hoje;
+  $('envfin-sub').innerHTML = !lista.length ? '' : (buscando
+    ? `<b>${lista.length}</b> ${lista.length===1?'envio encontrado':'envios encontrados'}.`
+    : `<b>${lista.length}</b> ${lista.length===1?'envio despachado':'envios despachados'} em <b>${esc(rotuloMes(_envFinMes))}</b>.`);
+  if(!lista.length){
+    $('envfin-list').innerHTML = buscando
+      ? '<div class="empty">Nada encontrado. Tente outro nome, parte do telefone ou o código de rastreio.</div>'
+      : '<div class="empty">Nenhum envio despachado neste mês.</div>';
+    return;
+  }
+  const porDia={}; lista.forEach(v=>{ const dk=dateKey(new Date(v.despachadoEm)); porDia[dk]=(porDia[dk]||0)+1; });
+  let html='', diaAnt='';
+  lista.forEach(v=>{
+    const dk=dateKey(new Date(v.despachadoEm));
+    if(dk!==diaAnt){ diaAnt=dk; html+=`<div class="envfin-dia">${esc(rotuloDia(dk))}<span>${porDia[dk]} ${porDia[dk]===1?'envio':'envios'}</span></div>`; }
+    html+=fcardEnvio(v);
+  });
+  $('envfin-list').innerHTML=html;
 }
 
 /* ---- Ranking de envios ---- */
