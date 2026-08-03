@@ -776,6 +776,15 @@
   .desf-chip{font-family:var(--ff-body);font-size:12.5px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-soft);cursor:pointer;transition:.15s}
   .desf-chip:hover{border-color:var(--line-strong);color:var(--text)}
   .desf-chip.on{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+  /* "foi até o local?" — a resposta define se a entrega entra no acerto do entregador */
+  .desf-local{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin-bottom:12px}
+  .desf-local-q{margin:0 0 9px;font-size:14px;font-weight:600;color:var(--text)}
+  .desf-local-opts{display:flex;gap:9px}
+  .desf-local-b{flex:1;min-height:46px;border-radius:11px;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text-soft);font-family:var(--ff-body);font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  .desf-local-b:active{transform:translateY(1px)}
+  .desf-local-b.on-sim{background:rgba(127,174,107,.22);color:#9fce86;border-color:rgba(127,174,107,.5)}
+  .desf-local-b.on-nao{background:rgba(224,106,82,.16);color:var(--urgent);border-color:rgba(224,106,82,.45)}
+  .desf-local-hint{margin:9px 0 0;font-size:11.5px;line-height:1.45;color:var(--text-mute)}
   /* ---- minhas entregas (vendedora) ---- */
   #view-minhas{max-width:720px;margin:4px auto 0}
   #view-fin{max-width:720px;margin:4px auto 0}
@@ -1866,7 +1875,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v179</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v180</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -1885,6 +1894,15 @@
   <div class="modal">
     <h3 id="desf-title">Não entregue</h3>
     <p id="desf-sub">Selecione ou escreva o motivo.</p>
+    <!-- só p/ "não consegui entregar": é a ida até o cliente que define o acerto do entregador -->
+    <div class="desf-local" id="desf-local" style="display:none">
+      <p class="desf-local-q">Você chegou a ir até o endereço do cliente?</p>
+      <div class="desf-local-opts">
+        <button class="desf-local-b" id="desf-local-sim" onclick="setFoiLocal(true)">🛵 Fui até lá</button>
+        <button class="desf-local-b" id="desf-local-nao" onclick="setFoiLocal(false)">🚫 Não fui</button>
+      </div>
+      <p class="desf-local-hint" id="desf-local-hint">É isso que define se a entrega entra no seu acerto.</p>
+    </div>
     <div class="desf-quick" id="desf-quick"></div>
     <input id="desf-motivo" placeholder="Motivo (opcional se já escolheu acima)">
     <div class="form-actions">
@@ -3970,35 +3988,63 @@ const DESF_MOTIVOS = {
   nao_entregue: ['Cliente sumiu','Cliente ausente','Endereço não encontrado','Cliente remarcou','Não atendeu o telefone'],
   cancelado:    ['Não gostou','Problema de numeração','Desistiu da compra','Achou caro','Vai pensar melhor','Comprou em outro lugar']
 };
-let desfId=null, desfStatus=null, desfMotivo='';
+let desfId=null, desfStatus=null, desfMotivo='', desfFoiLocal=null;
+/* A ida até o endereço é o que o entregador cobra: se ele foi e a entrega não aconteceu,
+   a visita conta no acerto; se nem saiu, não conta — e o motivo escolhido depois não muda
+   isso. Por isso a pergunta só aparece no "não consegui entregar" ("não comprou" já conta
+   sempre, porque nesse caso ele esteve com o cliente). */
+function _desfLocalMostrar(mostrar){
+  const box=$('desf-local'); if(!box) return;
+  box.style.display = mostrar ? '' : 'none';
+  if(!mostrar) desfFoiLocal=null;
+  _desfLocalPintar();
+}
+function _desfLocalPintar(){
+  const sim=$('desf-local-sim'), nao=$('desf-local-nao'), hint=$('desf-local-hint');
+  if(!sim||!nao) return;
+  sim.classList.toggle('on-sim', desfFoiLocal===true);
+  nao.classList.toggle('on-nao', desfFoiLocal===false);
+  if(hint) hint.textContent = desfFoiLocal===true ? 'Você foi até o cliente — esta entrega entra no seu acerto ✓'
+    : desfFoiLocal===false ? 'Sem ida até o cliente — esta entrega não entra no acerto.'
+    : 'É isso que define se a entrega entra no seu acerto.';
+}
+function setFoiLocal(v){ desfFoiLocal=v; _desfLocalPintar(); }
 function abrirDesfecho(id, status){
   if(_bloqueado(id)) return;
-  desfId=id; desfStatus=status; desfMotivo='';
+  desfId=id; desfStatus=status; desfMotivo=''; desfFoiLocal=null;
   $('desf-title').textContent = status==='cancelado' ? 'Não deu certo' : 'Não consegui entregar';
   $('desf-sub').textContent = status==='cancelado' ? 'Por que a venda não foi concluída?' : 'Por que não foi possível entregar?';
   $('desf-motivo').value='';
   $('desf-quick').innerHTML = DESF_MOTIVOS[status].map(m=>`<button class="desf-chip" onclick="pickMotivo(this,'${m.replace(/'/g,"\\'")}')">${m}</button>`).join('');
+  _desfLocalMostrar(status==='nao_entregue');
   $('desf-modal').classList.add('open');
 }
 function pickMotivo(btn,m){ desfMotivo=m; $('desf-motivo').value=m; document.querySelectorAll('.desf-chip').forEach(b=>b.classList.toggle('on', b===btn)); }
 /* desfecho unificado: um botão só, com os dois grupos de motivo; o status sai do motivo escolhido */
 function abrirDesfechoCombo(id){
   if(_bloqueado(id)) return;
-  desfId=id; desfStatus='nao_entregue'; desfMotivo='';   // padrão se escrever um motivo livre
+  desfId=id; desfStatus='nao_entregue'; desfMotivo=''; desfFoiLocal=null;   // padrão se escrever um motivo livre
   $('desf-title').textContent='Não rolou a entrega';
   $('desf-sub').textContent='Toque no motivo — eu marco certo (não entregue ou cancelada).';
   $('desf-motivo').value='';
+  _desfLocalMostrar(true);   // começa em "não entregue"; some se ele escolher um motivo de "não comprou"
   const chip=(m,s)=>`<button class="desf-chip" onclick="pickMotivoCombo(this,'${m.replace(/'/g,"\\'")}','${s}')">${m}</button>`;
   $('desf-quick').innerHTML =
       '<div class="desf-grp">🛵 Não cheguei a entregar</div>' + DESF_MOTIVOS.nao_entregue.map(m=>chip(m,'nao_entregue')).join('')
     + '<div class="desf-grp">🛒 Cliente não comprou</div>'   + DESF_MOTIVOS.cancelado.map(m=>chip(m,'cancelado')).join('');
   $('desf-modal').classList.add('open');
 }
-function pickMotivoCombo(btn,m,s){ desfMotivo=m; desfStatus=s; $('desf-motivo').value=m; document.querySelectorAll('.desf-chip').forEach(b=>b.classList.toggle('on', b===btn)); }
+function pickMotivoCombo(btn,m,s){
+  desfMotivo=m; desfStatus=s; $('desf-motivo').value=m;
+  document.querySelectorAll('.desf-chip').forEach(b=>b.classList.toggle('on', b===btn));
+  _desfLocalMostrar(s==='nao_entregue');   // "não comprou" já conta: ele esteve com o cliente
+}
 function closeDesf(){ $('desf-modal').classList.remove('open'); desfId=null; }
 function confirmarDesfecho(){
   const e=entregas.find(x=>x.id===desfId); if(!e){ closeDesf(); return; }
+  if(desfStatus==='nao_entregue' && desfFoiLocal===null){ toast('Responda se você foi até o endereço do cliente'); return; }
   e.status=desfStatus; e.motivo=$('desf-motivo').value.trim()||desfMotivo; e.desfechoEm=Date.now(); e.aCaminhoDe=null;
+  e.foiAoLocal = desfStatus==='nao_entregue' ? desfFoiLocal : null;   // só faz sentido no "não consegui entregar"
   e.entregador=e.entregador||null;
   persist(); closeDesf(); render();
   if(session.role==='entregador') renderEntregador();
@@ -7537,8 +7583,8 @@ function renderEntregador(){
   $('ent-resumo').innerHTML=items.length
     ? `<div class="stat"><b>${items.length}</b><span>entregas</span></div><div class="stat"><b>${fmtDur(est)}</b><span>de rota</span></div><div class="stat"><b>${finishTime(start,est)}</b><span>término</span></div>${_statEnv}`
     : (_nEnv ? `<div class="stat"><b>${_nEnv}</b><span>${_nEnv===1?'pacote de envio':'pacotes de envio'}</span></div><div class="stat empty-stat">Sem entregas — só os envios abaixo.</div>`
-      : (_diaEhPassado && _temFinDia
-        ? `<div class="stat empty-stat">Dia encerrado — veja suas entregas finalizadas abaixo.</div>`
+      : (_diaEhPassado && (_temFinDia || enviosDeixadosEnt(diaEnt).length)
+        ? `<div class="stat empty-stat">Dia encerrado — veja o que você fez abaixo.</div>`
         : `<div class="stat empty-stat">Nenhuma entrega na sua rota agora.</div>`));
   const comHora=ordered.filter(e=>e.horarioTipo&&e.horarioHora);
   const alerta = comHora.length
@@ -7566,7 +7612,10 @@ function renderEntregador(){
     <div class="ent-fin-h">✓ ${finLabel} (${finDia.length}) — errou? toque para corrigir</div>
     ${finDia.map(e=>{
       const ic = e.status==='entregue' ? '✓' : '✕';
-      const desc = e.status==='entregue' ? pagamentoLabel(e) : (e.status==='cancelado'?'Não comprou':'Não entregue');
+      // no "não entregue" mostra a ida ao cliente: é ela que decide se a entrega entra no acerto
+      const desc = e.status==='entregue' ? pagamentoLabel(e)
+        : e.status==='cancelado' ? 'Não comprou'
+        : 'Não entregue' + (e.foiAoLocal===true ? ' · fui até lá (conta no acerto)' : e.foiAoLocal===false ? ' · não fui (não conta)' : '');
       const fh = _finalStamp(e) ? fmtClock(_finalStamp(e)) : '';
       return `<div class="ent-fin-row">
         <span class="ent-fin-cli">${ic} ${esc(e.cliente)}${fh?` <span class="ent-fin-hora">🕒 ${fh}</span>`:''}<small>${esc(desc)}</small></span>
@@ -7582,7 +7631,7 @@ function renderEntregador(){
         <button class="btn btn-primary btn-mini" onclick="abrirMoverEntregador()">↪ Mover p/ outro entregador</button>
       </div>
     </div>` : '';
-  $('ent-list').innerHTML=alerta + semLocHTML + enviosEntregadorHTML() + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML;
+  $('ent-list').innerHTML=alerta + semLocHTML + enviosEntregadorHTML() + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML + enviosFeitosEntregadorHTML();
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
   renderGpsBar();
@@ -7628,6 +7677,32 @@ function enviosEntregadorHTML(){
         <button class="btn btn-ghost btn-mini" onclick="devolverEnviosParada('${p.ponto.id}')">↩ Devolver pra fila</button>
       </div>
     </div>`).join('')}
+  </div>`;
+}
+/* Envios que ele JÁ deixou no ponto. Antes sumiam da tela no instante em que ele
+   confirmava — não dava pra conferir depois quantos foram, a que horas e de quem.
+   Segue o dia em foco (diaEnt), então as setas ‹ › do topo servem de histórico. */
+function enviosDeixadosEnt(dia){
+  if(!session || session.role!=='entregador') return [];
+  return envios.filter(v=> v.status==='despachado' && v.despachadoEm
+      && (v.despachadoPor===session.entregador || v.entregador===session.entregador)
+      && dateKey(new Date(v.despachadoEm))===dia)
+    .sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0));
+}
+function enviosFeitosEntregadorHTML(){
+  const meus=enviosDeixadosEnt(diaEnt);
+  if(!meus.length) return '';
+  const total=somaQtd(meus);
+  const lbl = diaEnt===todayKey() ? 'Envios que deixei hoje' : `Envios que deixei · ${esc(rotuloDia(diaEnt))}`;
+  return `<div class="ent-fin">
+    <div class="ent-fin-h">📮 ${lbl} — ${total} pacote${total>1?'s':''} em ${meus.length} ${meus.length>1?'lançamentos':'lançamento'}</div>
+    ${meus.map(v=>{
+      const p=PONTO[v.pontoId], t=TRSP[v.transportadora];
+      const onde = p ? p.nome : (v.coletadoNaLoja ? 'coleta na loja' : 'ponto');
+      return `<div class="ent-fin-row">
+        <span class="ent-fin-cli">✓ ${ehLote(v)?`📦 ${envQtd(v)} pacotes`:esc(v.cliente||'(sem nome)')} <span class="ent-fin-hora">🕒 ${fmtClock(v.despachadoEm)}</span><small>${esc(onde)}${t?` · ${esc(t.nome)}`:''}</small></span>
+      </div>`;
+    }).join('')}
   </div>`;
 }
 /* grava SÓ os campos informados, em vez de regravar o documento inteiro.
@@ -8272,9 +8347,16 @@ function _paSemanas(mesK){
   }
   return semanas;
 }
+/* o que entra no acerto: a entrega feita, a visita em que o cliente não comprou e a
+   "não consegui entregar" em que o entregador confirmou que FOI até o endereço.
+   Sem ida confirmada não conta — e as antigas, de antes dessa pergunta existir, ficam
+   como estavam (foiAoLocal indefinido = não conta), pra não mexer em mês já fechado. */
+function _paCobra(e){
+  if(e.status==='entregue' || e.status==='cancelado') return true;
+  return e.status==='nao_entregue' && e.foiAoLocal===true;
+}
 function _paRelatorio(courierId, semanas){
-  const COBRA=['entregue','cancelado'];
-  const ent = entregas.filter(e=> e.entregador===courierId && COBRA.indexOf(e.status)>=0);
+  const ent = entregas.filter(e=> e.entregador===courierId && _paCobra(e));
   return semanas.map(s=>{
     let falhasSem=0;
     const dias = s.dias.map(dt=>{
@@ -8303,7 +8385,7 @@ function _paResumoTxt(courierId, mesK){
       const parts=d.grupos.map(g=> g.label+' '+g.n+' = '+(g.n*g.rate));
       out+=_paDM(d.data)+'  '+parts.join('  ')+(d.grupos.length>1?'  (total '+d.total+')':'')+'\n';
     });
-    out+='Total da semana: '+_brlPA(s.total)+(s.falhas>0?' (inclui '+s.falhas+' não comprou)':'')+'\n';
+    out+='Total da semana: '+_brlPA(s.total)+(s.falhas>0?' (inclui '+s.falhas+' sem venda, com ida ao cliente)':'')+'\n';
     totalMes+=s.total;
   });
   out+='\nTotal de '+((typeof rotuloMes==='function')?rotuloMes(mesK||_paMesRef()):'')+': '+_brlPA(totalMes);
@@ -8318,7 +8400,7 @@ function _paWeekTxt(id,s,mesK){
   let out='Loretto — '+((_paEnt(id).nome)||id)+((typeof rotuloMes==='function')?' · '+rotuloMes(mesK||_paMesRef()):'')+'\n';
   out+='Semana '+_paDM(s.ini)+' a '+_paDM(s.fim)+'\n';
   s.dias.forEach(d=>{ const parts=d.grupos.map(g=>g.label+' '+g.n+' = '+(g.n*g.rate)); out+=_paDM(d.data)+'  '+parts.join('  ')+(d.grupos.length>1?'  (total '+d.total+')':'')+'\n'; });
-  out+='Total da semana: '+_brlPA(s.total)+(s.falhas>0?' (inclui '+s.falhas+' não comprou)':'');
+  out+='Total da semana: '+_brlPA(s.total)+(s.falhas>0?' (inclui '+s.falhas+' sem venda, com ida ao cliente)':'');
   return out;
 }
 function _paCopiarSemana(id,idx,mesK){ const rel=_paRelatorio(id,_paSemanas(mesK)); const s=rel[idx]; if(s) _paCopiarTexto(_paWeekTxt(id,s,mesK)); }
@@ -8338,7 +8420,7 @@ function _paCorpoHTML(id, mesK){
       const parts=d.grupos.map(g=>'<span class="pa-loc">'+esc(g.label)+' <b>'+g.n+'</b> ×'+g.rate+' = '+_brlPA(g.n*g.rate)+'</span>').join('');
       return '<div class="pa-dia"><span class="pa-data">'+_paDM(d.data)+'</span><span class="pa-locs">'+parts+'</span><span class="pa-dtot">'+_brlPA(d.total)+'</span></div>';
     }).join('');
-    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' "não comprou" (cobradas)</div>':'')+'<div class="pa-sem-acts"><button class="pa-mini" onclick="_paCopiarSemana(\''+id+'\','+i+',\''+mesK+'\')">⧉ Copiar esta semana</button><button class="pa-mini" onclick="gerarPDF(\''+id+'\','+i+',\''+mesK+'\')">📄 PDF desta semana</button></div></div>';
+    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' sem venda — o entregador foi até o cliente (cobradas)</div>':'')+'<div class="pa-sem-acts"><button class="pa-mini" onclick="_paCopiarSemana(\''+id+'\','+i+',\''+mesK+'\')">⧉ Copiar esta semana</button><button class="pa-mini" onclick="gerarPDF(\''+id+'\','+i+',\''+mesK+'\')">📄 PDF desta semana</button></div></div>';
   }).join('');
   return '<div class="pa-top"><div><div class="pa-top-lbl">'+esc(nomeMes)+(ehMesAtual?' · até hoje':' · mês fechado')+'</div><div class="pa-top-val">'+_brlPA(totalMes)+'</div><div class="pa-top-sub">'+nEnt+' entregas concluídas</div></div></div>'+corpo;
 }
@@ -8403,7 +8485,7 @@ function _paPdfHTML(id, soIdx, mesK){
     +'<div class="head"><div class="brand">Loretto Scarpa</div><h1>Relat\u00f3rio de pagamento \u2014 '+esc(nome)+'</h1><div class="meta">'+periodoLbl+' \u00b7 '+nEnt+' entregas conclu\u00eddas \u00b7 gerado em '+hoje+'</div></div>'
     +'<div class="total-box"><span class="lbl">'+totLbl+'</span><span class="val">'+_brlPA(totalMes)+'</span></div>'
     +semHtml
-    +'<div class="foot">'+esc(_paTarifaTxt(id))+' Conta entregas conclu\u00eddas + "n\u00e3o comprou". N\u00e3o conta "n\u00e3o entregue" nem agendadas.</div>'
+    +'<div class="foot">'+esc(_paTarifaTxt(id))+' Conta as entregas conclu\u00eddas e as visitas em que ele foi at\u00e9 o cliente sem fechar venda. N\u00e3o conta quando ele n\u00e3o foi at\u00e9 o endere\u00e7o, nem as agendadas.</div>'
     +'<scr'+'ipt>window.addEventListener("load",function(){setTimeout(function(){window.focus();window.print();},350);});</scr'+'ipt>'
     +'</body></html>';
 }
@@ -8430,7 +8512,7 @@ function _paRender(){
       const parts=d.grupos.map(g=>'<span class="pa-loc">'+esc(g.label)+' <b>'+g.n+'</b> ×'+g.rate+' = '+_brlPA(g.n*g.rate)+'</span>').join('');
       return '<div class="pa-dia"><span class="pa-data">'+_paDM(d.data)+'</span><span class="pa-locs">'+parts+'</span><span class="pa-dtot">'+_brlPA(d.total)+'</span></div>';
     }).join('');
-    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' "não comprou" (cobradas — o entregador foi até o cliente)</div>':'')+'<div class="pa-sem-acts"><button class="pa-mini" onclick="_paCopiarSemana(\''+_paSel+'\','+i+')">⧉ Copiar</button><button class="pa-mini" onclick="gerarPDF(\''+_paSel+'\','+i+')">📄 PDF</button></div></div>';
+    return '<div class="pa-sem"><div class="pa-sem-h"><span>Semana '+_paDM(s.ini)+' – '+_paDM(s.fim)+'</span><span>'+s.n+' entregas · <b>'+_brlPA(s.total)+'</b></span></div>'+dias+(s.falhas>0?'<div class="pa-falhas">↳ inclui '+s.falhas+' sem venda — o entregador foi até o cliente (cobradas)</div>':'')+'<div class="pa-sem-acts"><button class="pa-mini" onclick="_paCopiarSemana(\''+_paSel+'\','+i+')">⧉ Copiar</button><button class="pa-mini" onclick="gerarPDF(\''+_paSel+'\','+i+')">📄 PDF</button></div></div>';
   }).join('');
   box.innerHTML =
     '<div class="pa-head"><div class="pa-title">💸 Pagamento — entregadores avulsos</div><button class="pa-copy" onclick="gerarPDF(_paSel)">📄 PDF</button><button class="pa-copy" onclick="_paCopiar(\''+_paSel+'\')">⧉ Copiar resumo</button></div>'
@@ -8440,7 +8522,7 @@ function _paRender(){
       +(comprou>0?'<div class="pa-saldo '+(saldo>=0?'pos':'neg')+'">Saldo a '+(saldo>=0?'pagar':'receber')+': <b>'+_brlPA(Math.abs(saldo))+'</b></div>':'')
       +'</div></div>'
     +semHtml
-    +'<div class="pa-hint">'+esc(_paTarifaTxt(_paSel))+' Conta as concluídas + as "não comprou" (o entregador foi até o cliente, mas a venda não fechou). Não conta as "não entregue" (cliente ausente/não localizado) nem as agendadas que não saíram.</div>';
+    +'<div class="pa-hint">'+esc(_paTarifaTxt(_paSel))+' Conta as concluídas e as visitas sem venda em que o entregador confirmou que foi até o endereço (o "não comprou" e o "não entregue" com ida). Não conta quando ele não chegou a ir, nem as agendadas que não saíram.</div>';
 }
 /* os dois horários de corte, lado a lado — separados de propósito:
    1) lançamento (vendedoras): até esse horário o envio ainda pega o dia; depois vai p/ amanhã
