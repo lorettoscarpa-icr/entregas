@@ -1875,7 +1875,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v180</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v181</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2300,6 +2300,24 @@ function setVelocidade(v){ const n=parseInt(v,10); if(n>0){ config.velocidadeKmh
 function dateKey(d){ d=d||new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function monthKey(d){ d=d||new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function dataDe(e){ return e.dataEntrega || dateKey(new Date(e.criadoEm)); } // fallback p/ entregas antigas
+/* Entrega ABERTA (aguardando ou em rota) não fica presa no dia em que foi lançada:
+   virou o dia sem ser feita, ela SAI do dia antigo e passa a viver em HOJE. É a mesma
+   regra que os envios atrasados já seguem (enviosDoDia) e que o entregador já tem na
+   rota dele — assim a vendedora não precisa voltar dias no painel pra lembrar do que
+   ficou para trás. Só muda o lugar na tela: a data lançada continua intacta no dado. */
+function entregaAberta(e){ return e.status==='aguardando' || e.status==='em_rota'; }
+function entregaAtrasada(e){ return entregaAberta(e) && dataDe(e) < todayKey(); }
+function entregaDoDia(e, ymd){
+  const d=dataDe(e), hoje=todayKey();
+  if(d===ymd) return !(ymd<hoje && entregaAberta(e));   // no dia antigo ela some…
+  return ymd===hoje && d<hoje && entregaAberta(e);      // …e reaparece em hoje
+}
+/* etiqueta da que veio de trás — sem ela a vendedora acha que é entrega nova de hoje */
+function atrasoTag(e){
+  if(!entregaAtrasada(e)) return '';
+  const n=_diasAtras(dataDe(e));
+  return `<span class="pegar-atrasada" title="Lançada em ${esc(rotuloDia(dataDe(e)))} e ainda não finalizada — veio para hoje">⚠️ ${n===1?'de ontem':'há '+n+' dias'}</span>`;
+}
 const DIAS_SEMANA=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 function diaSemanaDe(ymd){ const [y,m,d]=ymd.split('-').map(Number); return new Date(y,m-1,d).getDay(); }
@@ -4866,7 +4884,7 @@ function cardAguardando(e){
           ${timerHTML}
         </div>
         ${hrBadge(e)?`<div class="card-hr">${hrBadge(e)}</div>`:''}
-        <div class="card-badges">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
+        <div class="card-badges">${atrasoTag(e)}${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
       </div>
       <button class="vtoggle" onclick="event.stopPropagation();toggleVcard('${e.id}')" aria-label="${aberto?'Minimizar':'Ver mais informações'}">${aberto?'–':'+'}</button>
     </div>
@@ -4907,7 +4925,7 @@ function cardRota(e){
           <span class="timer ${urgClass(min)}" data-ts="${e.criadoEm}">${fmtDur(min)}</span>
         </div>
         ${hrBadge(e)?`<div class="card-hr">${hrBadge(e)}</div>`:''}
-        <div class="card-badges">${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
+        <div class="card-badges">${atrasoTag(e)}${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
       </div>
       <button class="vtoggle" onclick="event.stopPropagation();toggleVcard('${e.id}')" aria-label="${aberto?'Minimizar':'Ver mais informações'}">${aberto?'–':'+'}</button>
     </div>
@@ -5029,7 +5047,7 @@ function render(){
   const _dt=$('destaques-topo'); if(_dt && _dt.style.display!=='none') _dt.innerHTML=destaquesHTML(true);
   const matchFiltro = e => filtro==='todos' || e.entregador===filtro;
   const matchVend = e => filtroVend==='todas' || e.vendedora===filtroVend;
-  const matchDia = e => dataDe(e)===diaAtivo;
+  const matchDia = e => entregaDoDia(e, diaAtivo);   // aberta de dia anterior vem para hoje
   renderDayNav();
 
   // vendedora comum (não geral) vê SOMENTE as próprias entregas em todas as colunas
@@ -5314,8 +5332,10 @@ function ensureMap(){
   setTimeout(()=>map.invalidateSize(),60);
 }
 // Mapa & Rotas considera SÓ as entregas de hoje que ainda não têm entregador (status aguardando).
-// Fica de fora: já roteadas (em_rota), finalizadas, e as de outros dias (anteriores ou futuros).
-function aguardandoHoje(){ return entregas.filter(e=>e.status==='aguardando' && dataDe(e)===todayKey()); }
+// Fica de fora: já roteadas (em_rota), finalizadas, e as agendadas para os próximos dias.
+// As que ficaram para trás entram aqui junto com as de hoje — no quadro elas já vieram
+// para hoje, então precisam poder ser roteadas também (senão aparecem e não dá pra montar).
+function aguardandoHoje(){ return entregas.filter(e=>e.status==='aguardando' && entregaDoDia(e, todayKey())); }
 function renderMap(){
   if(!map || !markerLayer) return;
   markerLayer.clearLayers();
@@ -7007,7 +7027,7 @@ function entregasDaVendedora(dia){
 function planAllRoutes(dia){
   const loja = lojaCoords() || {lat:-16.6869,lng:-49.2648};
   const byEnt = {}, info = {};
-  entregas.filter(e=>e.status==='em_rota' && dataDe(e)===dia).forEach(e=>{
+  entregas.filter(e=>e.status==='em_rota' && entregaDoDia(e, dia)).forEach(e=>{   // as atrasadas vieram p/ hoje: entram na conta da rota
     (byEnt[e.entregador]=byEnt[e.entregador]||[]).push(e);
   });
   Object.keys(byEnt).forEach(entId=>{
@@ -7144,7 +7164,7 @@ function vcard(e, eta){
   return `<div data-eid="${e.id}" class="vcard ${aberto?'open':'mini'} ${_selv?'sel':''}" style="border-left-color:${accent}">
     <div class="vhead" onclick="toggleVcard('${e.id}')">
       <div class="vhead-content">
-        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${sisTag}${timerTag}</div>
+        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${sisTag}${atrasoTag(e)}${timerTag}</div>
         <div class="vhead-name">${esc(e.cliente)}</div>
         ${track}
       </div>
