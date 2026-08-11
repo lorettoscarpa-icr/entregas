@@ -1875,7 +1875,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v181</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v182</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -5055,9 +5055,12 @@ function render(){
   const alvoVend = ehVendPessoal ? norm(session.vendedora) : null;
   const matchEscopo = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvoVend);
   const rvf=document.getElementById('row-vend-filter'); if(rvf) rvf.style.display = ehVendPessoal ? 'none' : '';
-  // entrega AGENDADA (dia futuro) só aparece p/ o gestor e p/ a vendedora que a lançou — operação e demais não veem até chegar o dia
+  /* Entrega AGENDADA (dia futuro) não aparece para a vendedora que NÃO a lançou — ela só
+     precisa das dela. Já quem monta rota (gestor e operação: Edson/Yuri) precisa enxergar
+     o dia seguinte inteiro para se organizar: o card de agendadas dessas entregas já
+     aparecia para eles, mas ao avançar o dia no quadro elas sumiam. */
   const meuNome = norm(session.vendedora||'');
-  const matchAgendada = e => dataDe(e) <= today || session.role==='gestor' || (e.vendedora && meuNome && norm(e.vendedora)===meuNome);
+  const matchAgendada = e => dataDe(e) <= today || session.role==='gestor' || !!session.geral || (e.vendedora && meuNome && norm(e.vendedora)===meuNome);
 
   let aguard = entregas.filter(e=>e.status==='aguardando' && matchDia(e) && matchVend(e) && matchEscopo(e) && matchAgendada(e)).sort((a,b)=>a.criadoEm-b.criadoEm);
   let rota = entregas.filter(e=>e.status==='em_rota' && matchDia(e) && matchFiltro(e) && matchVend(e) && matchEscopo(e) && matchAgendada(e));
