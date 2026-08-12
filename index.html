@@ -887,6 +887,27 @@
   .envios-board .tick.te2{background:var(--gold)}
   .envios-board .tick.te3{background:var(--teal)}
   .envios-board .tick.te4{background:var(--calm)}
+  .envios-board .tick.te5{background:#b98ac9}
+  @media(min-width:1101px){ .envios-board{grid-template-columns:repeat(5,1fr)} }
+  /* ---- devoluções: o que volta do cliente ---- */
+  .dev-card{border-left-color:#b98ac9}
+  .dev-card.recebida{border-left-color:var(--calm)}
+  .dev-card.problema{border-left-color:var(--urgent);background:rgba(224,106,82,.05)}
+  .dev-card.resolvida{opacity:.6}
+  .dev-motivo{font-size:12.5px;font-weight:600;color:#d3b0de;margin:2px 0 5px}
+  .dev-obs,.dev-prob{font-size:11.5px;line-height:1.45;margin-top:5px;color:var(--text-soft)}
+  .dev-prob{color:var(--urgent);background:rgba(224,106,82,.1);border-radius:8px;padding:6px 8px}
+  .dev-cod{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--text-soft)}
+  .dev-espera{font-size:11.5px;color:var(--text-mute);font-style:italic}
+  .env-tag.urg{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
+  .env-tag.ok{background:rgba(127,174,107,.16);border-color:rgba(127,174,107,.4);color:var(--calm)}
+  .dev-sub{font-size:13px;color:var(--text-soft);margin:0 0 14px;line-height:1.5}
+  .dev-sub small{display:block;font-size:11.5px;color:var(--text-mute);margin-top:2px}
+  .dev-lbl{display:block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute);margin:12px 0 5px}
+  .dev-req{text-transform:none;letter-spacing:0;color:var(--gold-lt)}
+  .dev-erro{font-size:12.5px;color:var(--urgent);margin-top:10px;min-height:16px}
+  #dev-modal input,#dev-modal select,#dev-prob-modal input{width:100%;background:var(--surface-2);color:var(--text);
+    border:1px solid var(--line-strong);border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14px;box-sizing:border-box}
   .envios-board .env-sub:first-child{margin-top:0}
   .col-vazio{color:var(--text-mute);font-size:12px;padding:8px 2px}
   .env-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
@@ -1875,7 +1896,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v182</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v183</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -1885,6 +1906,42 @@
       <button class="btn btn-ghost" onclick="fecharMeuPagamento()">Fechar</button>
       <button class="btn" onclick="gerarPDF(session.entregador,null,_paMesEnt)">📄 Salvar PDF</button>
       <button class="btn btn-primary" onclick="_paCopiar(session.entregador,_paMesEnt)">⧉ Copiar resumo</button>
+    </div>
+  </div>
+</div>
+
+<!-- devolução: o cliente está mandando de volta -->
+<div class="modal-bg" id="dev-modal">
+  <div class="modal">
+    <h3 id="dev-modal-title">🔄 Registrar devolução</h3>
+    <p class="dev-sub"><b id="dev-cliente">—</b><small id="dev-origem"></small></p>
+    <label class="dev-lbl">Por que está voltando?</label>
+    <div class="desf-quick" id="dev-quick"></div>
+    <label class="dev-lbl">O que está voltando</label>
+    <input id="dev-prod" placeholder="Ex.: Sapato social preto 42">
+    <label class="dev-lbl">Está voltando por qual transportadora?</label>
+    <select id="dev-trsp"></select>
+    <label class="dev-lbl">Rastreio da volta <span class="dev-req">— é por ele que a loja acompanha</span></label>
+    <input id="dev-rast" placeholder="Cole o código ou o link de rastreio">
+    <label class="dev-lbl">Observação (opcional)</label>
+    <input id="dev-obs" placeholder="Algo que o Edson precisa saber ao receber">
+    <div class="dev-erro" id="dev-erro"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="fecharDevolucao()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarDevolucao()">🔄 Registrar devolução</button>
+    </div>
+  </div>
+</div>
+
+<!-- conferência: chegou com problema -->
+<div class="modal-bg" id="dev-prob-modal">
+  <div class="modal modal-sm">
+    <h3>⚠️ Chegou com problema</h3>
+    <p class="dev-sub">Devolução de <b id="dev-prob-cliente">—</b>. Escreva o que veio errado — é isso que a vendedora vai ler, e a troca fica travada até resolver.</p>
+    <input id="dev-prob-obs" placeholder="Ex.: veio outro par, sem a caixa, com marca de uso">
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="fecharDevProblema()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarDevProblema()">Registrar o problema</button>
     </div>
   </div>
 </div>
@@ -2487,6 +2544,16 @@ const ENV_KEY = 'loretto_envios_v1';
 let envios = (function(){ try{ const r=localStorage.getItem(ENV_KEY); return r?(JSON.parse(r)||[]):[]; }catch(e){ return []; } })();
 let _envShadow={}, _envPend={}, _envSynced=false, _envAssinado=false;
 
+/* ---- devoluções: o que o cliente MANDA DE VOLTA pra loja (troca, defeito, cancelamento) ----
+   Nasce sempre de um envio já despachado: a vendedora registra com o rastreio da volta,
+   o Edson acompanha e confere na chegada, e só então a troca é liberada. Fica em lista
+   própria porque o ciclo é outro (dura dias, atravessa a virada do dia) e não se mistura
+   com a fila de saída dos envios. */
+const DEV_KEY = 'loretto_devolucoes_v1';
+let devolucoes = (function(){ try{ const r=localStorage.getItem(DEV_KEY); return r?(JSON.parse(r)||[]):[]; }catch(e){ return []; } })();
+let _devShadow={}, _devPend={}, _devSynced=false, _devAssinado=false;
+const DEV_MOTIVOS = ['Troca de numeração','Troca de modelo','Produto com defeito','Cancelamento do pedido','Arrependimento da compra','Veio o produto errado'];
+
 /* ============ Firebase (Firestore) — dados compartilhados em tempo real ============ */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCogQoTSULCdC1JhTb0IUilWAIA1itBJ8U",
@@ -2557,7 +2624,7 @@ function initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
     FIREBASE_ON = true;
-    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
+    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); assinarDevolucoes(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
     return true;
   }catch(e){ console.warn('Firebase init falhou — seguindo com localStorage', e); FIREBASE_ON=false; return false; }
 }
@@ -2618,6 +2685,37 @@ function assinarEnvios(){
     persistEnvios();          // sobe o que foi criado offline nesta sessão
     _rerenderAtual();
   }, err=>console.warn('Firebase: leitura de envios bloqueada — verifique as regras do Firestore', err));
+}
+/* ---- devoluções: mesma mecânica dos envios (vence o carimbo mais novo) ---- */
+function persistDevolucoes(){
+  try{ localStorage.setItem(DEV_KEY, JSON.stringify(devolucoes)); }catch(e){}
+  if(!FIREBASE_ON || !fdb) return;
+  devolucoes.forEach(d=>{
+    if(!_devSynced && _devPend[d.id]===undefined) return;
+    if(_devShadow[d.id] === JSON.stringify(d)) return;
+    d.atualizadoEm = Date.now();
+    const j = JSON.stringify(d);
+    _devShadow[d.id]=j; _devPend[d.id]=d.atualizadoEm;
+    let payload; try{ payload=JSON.parse(j); }catch(_){ payload=d; }
+    fdb.collection('devolucoes').doc(String(d.id)).set(payload)
+      .catch(err=>console.warn('Firebase: devolução não salvou (id '+d.id+')', err));
+  });
+}
+function assinarDevolucoes(){
+  if(!FIREBASE_ON || _devAssinado) return; _devAssinado=true;
+  fdb.collection('devolucoes').onSnapshot(snap=>{
+    const nuvem=[];
+    snap.forEach(doc=>{ nuvem.push(doc.data()); if(_devPend[doc.id]!==undefined && !doc.metadata.hasPendingWrites) delete _devPend[doc.id]; });
+    const porId={}; devolucoes.forEach(d=>porId[d.id]=d);
+    nuvem.forEach(c=>{ const meu=porId[c.id]; if(!meu || (c.atualizadoEm||0) >= (meu.atualizadoEm||0)) porId[c.id]=c; });
+    const naNuvem = new Set(nuvem.map(c=>String(c.id)));
+    devolucoes = Object.values(porId).filter(d => naNuvem.has(String(d.id)) || !_devSynced || _devPend[d.id]!==undefined);
+    _devShadow={}; devolucoes.forEach(d=>{ if(naNuvem.has(String(d.id))) _devShadow[d.id]=JSON.stringify(d); });
+    _devSynced=true;
+    try{ localStorage.setItem(DEV_KEY, JSON.stringify(devolucoes)); }catch(e){}
+    persistDevolucoes();
+    _rerenderAtual();
+  }, err=>console.warn('Firebase: leitura de devoluções bloqueada — verifique as regras do Firestore', err));
 }
 function _subirTudo(arr){
   try{ const batch=fdb.batch();
@@ -5761,7 +5859,7 @@ function relancarEnvio(id){
   try{ window.scrollTo(0,0); }catch(_){}
   toast('Envio relançado — cole o novo link de rastreio para concluir');
 }
-function fecharEnvio(){ $('env-modal').classList.remove('open'); _envEditId=null; }
+function fecharEnvio(){ $('env-modal').classList.remove('open'); _envEditId=null; _devTrocaId=null; }
 function salvarEnvio(){
   const cliente=$('env-cliente').value.trim();
   const cidade=$('env-cidade').value.trim();
@@ -5798,6 +5896,16 @@ function salvarEnvio(){
     envios.push(Object.assign({id:novoId, status:'novo', entregador:null, pontoId:'', criadoEm:Date.now(), atualizadoEm:Date.now()}, dados));
     _envPend[novoId]=Date.now();
   }
+  // veio de uma devolução: amarra o envio da troca nela e fecha o ciclo devolução → novo envio
+  if(novoId && _devTrocaId){
+    const d=devolucoes.find(x=>x.id===_devTrocaId);
+    if(d && d.status==='recebida'){
+      d.status='resolvida'; d.desfecho='troca enviada'; d.trocaEnvioId=novoId;
+      d.resolvidoEm=Date.now(); d.resolvidoPor=session?(session.vendedora||session.role):'';
+      _devPend[d.id]=Date.now(); persistDevolucoes();
+    }
+  }
+  _devTrocaId=null;
   persistEnvios(); fecharEnvio(); renderEnvios();
   if(novoId){ abrirAvisoEdson(novoId); }          // envio novo: avisar o Edson é parte do cadastro
   else toast('Envio atualizado ✓');
@@ -6469,6 +6577,14 @@ function envCardHTML(v, modo){
       <button class="btn btn-ghost btn-mini" onclick="reabrirEnvio('${v.id}')">↩ Reabrir para hoje</button>
       <button class="btn btn-ghost btn-mini" onclick="excluirEnvio('${v.id}')">🗑</button>
     </div>`;
+  } else if(modo==='feito' && dono0){
+    // despachado: é daqui que nasce a devolução, reaproveitando os dados deste envio
+    const jaTem = devolucoes.some(d=>d.envioId===v.id && d.status!=='resolvida');
+    acts=`<div class="env-acts">
+      ${jaTem
+        ? `<span class="env-tag prog">🔄 devolução em andamento</span>`
+        : `<button class="btn btn-ghost btn-mini" onclick="abrirDevolucao('${v.id}')">🔄 Registrar devolução</button>`}
+    </div>`;
   }
   const ponto = v.pontoId && PONTO[v.pontoId];
   const quem = v.entregador && ENT[v.entregador];
@@ -6612,8 +6728,11 @@ function renderEnvBoard(){
   const programados = diaAtivo===todayKey() ? enviosProgramados() : [];
   const cancelados=enviosStatus('cancelado', doDia).sort((a,b)=>(b.canceladoEm||0)-(a.canceladoEm||0));
   const atrasados=doDia.filter(envAtrasadoDia);
+  // dia sem envio ainda pode ter devolução voltando — ela não é presa a dia nenhum
   if(!doDia.length && !programados.length){
-    box.innerHTML=`<div class="env-vazio">Nenhum envio ${diaAtivo===todayKey()?'hoje':'neste dia'}.<br><button class="btn btn-ghost btn-mini" style="margin-top:10px" onclick="novoEnvio()">📮 Lançar envio</button></div>`;
+    const _dev=devAbertas().length + devResolvidasHoje().length;
+    box.innerHTML=`<div class="env-vazio">Nenhum envio ${diaAtivo===todayKey()?'hoje':'neste dia'}.<br><button class="btn btn-ghost btn-mini" style="margin-top:10px" onclick="novoEnvio()">📮 Lançar envio</button></div>`
+      + (_dev ? `<div class="board envios-board">${colDevolucoesHTML()}</div>` : '');
     return;
   }
   const colEmbalar = envColuna('📥 A embalar', 'te1', novos.length,
@@ -6629,7 +6748,182 @@ function renderEnvBoard(){
       (atrasados.length?`<div class="env-atraso-nota">⏱ ${atrasados.length} ${atrasados.length===1?'envio veio':'envios vieram'} de ${atrasados.length===1?'dia anterior':'dias anteriores'} e ${atrasados.length===1?'ainda não saiu':'ainda não saíram'}.</div>`:'')
     + envCorteEmbNotaHTML(novos)
     + (podeOperarEnvios() ? roteiroHTML() : '')
-    + `<div class="board envios-board">${colEmbalar}${colLevar}${colRota}${colFeito}</div>`;
+    + `<div class="board envios-board">${colEmbalar}${colLevar}${colRota}${colFeito}${colDevolucoesHTML()}</div>`;
+}
+
+/* ============ DEVOLUÇÕES — o que volta do cliente para a loja ============
+   Caminho: a vendedora registra a partir do envio já despachado (com o rastreio da
+   volta e o motivo) → 🔄 voltando → o Edson confere na chegada → ✓ recebido (libera a
+   troca) ou ⚠️ problema (trava e avisa a vendedora) → a vendedora lança o envio da
+   troca ou conclui sem envio → ✓ resolvida.
+   Não é presa a dia nenhum: enquanto não resolve, fica na coluna todo dia. */
+function podeVerDevolucao(d){
+  if(!session || !session.role) return false;
+  if(session.role==='gestor' || session.geral) return true;
+  if(session.role==='vendedora') return canonVend(d.vendedora||'')===session.vendedora;
+  return false;
+}
+function devolucoesVisiveis(){ return devolucoes.filter(podeVerDevolucao); }
+function devAbertas(){ return devolucoesVisiveis().filter(d=>d.status!=='resolvida').sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0)); }
+function devResolvidasHoje(){
+  return devolucoesVisiveis().filter(d=>d.status==='resolvida' && d.resolvidoEm && dateKey(new Date(d.resolvidoEm))===todayKey())
+    .sort((a,b)=>(b.resolvidoEm||0)-(a.resolvidoEm||0));
+}
+function _devDias(d){ try{ return Math.max(0, Math.round((Date.now()-(d.criadoEm||Date.now()))/864e5)); }catch(_){ return 0; } }
+
+/* ---- registrar: sai de um envio já despachado, reaproveitando os dados dele ---- */
+let _devEnvioId=null, _devMotivo='', _devEditId=null;
+let _devTrocaId=null;   // devolução aguardando o envio da troca ser salvo (fecha o ciclo em salvarEnvio)
+function abrirDevolucao(envioId){
+  if(!podeOperarEnvios() && !(session && session.role==='vendedora')) return;
+  const v=envios.find(x=>x.id===envioId); if(!v) return;
+  if(!podeVerEnvio(v)){ toast('Esse envio é de outra vendedora'); return; }
+  _devEnvioId=envioId; _devMotivo=''; _devEditId=null;
+  $('dev-modal-title').textContent='🔄 Registrar devolução';
+  $('dev-cliente').textContent=v.cliente||'(sem nome)';
+  $('dev-origem').textContent='Envio de '+(v.despachadoEm?envQuando(v.despachadoEm):'data não registrada')+(v.produto?' · '+v.produto:'');
+  $('dev-quick').innerHTML = DEV_MOTIVOS.map(m=>`<button class="desf-chip" onclick="pickMotivoDev(this,'${m.replace(/'/g,"\\'")}')">${m}</button>`).join('');
+  $('dev-prod').value=v.produto||'';
+  $('dev-trsp').innerHTML=opcoesTrsp(v.transportadora||'');
+  $('dev-rast').value=''; $('dev-obs').value='';
+  $('dev-erro').textContent='';
+  $('dev-modal').classList.add('open');
+}
+function pickMotivoDev(btn,m){ _devMotivo=m; document.querySelectorAll('#dev-quick .desf-chip').forEach(b=>b.classList.toggle('on', b===btn)); $('dev-erro').textContent=''; }
+function fecharDevolucao(){ $('dev-modal').classList.remove('open'); _devEnvioId=null; _devEditId=null; }
+function salvarDevolucao(){
+  const v=envios.find(x=>x.id===_devEnvioId); if(!v){ fecharDevolucao(); return; }
+  const rast=$('dev-rast').value.trim();
+  if(!_devMotivo){ $('dev-erro').textContent='Escolha o motivo da devolução.'; return; }
+  if(!rast){ $('dev-erro').textContent='Cole o código ou o link de rastreio da volta — é por ele que a loja acompanha.'; return; }
+  if(!$('dev-trsp').value){ $('dev-erro').textContent='Escolha por qual transportadora está voltando.'; return; }
+  const d={
+    id:uid(), envioId:v.id,
+    cliente:v.cliente||'', contato:v.contato||'', cep:v.cep||'', endereco:v.endereco||'',
+    bairro:v.bairro||'', cidade:v.cidade||'', uf:v.uf||'', vendedora:v.vendedora||'',
+    produto:$('dev-prod').value.trim() || v.produto || '',
+    motivo:_devMotivo, observacao:$('dev-obs').value.trim(),
+    transportadora:$('dev-trsp').value, rastreio:rast,
+    status:'voltando', criadoEm:Date.now(), criadoPor: session?(session.vendedora||session.role):'',
+  };
+  devolucoes.push(d); _devPend[d.id]=Date.now();
+  persistDevolucoes(); fecharDevolucao(); renderEnvios();
+  toast('Devolução registrada — o Edson confere quando chegar 🔄');
+}
+/* ---- conferência do Edson na chegada ---- */
+function devRecebida(id){
+  if(!podeOperarEnvios()){ toast('Só a operação confere a chegada'); return; }
+  const d=devolucoes.find(x=>x.id===id); if(!d) return;
+  d.status='recebida'; d.conferencia='ok'; d.problemaObs='';
+  d.recebidoEm=Date.now(); d.recebidoPor=session?(session.vendedora||session.role):'';
+  _devPend[d.id]=Date.now(); persistDevolucoes(); renderEnvios();
+  toast('Chegou tudo certo ✓ — a vendedora já pode fazer a troca');
+}
+let _devProbId=null;
+function abrirDevProblema(id){
+  if(!podeOperarEnvios()){ toast('Só a operação confere a chegada'); return; }
+  const d=devolucoes.find(x=>x.id===id); if(!d) return;
+  _devProbId=id;
+  $('dev-prob-cliente').textContent=d.cliente||'';
+  $('dev-prob-obs').value=d.problemaObs||'';
+  $('dev-prob-modal').classList.add('open');
+}
+function fecharDevProblema(){ $('dev-prob-modal').classList.remove('open'); _devProbId=null; }
+function salvarDevProblema(){
+  const d=devolucoes.find(x=>x.id===_devProbId); if(!d){ fecharDevProblema(); return; }
+  const obs=$('dev-prob-obs').value.trim();
+  if(!obs){ toast('Escreva o que veio errado — é o que a vendedora vai ver'); return; }
+  d.status='problema'; d.conferencia='problema'; d.problemaObs=obs;
+  d.recebidoEm=Date.now(); d.recebidoPor=session?(session.vendedora||session.role):'';
+  _devPend[d.id]=Date.now(); persistDevolucoes(); fecharDevProblema(); renderEnvios();
+  toast('Problema registrado — a vendedora foi avisada ⚠️');
+}
+/* ---- desfecho pela vendedora ---- */
+function devLancarTroca(id){
+  const d=devolucoes.find(x=>x.id===id); if(!d) return;
+  if(d.status!=='recebida'){ toast('A troca libera quando o Edson confirmar que chegou certo'); return; }
+  const v=envios.find(x=>x.id===d.envioId);
+  _devTrocaId=id;                       // ao salvar o próximo envio, amarra os dois e fecha a devolução
+  if(v) relancarEnvio(v.id);
+  else { novoEnvio(); $('env-cliente').value=d.cliente||''; $('env-contato').value=d.contato||''; $('env-cep').value=d.cep||'';
+         $('env-end').value=d.endereco||''; $('env-bairro').value=d.bairro||''; $('env-cidade').value=d.cidade||''; $('env-uf').value=d.uf||''; }
+  toast('Envio da troca — confira o produto e cole o novo rastreio');
+}
+function devConcluir(id){
+  const d=devolucoes.find(x=>x.id===id); if(!d) return;
+  if(d.status==='problema'){ toast('Resolva o problema com o Edson antes de concluir'); return; }
+  if(d.status!=='recebida'){ toast('Só dá pra concluir depois que a peça chegar na loja'); return; }
+  d.status='resolvida'; d.desfecho=d.desfecho||'sem novo envio';
+  d.resolvidoEm=Date.now(); d.resolvidoPor=session?(session.vendedora||session.role):'';
+  _devPend[d.id]=Date.now(); persistDevolucoes(); renderEnvios();
+  toast('Devolução concluída ✓');
+}
+function devReabrir(id){
+  if(!podeOperarEnvios()){ toast('Só a operação desfaz a conferência'); return; }
+  const d=devolucoes.find(x=>x.id===id); if(!d) return;
+  d.status='voltando'; d.conferencia=''; d.problemaObs=''; d.recebidoEm=null; d.recebidoPor='';
+  _devPend[d.id]=Date.now(); persistDevolucoes(); renderEnvios();
+  toast('Conferência desfeita — voltou para "a caminho"');
+}
+function devExcluir(id){
+  const d=devolucoes.find(x=>x.id===id); if(!d) return;
+  if(!podeOperarEnvios() && canonVend(d.vendedora||'')!==((session||{}).vendedora)){ toast('Essa devolução é de outra vendedora'); return; }
+  if(!confirm('Apagar o registro desta devolução de '+(d.cliente||'')+'?')) return;
+  devolucoes=devolucoes.filter(x=>x.id!==id);
+  try{ localStorage.setItem(DEV_KEY, JSON.stringify(devolucoes)); }catch(e){}
+  if(FIREBASE_ON && fdb) fdb.collection('devolucoes').doc(String(id)).delete().catch(()=>{});
+  renderEnvios(); toast('Devolução apagada');
+}
+/* ---- card da coluna ---- */
+function devCardHTML(d){
+  const t=TRSP[d.transportadora];
+  const dias=_devDias(d);
+  const rast = d.rastreio ? (/^https?:\/\//i.test(d.rastreio)
+    ? `<a class="lnk" href="${esc(d.rastreio)}" target="_blank" rel="noopener">🔎 acompanhar</a>`
+    : `<span class="dev-cod">🔎 ${esc(d.rastreio)}</span>`) : '';
+  const podeConferir = podeOperarEnvios();
+  const ehMinha = session && session.role==='vendedora' && (session.geral || canonVend(d.vendedora||'')===session.vendedora);
+  let faixa='', acts='';
+  if(d.status==='voltando'){
+    faixa=`<span class="env-tag prog">🔄 voltando${dias?` · há ${dias} ${dias===1?'dia':'dias'}`:''}</span>`;
+    acts = podeConferir
+      ? `<button class="btn btn-primary btn-mini" onclick="devRecebida('${d.id}')">✓ Chegou tudo certo</button>
+         <button class="btn btn-ghost btn-mini" onclick="abrirDevProblema('${d.id}')">⚠️ Chegou com problema</button>`
+      : `<span class="dev-espera">Aguardando o Edson conferir na chegada</span>`;
+  } else if(d.status==='recebida'){
+    faixa=`<span class="env-tag ok">✓ chegou certo${d.recebidoEm?' · '+envQuando(d.recebidoEm):''}</span>`;
+    acts = ehMinha
+      ? `<button class="btn btn-primary btn-mini" onclick="devLancarTroca('${d.id}')">🔁 Lançar o envio da troca</button>
+         <button class="btn btn-ghost btn-mini" onclick="devConcluir('${d.id}')">✓ Concluir sem envio</button>`
+      : `<span class="dev-espera">Liberado — ${esc((d.vendedora||'a vendedora').split(' ')[0])} faz a troca</span>`;
+    if(podeConferir) acts += `<button class="iconbtn" onclick="devReabrir('${d.id}')" title="Desfazer conferência">↩</button>`;
+  } else if(d.status==='problema'){
+    faixa=`<span class="env-tag urg">⚠️ chegou com problema</span>`;
+    acts = podeConferir
+      ? `<button class="btn btn-ghost btn-mini" onclick="abrirDevProblema('${d.id}')">✎ Editar o problema</button>
+         <button class="btn btn-primary btn-mini" onclick="devRecebida('${d.id}')">✓ Resolvido, liberar troca</button>`
+      : `<span class="dev-espera">Fale com o Edson antes de trocar com o cliente</span>`;
+  } else {
+    faixa=`<span class="env-tag ok">✓ resolvida${d.resolvidoEm?' · '+envQuando(d.resolvidoEm):''}</span>`;
+  }
+  return `<div class="env-card dev-card ${d.status}" data-did="${d.id}">
+    <h4>${esc(d.cliente||'(sem nome)')}</h4>
+    <div class="dev-motivo">${esc(d.motivo||'')}</div>
+    ${d.produto?`<div class="env-dest">👟 ${esc(d.produto)}</div>`:''}
+    <div class="env-dest">${t?`${t.ico} ${esc(t.nome)}`:'transportadora não informada'}${rast?' · '+rast:''}</div>
+    ${d.observacao?`<div class="dev-obs">📝 ${esc(d.observacao)}</div>`:''}
+    ${d.problemaObs?`<div class="dev-prob">⚠️ ${esc(d.problemaObs)}</div>`:''}
+    ${(session&&session.geral&&d.vendedora)?`<div class="env-dest">🙋 ${esc(d.vendedora)}</div>`:''}
+    <div class="env-tags">${faixa}</div>
+    ${acts?`<div class="env-acts">${acts}</div>`:''}
+  </div>`;
+}
+function colDevolucoesHTML(){
+  const abertas=devAbertas(), feitas=devResolvidasHoje();
+  const corpo = abertas.map(devCardHTML).join('')
+    + (feitas.length ? `<div class="env-sub"><div class="env-sub-h">✓ Resolvidas hoje</div>${feitas.map(devCardHTML).join('')}</div>` : '');
+  return envColuna('🔄 Voltando p/ a loja', 'te5', abertas.length,
+    corpo || '<div class="col-vazio">Nada voltando agora.</div>');
 }
 
 /* ---- Pendências ---- */
@@ -6638,8 +6932,19 @@ function envPendencias(){
   const prazoEmbalagem = vis.filter(envEsperandoEmbalagem);
   const semTransp = vis.filter(v=>v.status==='embalado' && !v.transportadora);
   const semRastreio = vis.filter(v=>v.status==='despachado' && v.rastreio && !v.avisoCliente && waNumero(v.contato));
+  // devoluções entram nas pendências de quem tem ação a tomar: o Edson confere a chegada,
+  // a vendedora resolve a troca depois de liberada (e o problema é pendência dos dois)
+  const opera = podeOperarEnvios();
+  const devConferir = opera ? devolucoesVisiveis().filter(d=>d.status==='voltando') : [];
+  const devProblema = devolucoesVisiveis().filter(d=>d.status==='problema');
+  const devLiberadas = devolucoesVisiveis().filter(d=>d.status==='recebida');
   const distintos=new Set([...prazoEmbalagem,...semTransp,...semRastreio].map(v=>v.id));
-  return { prazoEmbalagem, semTransp, semRastreio, total: distintos.size };
+  return { prazoEmbalagem, semTransp, semRastreio, devConferir, devProblema, devLiberadas,
+           total: distintos.size + devConferir.length + devProblema.length + devLiberadas.length };
+}
+function devPendRow(d, sub, acao){
+  const t=TRSP[d.transportadora];
+  return `<div class="pend-row"><div class="pend-info"><b>🔄 ${esc(d.cliente||'(sem nome)')}</b><small>${esc(sub)}${d.motivo?' · '+esc(d.motivo):''}${t?' · '+esc(t.nome):''}${d.vendedora?' · 👤 '+esc(d.vendedora):''}</small></div><div class="pend-acts">${acao}</div></div>`;
 }
 function envPendRow(v, sub, acao){
   const dest=[v.cidade,v.uf].filter(Boolean).join(' - ');
@@ -6658,7 +6963,16 @@ function renderEnvPend(){
     + bloco('⏰ Passou do prazo de embalagem','ainda não embalado',P.prazoEmbalagem,
         v=>`<button class="pend-b no" onclick="cobrarEdson('${v.id}')">⏰ Cobrar o Edson</button>`)
     + bloco('💬 Cliente sem o rastreio','despachado, cliente não avisado',P.semRastreio,
-        v=>`<button class="pend-b ok" onclick="envAvisarCliente('${v.id}')">💬 Avisar cliente</button>`);
+        v=>`<button class="pend-b ok" onclick="envAvisarCliente('${v.id}')">💬 Avisar cliente</button>`)
+    + (P.devProblema.length ? `<div class="env-sub">⚠️ Devolução com problema<span class="n">${P.devProblema.length}</span></div>`
+        + P.devProblema.map(d=>devPendRow(d, d.problemaObs||'chegou com problema',
+            `<button class="pend-b no" onclick="envSetSub('board')">Ver no quadro</button>`)).join('') : '')
+    + (P.devConferir.length ? `<div class="env-sub">🔄 Devolução a conferir na chegada<span class="n">${P.devConferir.length}</span></div>`
+        + P.devConferir.map(d=>devPendRow(d, 'voltando há '+_devDias(d)+' dia(s)',
+            `<button class="pend-b sis" onclick="devRecebida('${d.id}')">✓ Chegou certo</button>`)).join('') : '')
+    + (P.devLiberadas.length ? `<div class="env-sub">✓ Devolução liberada — falta fazer a troca<span class="n">${P.devLiberadas.length}</span></div>`
+        + P.devLiberadas.map(d=>devPendRow(d, 'chegou na loja, troca liberada',
+            `<button class="pend-b ok" onclick="devLancarTroca('${d.id}')">🔁 Lançar a troca</button>`)).join('') : '');
 }
 
 /* ---- Finalizados: histórico dos envios despachados ----
@@ -7276,6 +7590,9 @@ function fcardEnvio(v){
     <div class="vcard-acts">
       ${tel?`<button class="vbtn ${v.avisoCliente?'ghost':''}" onclick="envAvisarCliente('${v.id}')">${WA_ICON} ${v.avisoCliente?'Reenviar rastreio':'Avisar cliente — rastreio'}</button>`:'<span class="vbtn disabled">sem telefone</span>'}
       ${tel?`<a class="vbtn wa" href="https://wa.me/${tel}?text=${encodeURIComponent(msgPosVenda(v))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:''}
+      ${devolucoes.some(d=>d.envioId===v.id && d.status!=='resolvida')
+        ? `<span class="vbtn disabled">🔄 devolução em andamento</span>`
+        : `<button class="vbtn ghost" onclick="abrirDevolucao('${v.id}')">🔄 Registrar devolução</button>`}
       <button class="vbtn relancar" onclick="relancarEnvio('${v.id}')">🔁 Relançar envio</button>
     </div>
   </div>`;
