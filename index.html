@@ -899,6 +899,9 @@
   .dev-prob{color:var(--urgent);background:rgba(224,106,82,.1);border-radius:8px;padding:6px 8px}
   .dev-cod{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--text-soft)}
   .dev-espera{font-size:11.5px;color:var(--text-mute);font-style:italic}
+  .dev-naoavisou{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px;padding:7px 9px;border-radius:9px;
+    background:rgba(224,179,65,.14);border:1px solid rgba(224,179,65,.4);color:#e8c766;font-size:11.5px;font-weight:600}
+  .dev-semtel{font-size:12px;color:var(--warn);margin:4px 0 0}
   .env-tag.urg{background:rgba(224,106,82,.16);border-color:rgba(224,106,82,.45);color:var(--urgent)}
   .env-tag.ok{background:rgba(127,174,107,.16);border-color:rgba(127,174,107,.4);color:var(--calm)}
   .dev-sub{font-size:13px;color:var(--text-soft);margin:0 0 14px;line-height:1.5}
@@ -1896,7 +1899,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v183</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v184</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -1907,6 +1910,21 @@
       <button class="btn" onclick="gerarPDF(session.entregador,null,_paMesEnt)">📄 Salvar PDF</button>
       <button class="btn btn-primary" onclick="_paCopiar(session.entregador,_paMesEnt)">⧉ Copiar resumo</button>
     </div>
+  </div>
+</div>
+
+<!-- conferiu a devolução: avisar a vendedora é parte da conferência, não tem "cancelar" -->
+<div class="modal-bg" id="dev-aviso-modal">
+  <div class="modal" style="max-width:470px;text-align:center">
+    <div style="font-size:40px;line-height:1" id="dev-aviso-ic">✅</div>
+    <h3 style="margin:8px 0 6px" id="dev-aviso-h">Chegou tudo certo</h3>
+    <p class="env-aviso-sub" id="dev-aviso-sub"></p>
+    <pre id="dev-aviso-prev" class="env-aviso-prev"></pre>
+    <button class="btn btn-primary env-aviso-wa" id="dev-aviso-btn" onclick="avisarVendDevWhats()">💬 Avisar a vendedora no WhatsApp</button>
+    <button class="btn btn-primary env-aviso-wa" id="dev-aviso-fechar" style="display:none" onclick="fecharAvisoDev()">✓ Pronto, avisei</button>
+    <p class="dev-semtel" id="dev-aviso-semtel" style="display:none">Sem telefone dessa vendedora cadastrado — avise pelo grupo e marque abaixo.</p>
+    <button type="button" class="env-aviso-skip" onclick="marcarAvisadaPorFora()">avisei por fora (grupo, pessoalmente)</button>
+    <button type="button" class="env-aviso-skip" onclick="fecharAvisoDev()">avisar depois — fica cobrando no painel</button>
   </div>
 </div>
 
@@ -6730,7 +6748,7 @@ function renderEnvBoard(){
   const atrasados=doDia.filter(envAtrasadoDia);
   // dia sem envio ainda pode ter devolução voltando — ela não é presa a dia nenhum
   if(!doDia.length && !programados.length){
-    const _dev=devAbertas().length + devResolvidasHoje().length;
+    const _dev=devAbertas().length;
     box.innerHTML=`<div class="env-vazio">Nenhum envio ${diaAtivo===todayKey()?'hoje':'neste dia'}.<br><button class="btn btn-ghost btn-mini" style="margin-top:10px" onclick="novoEnvio()">📮 Lançar envio</button></div>`
       + (_dev ? `<div class="board envios-board">${colDevolucoesHTML()}</div>` : '');
     return;
@@ -6765,10 +6783,6 @@ function podeVerDevolucao(d){
 }
 function devolucoesVisiveis(){ return devolucoes.filter(podeVerDevolucao); }
 function devAbertas(){ return devolucoesVisiveis().filter(d=>d.status!=='resolvida').sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0)); }
-function devResolvidasHoje(){
-  return devolucoesVisiveis().filter(d=>d.status==='resolvida' && d.resolvidoEm && dateKey(new Date(d.resolvidoEm))===todayKey())
-    .sort((a,b)=>(b.resolvidoEm||0)-(a.resolvidoEm||0));
-}
 function _devDias(d){ try{ return Math.max(0, Math.round((Date.now()-(d.criadoEm||Date.now()))/864e5)); }catch(_){ return 0; } }
 
 /* ---- registrar: sai de um envio já despachado, reaproveitando os dados dele ---- */
@@ -6816,8 +6830,9 @@ function devRecebida(id){
   const d=devolucoes.find(x=>x.id===id); if(!d) return;
   d.status='recebida'; d.conferencia='ok'; d.problemaObs='';
   d.recebidoEm=Date.now(); d.recebidoPor=session?(session.vendedora||session.role):'';
+  d.avisoVend=null;                       // conferiu de novo: o aviso anterior não vale mais
   _devPend[d.id]=Date.now(); persistDevolucoes(); renderEnvios();
-  toast('Chegou tudo certo ✓ — a vendedora já pode fazer a troca');
+  abrirAvisoDev(id);                      // conferiu = avisa a vendedora, sempre
 }
 let _devProbId=null;
 function abrirDevProblema(id){
@@ -6833,10 +6848,64 @@ function salvarDevProblema(){
   const d=devolucoes.find(x=>x.id===_devProbId); if(!d){ fecharDevProblema(); return; }
   const obs=$('dev-prob-obs').value.trim();
   if(!obs){ toast('Escreva o que veio errado — é o que a vendedora vai ver'); return; }
+  const alvo=_devProbId;
   d.status='problema'; d.conferencia='problema'; d.problemaObs=obs;
   d.recebidoEm=Date.now(); d.recebidoPor=session?(session.vendedora||session.role):'';
+  d.avisoVend=null;
   _devPend[d.id]=Date.now(); persistDevolucoes(); fecharDevProblema(); renderEnvios();
-  toast('Problema registrado — a vendedora foi avisada ⚠️');
+  abrirAvisoDev(alvo);                    // conferiu = avisa a vendedora, sempre
+}
+/* ---- aviso obrigatório: conferiu a devolução, a vendedora tem que saber na hora ----
+   Abre sozinho depois de toda conferência (certa ou com problema) e não tem "cancelar":
+   enquanto não avisar, o card e as Pendências ficam cobrando. */
+let _devAvisoId=null;
+function devMsgVend(d){
+  const nomeV = d.vendedora ? d.vendedora.split(' ')[0] : '';
+  const ok = d.status==='recebida';
+  let m = `Oi${nomeV?' '+nomeV:''}! 🔄\n\n`;
+  m += ok ? `*Chegou na loja a devolução da ${d.cliente||'sua cliente'}* ✅\n\n`
+          : `*Chegou a devolução da ${d.cliente||'sua cliente'}, mas veio com problema* ⚠️\n\n`;
+  if(d.produto) m += `👟 ${d.produto}\n`;
+  if(d.motivo)  m += `📌 Motivo: ${d.motivo}\n`;
+  if(TRSP[d.transportadora]) m += `🚚 ${TRSP[d.transportadora].nome}\n`;
+  m += ok ? `\nConferi e está tudo certo. Já pode fazer a troca com a cliente — o botão de lançar o envio da troca está liberado no painel. 👍`
+          : `\n⚠️ ${d.problemaObs}\n\nA troca está travada no painel até a gente resolver isso. Me chama pra combinarmos o que fazer.`;
+  m += `\n\n— Edson`;
+  return m;
+}
+function abrirAvisoDev(id){
+  const d=devolucoes.find(x=>x.id===id); if(!d) return;
+  _devAvisoId=id;
+  const ok = d.status==='recebida';
+  $('dev-aviso-ic').textContent = ok ? '✅' : '⚠️';
+  $('dev-aviso-h').textContent = ok ? 'Chegou tudo certo' : 'Chegou com problema';
+  $('dev-aviso-sub').innerHTML = `Avise <b>${esc(d.vendedora||'a vendedora')}</b> que a devolução de <b>${esc(d.cliente||'')}</b> chegou.`;
+  $('dev-aviso-prev').textContent = devMsgVend(d);
+  const tem = !!telVend(d.vendedora||'');
+  $('dev-aviso-btn').style.display = tem ? '' : 'none';
+  $('dev-aviso-semtel').style.display = tem ? 'none' : '';
+  $('dev-aviso-fechar').style.display = tem ? 'none' : '';
+  $('dev-aviso-modal').classList.add('open');
+}
+function avisarVendDevWhats(){
+  const d=devolucoes.find(x=>x.id===_devAvisoId); if(!d) return;
+  const tel=telVend(d.vendedora||'');
+  if(!tel){ toast('Sem telefone da vendedora — avise pelo grupo'); return; }
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(devMsgVend(d))}`,'_blank');
+  d.avisoVend=Date.now(); d.avisoVendPor = session?(session.vendedora||session.role):'';
+  _devPend[d.id]=Date.now(); persistDevolucoes(); renderEnvios();
+  $('dev-aviso-btn').style.display='none'; $('dev-aviso-fechar').style.display='';
+}
+function marcarAvisadaPorFora(){
+  const d=devolucoes.find(x=>x.id===_devAvisoId); if(!d) return;
+  d.avisoVend=Date.now(); d.avisoVendPor = session?(session.vendedora||session.role):'';
+  _devPend[d.id]=Date.now(); persistDevolucoes();
+  fecharAvisoDev();
+}
+function fecharAvisoDev(){
+  const d=devolucoes.find(x=>x.id===_devAvisoId);
+  $('dev-aviso-modal').classList.remove('open'); _devAvisoId=null; renderEnvios();
+  if(d && d.avisoVend) toast('Vendedora avisada ✓');
 }
 /* ---- desfecho pela vendedora ---- */
 function devLancarTroca(id){
@@ -6913,17 +6982,22 @@ function devCardHTML(d){
     <div class="env-dest">${t?`${t.ico} ${esc(t.nome)}`:'transportadora não informada'}${rast?' · '+rast:''}</div>
     ${d.observacao?`<div class="dev-obs">📝 ${esc(d.observacao)}</div>`:''}
     ${d.problemaObs?`<div class="dev-prob">⚠️ ${esc(d.problemaObs)}</div>`:''}
+    ${(d.conferencia && !d.avisoVend && d.status!=='resolvida')
+      ? (podeConferir
+          ? `<div class="dev-naoavisou">📣 ${esc((d.vendedora||'a vendedora').split(' ')[0])} ainda não foi avisada <button class="btn btn-primary btn-mini" onclick="abrirAvisoDev('${d.id}')">Avisar agora</button></div>`
+          : '')
+      : ''}
     ${(session&&session.geral&&d.vendedora)?`<div class="env-dest">🙋 ${esc(d.vendedora)}</div>`:''}
     <div class="env-tags">${faixa}</div>
     ${acts?`<div class="env-acts">${acts}</div>`:''}
   </div>`;
 }
+/* resolvida SAI da coluna e passa a viver no histórico (aba Finalizados), igual ao envio
+   despachado — a coluna é só o que ainda precisa de alguém. */
 function colDevolucoesHTML(){
-  const abertas=devAbertas(), feitas=devResolvidasHoje();
-  const corpo = abertas.map(devCardHTML).join('')
-    + (feitas.length ? `<div class="env-sub"><div class="env-sub-h">✓ Resolvidas hoje</div>${feitas.map(devCardHTML).join('')}</div>` : '');
+  const abertas=devAbertas();
   return envColuna('🔄 Voltando p/ a loja', 'te5', abertas.length,
-    corpo || '<div class="col-vazio">Nada voltando agora.</div>');
+    abertas.map(devCardHTML).join('') || '<div class="col-vazio">Nada voltando agora.</div>');
 }
 
 /* ---- Pendências ---- */
@@ -6938,9 +7012,11 @@ function envPendencias(){
   const devConferir = opera ? devolucoesVisiveis().filter(d=>d.status==='voltando') : [];
   const devProblema = devolucoesVisiveis().filter(d=>d.status==='problema');
   const devLiberadas = devolucoesVisiveis().filter(d=>d.status==='recebida');
+  // conferiu e não avisou: fica cobrando o Edson até a vendedora saber
+  const devSemAviso = opera ? devolucoesVisiveis().filter(d=>d.conferencia && !d.avisoVend && d.status!=='resolvida') : [];
   const distintos=new Set([...prazoEmbalagem,...semTransp,...semRastreio].map(v=>v.id));
-  return { prazoEmbalagem, semTransp, semRastreio, devConferir, devProblema, devLiberadas,
-           total: distintos.size + devConferir.length + devProblema.length + devLiberadas.length };
+  return { prazoEmbalagem, semTransp, semRastreio, devConferir, devProblema, devLiberadas, devSemAviso,
+           total: distintos.size + devConferir.length + devProblema.length + devLiberadas.length + devSemAviso.length };
 }
 function devPendRow(d, sub, acao){
   const t=TRSP[d.transportadora];
@@ -6964,6 +7040,9 @@ function renderEnvPend(){
         v=>`<button class="pend-b no" onclick="cobrarEdson('${v.id}')">⏰ Cobrar o Edson</button>`)
     + bloco('💬 Cliente sem o rastreio','despachado, cliente não avisado',P.semRastreio,
         v=>`<button class="pend-b ok" onclick="envAvisarCliente('${v.id}')">💬 Avisar cliente</button>`)
+    + (P.devSemAviso.length ? `<div class="env-sub">📣 Conferido, mas a vendedora não foi avisada<span class="n">${P.devSemAviso.length}</span></div>`
+        + P.devSemAviso.map(d=>devPendRow(d, d.conferencia==='problema'?'chegou com problema':'chegou tudo certo',
+            `<button class="pend-b no" onclick="abrirAvisoDev('${d.id}')">💬 Avisar agora</button>`)).join('') : '')
     + (P.devProblema.length ? `<div class="env-sub">⚠️ Devolução com problema<span class="n">${P.devProblema.length}</span></div>`
         + P.devProblema.map(d=>devPendRow(d, d.problemaObs||'chegou com problema',
             `<button class="pend-b no" onclick="envSetSub('board')">Ver no quadro</button>`)).join('') : '')
@@ -7007,37 +7086,76 @@ function renderEnvFin(){
       +' placeholder="🔎 Buscar cliente, telefone ou rastreio — em qualquer mês">'
       +'<p class="vmin-sub" id="envfin-sub"></p><div id="envfin-list"></div>';
   }
-  const todos=_envFinDespachados();
+  // o histórico é a linha do tempo do que ENCERROU: envio despachado e devolução resolvida
+  const itens = _envFinDespachados().map(v=>({tipo:'envio', ts:v.despachadoEm, o:v}))
+    .concat(_devFinResolvidas().map(d=>({tipo:'dev', ts:d.resolvidoEm, o:d})));
   const q=norm(_envFinQ.trim()), qd=_envFinQ.replace(/\D/g,'');
   const buscando=q.length>=2;
-  const lista=(buscando
-    ? todos.filter(v=>{
-        const nome=norm(v.cliente||''), tel=(v.contato||'').replace(/\D/g,''), rast=norm(v.rastreio||''), prod=norm(v.produto||'');
-        return nome.includes(q) || prod.includes(q) || (qd.length>=4 && tel.includes(qd)) || (q.length>=4 && rast.includes(q));
-      })
-    : todos.filter(v=>_envFinMesDe(v)===_envFinMes)
-  ).sort((a,b)=>(b.despachadoEm||0)-(a.despachadoEm||0));   // mais recente primeiro
+  const bate=o=>{
+    const nome=norm(o.cliente||''), tel=(o.contato||'').replace(/\D/g,''), rast=norm(o.rastreio||''), prod=norm(o.produto||''), mot=norm(o.motivo||'');
+    return nome.includes(q) || prod.includes(q) || mot.includes(q) || (qd.length>=4 && tel.includes(qd)) || (q.length>=4 && rast.includes(q));
+  };
+  const lista=(buscando ? itens.filter(x=>bate(x.o)) : itens.filter(x=>dateKey(new Date(x.ts)).slice(0,7)===_envFinMes))
+    .sort((a,b)=>(b.ts||0)-(a.ts||0));   // mais recente primeiro
   const min=_envFinMesMin(), hoje=monthKey();
+  const nEnv=lista.filter(x=>x.tipo==='envio').length, nDev=lista.length-nEnv;
+  const resumo = [nEnv?`<b>${nEnv}</b> ${nEnv===1?'envio despachado':'envios despachados'}`:'',
+                  nDev?`<b>${nDev}</b> ${nDev===1?'devolução resolvida':'devoluções resolvidas'}`:''].filter(Boolean).join(' · ');
   $('envfin-mes').textContent = buscando ? 'Buscando em todos os meses' : rotuloMes(_envFinMes);
   $('envfin-prev').disabled = buscando || _envFinMes<=min;
   $('envfin-next').disabled = buscando || _envFinMes>=hoje;
-  $('envfin-sub').innerHTML = !lista.length ? '' : (buscando
-    ? `<b>${lista.length}</b> ${lista.length===1?'envio encontrado':'envios encontrados'}.`
-    : `<b>${lista.length}</b> ${lista.length===1?'envio despachado':'envios despachados'} em <b>${esc(rotuloMes(_envFinMes))}</b>.`);
+  $('envfin-sub').innerHTML = !lista.length ? '' : (buscando ? resumo+'.' : resumo+` em <b>${esc(rotuloMes(_envFinMes))}</b>.`);
   if(!lista.length){
     $('envfin-list').innerHTML = buscando
       ? '<div class="empty">Nada encontrado. Tente outro nome, parte do telefone ou o código de rastreio.</div>'
-      : '<div class="empty">Nenhum envio despachado neste mês.</div>';
+      : '<div class="empty">Nada encerrado neste mês.</div>';
     return;
   }
-  const porDia={}; lista.forEach(v=>{ const dk=dateKey(new Date(v.despachadoEm)); porDia[dk]=(porDia[dk]||0)+1; });
+  const porDia={}; lista.forEach(x=>{ const dk=dateKey(new Date(x.ts)); porDia[dk]=(porDia[dk]||0)+1; });
   let html='', diaAnt='';
-  lista.forEach(v=>{
-    const dk=dateKey(new Date(v.despachadoEm));
-    if(dk!==diaAnt){ diaAnt=dk; html+=`<div class="envfin-dia">${esc(rotuloDia(dk))}<span>${porDia[dk]} ${porDia[dk]===1?'envio':'envios'}</span></div>`; }
-    html+=fcardEnvio(v);
+  lista.forEach(x=>{
+    const dk=dateKey(new Date(x.ts));
+    if(dk!==diaAnt){ diaAnt=dk; html+=`<div class="envfin-dia">${esc(rotuloDia(dk))}<span>${porDia[dk]} ${porDia[dk]===1?'registro':'registros'}</span></div>`; }
+    html += x.tipo==='envio' ? fcardEnvio(x.o) : fcardDev(x.o);
   });
   $('envfin-list').innerHTML=html;
+}
+function _devFinResolvidas(){ return devolucoesVisiveis().filter(d=>d.status==='resolvida' && d.resolvidoEm); }
+/* card da devolução no histórico: a história inteira dela, do registro ao desfecho */
+function fcardDev(d){
+  const t=TRSP[d.transportadora];
+  const troca = d.trocaEnvioId && envios.find(v=>v.id===d.trocaEnvioId);
+  const rast = d.rastreio ? (/^https?:\/\//i.test(d.rastreio)
+    ? `<a class="lnk" href="${esc(d.rastreio)}" target="_blank" rel="noopener">link de rastreio</a>` : esc(d.rastreio)) : '—';
+  return `<div class="fcard fcard-dev" data-did="${d.id}">
+    <div class="fcard-top">
+      <span class="vbadge" style="background:rgba(185,138,201,.18);color:#d3b0de">🔄 Devolução resolvida${d.resolvidoEm?' · '+fmtClock(d.resolvidoEm):''}</span>
+      ${d.conferencia==='problema'?'<span class="vbadge falha">⚠️ chegou com problema</span>':'<span class="vbadge ok">✓ chegou certo</span>'}
+    </div>
+    <div class="fcard-name">${esc(d.cliente||'(sem nome)')}</div>
+
+    <div class="fcard-sec-h">🔄 A devolução</div>
+    <div class="fcard-body"><div class="fcard-info">
+      <div class="frow"><span class="ico">📌</span><span>Motivo: <b>${esc(d.motivo||'—')}</b></span></div>
+      ${d.produto?`<div class="frow"><span class="ico">👟</span><span>${esc(d.produto)}</span></div>`:''}
+      <div class="frow"><span class="ico">🚚</span><span>${t?esc(t.nome):'transportadora não informada'} · ${rast}</span></div>
+      ${d.observacao?`<div class="frow"><span class="ico">📝</span><span>${esc(d.observacao)}</span></div>`:''}
+      ${d.vendedora?`<div class="frow"><span class="ico">🙋</span><span>Vendedora: <b>${esc(d.vendedora)}</b></span></div>`:''}
+    </div></div>
+
+    <div class="fcard-sec-h">📦 Chegada na loja</div>
+    <div class="fcard-body"><div class="fcard-info">
+      <div class="frow"><span class="ico">${d.conferencia==='problema'?'⚠️':'✓'}</span><span>${d.conferencia==='problema'?'Chegou com problema':'Conferido, tudo certo'}${d.recebidoEm?' · '+envQuando(d.recebidoEm):''}${d.recebidoPor?' · por '+esc(d.recebidoPor):''}</span></div>
+      ${d.problemaObs?`<div class="frow"><span class="ico">📝</span><span style="color:var(--urgent)">${esc(d.problemaObs)}</span></div>`:''}
+      <div class="frow"><span class="ico">💬</span><span>${d.avisoVend?'Vendedora avisada ✓':'Vendedora não foi avisada pelo sistema'}</span></div>
+    </div></div>
+
+    <div class="fcard-sec-h">✅ Desfecho</div>
+    <div class="fcard-body"><div class="fcard-info">
+      <div class="frow"><span class="ico">🏁</span><span>${d.desfecho==='troca enviada'?'Troca enviada para a cliente':'Concluída sem novo envio (cancelamento/estorno)'}${d.resolvidoPor?' · por '+esc(d.resolvidoPor):''}</span></div>
+      ${troca?`<div class="frow"><span class="ico">📮</span><span>Envio da troca: <b>${esc(troca.cliente||'')}</b>${troca.produto?' — '+esc(troca.produto):''}${troca.rastreio?' · rastreio lançado':''}</span></div>`:''}
+    </div></div>
+  </div>`;
 }
 
 /* ---- Ranking de envios ---- */
