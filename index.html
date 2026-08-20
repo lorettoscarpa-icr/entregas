@@ -492,6 +492,9 @@
   .hr-alert{background:rgba(224,106,82,.16);color:var(--urgent);font-weight:600;font-size:13.5px;padding:9px 12px;border-radius:10px;margin-bottom:10px;display:flex;align-items:center;gap:7px}
   .ent-alert{background:rgba(224,179,65,.14);border:1px solid rgba(224,179,65,.4);color:var(--warn);border-radius:13px;padding:13px 15px;margin-bottom:15px;font-size:13.5px;line-height:1.55}
   .ent-noloc{background:rgba(224,106,82,.12);border:1px solid rgba(224,106,82,.45);border-radius:13px;padding:12px 14px;margin-bottom:15px}
+  /* sem telefone é aviso, não erro: o entregador tem o que fazer (pedir à vendedora) */
+  .ent-notel{background:rgba(224,179,65,.12);border-color:rgba(224,179,65,.45)}
+  .ent-notel .ent-noloc-h{color:#e8c766}
   .ent-noloc-h{color:var(--urgent);font-weight:600;font-size:13.5px;margin-bottom:8px}
   .ent-noloc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid rgba(224,106,82,.22)}
   .ent-noloc-row span{display:flex;flex-direction:column;gap:1px;font-size:13.5px;color:var(--text)}
@@ -1899,7 +1902,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v186</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v187</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -8138,7 +8141,21 @@ function renderEntregador(){
       <span><b>${esc(e.cliente)}</b><small>${(e.endereco||e.bairro)?esc([e.endereco,e.bairro,e.cidade].filter(Boolean).join(' · ')):'sem endereço — confirme com a vendedora'}</small></span>
       <span style="display:flex;gap:6px;flex:none">
         ${(e.endereco||e.bairro)?`<button class="btn btn-ghost btn-mini" onclick="localizarEntregaEnt('${e.id}')">📍 localizar</button>`:''}
-        ${waNumero(e.contato)?`<button class="btn btn-ghost btn-mini" onclick="pedirLocalizacao('${e.id}')">💬 pedir ao cliente</button>`:''}
+        ${waNumero(e.contato)
+          ? `<button class="btn btn-ghost btn-mini" onclick="${_tipoPedido(e)==='ambos'?'pedirLocalEndereco':'pedirLocalizacao'}('${e.id}')">💬 pedir ao cliente</button>`
+          : (telVend(e.vendedora)?`<button class="btn btn-ghost btn-mini" onclick="pedirContatoVend('${e.id}')">👩 pedir contato</button>`:'')}
+      </span>
+    </div>`).join('')}
+  </div>` : '';
+  /* sem telefone o entregador trava: não avisa, não pede localização, não pede endereço.
+     Card próprio no topo da rota, com o pedido do contato indo direto pra vendedora. */
+  const semTel = ordered.filter(e=>!waNumero(e.contato));
+  const semTelHTMLBloco = semTel.length ? `<div class="ent-noloc ent-notel">
+    <div class="ent-noloc-h">📵 ${semTel.length} ${semTel.length===1?'entrega sem o telefone do cliente':'entregas sem o telefone do cliente'} — peça à vendedora</div>
+    ${semTel.map(e=>`<div class="ent-noloc-row">
+      <span><b>${esc(e.cliente)}</b><small>${e.vendedora?('vendedora: '+esc(e.vendedora)):'sem vendedora registrada'}</small></span>
+      <span style="display:flex;gap:6px;flex:none">
+        ${telVend(e.vendedora)?`<button class="btn btn-ghost btn-mini" onclick="pedirContatoVend('${e.id}')">👩 pedir contato</button>`:'<span class="ro-note">avise pelo grupo</span>'}
       </span>
     </div>`).join('')}
   </div>` : '';
@@ -8172,7 +8189,7 @@ function renderEntregador(){
         <button class="btn btn-primary btn-mini" onclick="abrirMoverEntregador()">↪ Mover p/ outro entregador</button>
       </div>
     </div>` : '';
-  $('ent-list').innerHTML=alerta + semLocHTML + enviosEntregadorHTML() + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML + enviosFeitosEntregadorHTML();
+  $('ent-list').innerHTML=alerta + semTelHTMLBloco + semLocHTML + enviosEntregadorHTML() + ordemNota + selBar + plan.map((p,i)=>cardEntregadorView(p,i+1,fromGps,plan.length)).join('') + finHTML + enviosFeitosEntregadorHTML();
   ensureMapEnt(); renderMapEnt();
   iniciarRastreio();   // mantém a transmissão ligada enquanto houver rota (e para sozinho se acabar)
   renderGpsBar();
@@ -8286,6 +8303,37 @@ function msgPadrao(){
   return `Olá, meu nome é ${nome}, sou o entregador da Loretto Scarpa.\nA sua entrega já está em rota. Estou enviando a minha localização para você acompanhar.\n\nQualquer dúvida, estou à disposição. 🤝`;
 }
 // abre o seletor "Falar com a vendedora": WhatsApp ou Ligar
+/* Sem o telefone do cliente o entregador fica sem saída: não avisa, não pede localização,
+   não pede endereço. Então em vez de um "sem telefone" morto, ele pede o contato direto à
+   vendedora, que é quem tem. */
+function semTelHTML(e){
+  return telVend(e.vendedora)
+    ? `<button class="ent-btn" onclick="pedirContatoVend('${e.id}')" style="background:rgba(224,179,65,.16);color:#e8c766;border-color:rgba(224,179,65,.45)">👩 Pedir o contato do cliente</button>`
+    : '<span class="ent-btn disabled">sem telefone do cliente</span>';
+}
+function pedirContatoVend(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  const telV=telVend(e.vendedora);
+  if(!telV){ toast('Sem o WhatsApp da vendedora cadastrado — avise pelo grupo'); return; }
+  const nomeV = e.vendedora ? e.vendedora.split(' ')[0] : '';
+  const eu = ((ENT[e.entregador]||{}).nome||'').trim().split(' ')[0];
+  const onde = [e.endereco, e.bairro, e.cidade].filter(Boolean).join(' · ');
+  let m = `Oi${nomeV?' '+nomeV:''}! ${eu?'Aqui é o '+eu+', ':''}estou com a entrega d${/a$/i.test(e.cliente||'')?'a':'o'} *${e.cliente||'cliente'}* na minha rota`;
+  m += onde ? ` (${onde})` : '';
+  m += `, mas a entrega está *sem o telefone do cliente* 📵\n\nVocê consegue me passar o contato? Sem ele eu não consigo avisar que estou chegando nem pedir a localização. 🙏`;
+  const wa=`https://wa.me/${telV}?text=${encodeURIComponent(m)}`;
+  fecharFalar();
+  const bg=document.createElement('div'); bg.id='falar-bg'; bg.className='modal-bg open';
+  bg.innerHTML = `<div class="falar-modal">
+    <div class="falar-titulo">📵 Entrega sem telefone</div>
+    <div class="falar-sub">Peça o contato d${/a$/i.test(e.cliente||'')?'a':'o'} <b>${esc(e.cliente||'cliente')}</b> para ${esc(e.vendedora||'a vendedora')}.</div>
+    <a class="falar-opt wa" href="${wa}" target="_blank" onclick="fecharFalar()">${WA_ICON} Pedir no WhatsApp</a>
+    <a class="falar-opt tel" href="tel:+${telV}" onclick="fecharFalar()">📞 Ligar para ela</a>
+    <button class="falar-cancel" onclick="fecharFalar()">Cancelar</button>
+  </div>`;
+  bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharFalar(); });
+  document.body.appendChild(bg);
+}
 function falarVendedora(id){
   const e=entregas.find(x=>x.id===id); if(!e) return;
   const telV=telVend(e.vendedora); if(!telV) return;
@@ -8412,13 +8460,14 @@ function cardEntregadorView(p,n,fromGps,total){
     </div>
     <div class="ent-acts">
       <button class="ent-btn full" onclick="irAteCliente('${e.id}')" style="background:${e.aCaminhoDe?'rgba(127,174,107,.22)':'rgba(201,169,80,.14)'};color:${e.aCaminhoDe?'#aee0b0':'var(--gold)'};border-color:${e.aCaminhoDe?'rgba(127,174,107,.5)':'rgba(201,169,80,.4)'};font-weight:700">${e.aCaminhoDe?'🛵 Indo até este cliente ✓ — toque pra parar':'🛵 Estou indo até este cliente'}</button>
-      ${e.link
-        ? `<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`
-        : `<button class="ent-btn" onclick="pedirLocalizacao('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Solicitar localização</button>`}
-      ${(e.link && !e.endereco)
-        ? `<button class="ent-btn" onclick="pedirEndereco('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">🏠 Solicitar endereço</button>` : ''}
+      ${e.link ? `<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>` : ''}
+      ${(()=>{ const t=_tipoPedido(e); return t
+        ? `<button class="ent-btn" onclick="${t==='ambos'?'pedirLocalEndereco':t==='endereco'?'pedirEndereco':'pedirLocalizacao'}('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">${t==='ambos'?'📍 Solicitar localização e endereço':t==='endereco'?'🏠 Solicitar endereço':'📍 Solicitar localização'}</button>`
+        : ''; })()}
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
-      ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">${WA_ICON} Avisar cliente</button>`:'<span class="ent-btn disabled">sem telefone do cliente</span>'}
+      ${waNumero(e.contato)
+        ? `<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">${WA_ICON} Avisar cliente</button>`
+        : semTelHTML(e)}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
       ${limparLinkPag(e.linkPagamento)?`<a class="ent-btn" href="${esc(limparLinkPag(e.linkPagamento))}" target="_blank" style="background:rgba(201,169,80,.14);color:var(--gold);border-color:rgba(201,169,80,.4)">🔗 Conferir pagamento</a>`:''}
       <button class="ent-btn" onclick="devolverEnt('${e.id}')" style="background:rgba(201,169,80,.12);color:var(--gold);border-color:rgba(201,169,80,.4)">↩ Devolver pra fila</button>
@@ -8450,21 +8499,31 @@ function ensureMapEnt(){
 }
 /* pede a localização ao cliente pelo WhatsApp (quando a entrega está sem mapa) */
 let locReqId=null;
+/* Três pedidos, uma mecânica só. O que falta é que define qual sai:
+   sem pin e sem endereço → pede os DOIS · só sem pin → localização · só sem endereço → escrito */
 function pedirLocalizacao(id){ _pedirAoCliente(id,'local'); }
-/* mesma mecânica, outro pedido: tem o pin no mapa mas não tem endereço escrito, e o
-   entregador precisa do escrito pra se achar quando chega (número, bloco, referência) */
 function pedirEndereco(id){ _pedirAoCliente(id,'endereco'); }
+function pedirLocalEndereco(id){ _pedirAoCliente(id,'ambos'); }
+function _tipoPedido(e){
+  const temPin=!!(e.link||coordOf(e)), temEnd=!!(e.endereco||'').trim();
+  if(!temPin && !temEnd) return 'ambos';
+  if(!temPin) return 'local';
+  if(!temEnd) return 'endereco';
+  return '';
+}
 let locReqTipo='local';
 function _pedirAoCliente(id, tipo){
   const e=entregas.find(x=>x.id===id); if(!e){ toast('Entrega não encontrada'); return; }
   const temTel = waNumero(e.contato) || (e.contato||'').replace(/\D/g,'').length>=8;
-  if(!temTel){ toast('Sem telefone do cliente'); return; }
+  if(!temTel){ toast('Sem telefone do cliente — peça o contato à vendedora'); return; }
   locReqId=id; locReqTipo=tipo||'local';
-  const ehEnd = locReqTipo==='endereco';
-  $('loc-modal-t').textContent = ehEnd ? '🏠 Solicitar endereço' : '📍 Solicitar localização';
-  $('loc-modal-s').textContent = ehEnd
-    ? 'Peça o endereço escrito — rua, número, complemento e um ponto de referência.'
-    : 'Como você quer pedir ao cliente?';
+  const T={
+    ambos:    ['📍 Solicitar localização e endereço','Peça os dois de uma vez: a localização no mapa e o endereço escrito.'],
+    endereco: ['🏠 Solicitar endereço','Peça o endereço escrito — rua, número, complemento e um ponto de referência.'],
+    local:    ['📍 Solicitar localização','Como você quer pedir ao cliente?'],
+  };
+  const t=T[locReqTipo]||T.local;
+  $('loc-modal-t').textContent=t[0]; $('loc-modal-s').textContent=t[1];
   $('loc-modal').classList.add('open');
 }
 function closeLocModal(){ const m=$('loc-modal'); if(m) m.classList.remove('open'); }
@@ -8476,6 +8535,8 @@ function locEnviarMsg(){
   const abertura = eu?('Olá, meu nome é '+eu+', sou o entregador da Loretto Scarpa.'):'Olá! Aqui é da Loretto Scarpa.';
   const msg = locReqTipo==='endereco'
     ? `${abertura} A sua entrega já está em rota. Já tenho a sua localização no mapa, mas pra eu não me perder na hora de chegar, você poderia me mandar o endereço escrito? Rua, número, complemento (bloco/apartamento) e um ponto de referência 🙏`
+    : locReqTipo==='ambos'
+    ? `${abertura} A sua entrega já está em rota. Pra eu chegar certinho, você poderia me mandar duas coisas? 📍 a sua localização e 🏠 o endereço escrito — rua, número, complemento (bloco/apartamento) e um ponto de referência 🙏`
     : `${abertura} A sua entrega já está em rota. Pra eu chegar no endereço certinho, você poderia me enviar a sua localização?🙏`;
   closeLocModal();
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,'_blank');
