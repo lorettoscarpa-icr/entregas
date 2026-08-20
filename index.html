@@ -8516,7 +8516,7 @@ function _pedirAoCliente(id, tipo){
   locReqId=id; locReqTipo=tipo||'local';
   const T={
     ambos:    ['📍 Solicitar localização e endereço','Peça os dois de uma vez: a localização no mapa e o endereço escrito.'],
-    endereco: ['🏠 Solicitar endereço','Peça o endereço escrito — rua, número, complemento e um ponto de referência.'],
+    endereco: ['🏠 Solicitar endereço','Peça o endereço escrito — rua, quadra e lote, referência, e o nome do prédio ou da empresa.'],
     local:    ['📍 Solicitar localização','Como você quer pedir ao cliente?'],
   };
   const t=T[locReqTipo]||T.local;
@@ -8531,9 +8531,9 @@ function locEnviarMsg(){
   const eu=((ENT[e.entregador]||{}).nome||'').trim().split(' ')[0];
   const abertura = eu?('Olá, meu nome é '+eu+', sou o entregador da Loretto Scarpa.'):'Olá! Aqui é da Loretto Scarpa.';
   const msg = locReqTipo==='endereco'
-    ? `${abertura} A sua entrega já está em rota. Já tenho a sua localização no mapa, mas pra eu não me perder na hora de chegar, você poderia me mandar o endereço escrito? Rua, número, complemento (bloco/apartamento) e um ponto de referência 🙏`
+    ? `${abertura} A sua entrega já está em rota. Já tenho a sua localização no mapa, mas pra eu não me perder na hora de chegar, você poderia me mandar o endereço escrito?\n\n🏠 Rua, *quadra e lote* (ou o número, se tiver) e um ponto de referência\n🏢 Se for prédio: nome do prédio, bloco e apartamento\n🏬 Se for empresa: o nome da empresa\n\nObrigado! 🙏`
     : locReqTipo==='ambos'
-    ? `${abertura} A sua entrega já está em rota. Pra eu chegar certinho, você poderia me mandar duas coisas? 📍 a sua localização e 🏠 o endereço escrito — rua, número, complemento (bloco/apartamento) e um ponto de referência 🙏`
+    ? `${abertura} A sua entrega já está em rota. Pra eu chegar certinho, você poderia me mandar duas coisas?\n\n📍 A sua localização\n🏠 O endereço escrito: rua, *quadra e lote* (ou o número, se tiver) e um ponto de referência. Se for prédio, o nome do prédio, bloco e apartamento; se for empresa, o nome da empresa\n\nObrigado! 🙏`
     : `${abertura} A sua entrega já está em rota. Pra eu chegar no endereço certinho, você poderia me enviar a sua localização?🙏`;
   closeLocModal();
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,'_blank');
