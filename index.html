@@ -1899,7 +1899,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v185</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v186</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -3179,7 +3179,7 @@ function dddValido(d2){ return DDDS_BR.has(d2); }
 function waNumero(raw){
   let d=(raw||'').replace(/\D/g,'');
   if(!d) return '';
-  if(ehCPF(d)) return '';                                 // CPF no lugar do telefone → não vira WhatsApp
+  if(ehCPFNoContato(raw)) return '';                      // CPF no lugar do telefone → não vira WhatsApp
   if(d.length>11 && d.startsWith('55')) d=d.slice(2);   // remove o 55 do país, se já vier
   d=d.replace(/^0+/,'');                                  // remove zeros à esquerda (ex: 062)
   if(d.length===8 || d.length===9) d='62'+d;             // veio sem DDD → assume Goiânia (62)
@@ -3202,6 +3202,25 @@ function ehCPF(raw){
   };
   return dig(9)===Number(d[9]) && dig(10)===Number(d[10]);
 }
+/* O teste de CPF sozinho não pode mandar em tudo: ~1% dos celulares REAIS fecham os dois
+   verificadores por acaso (medido: 2.025 em 200.000 sorteados), e recusar 1 cliente em cada
+   100 seria pior que o problema original. Então quem decide primeiro é o FORMATO, que é
+   inequívoco — (62) 98856-3940 é telefone, 529.982.247-25 é CPF — e a validação de CPF fica
+   como desempate dos 11 dígitos CRUS, que é exatamente onde a troca acontecia. */
+function formatoTelefone(s){
+  const t=String(s||'').trim();
+  return /\+?\s*55[\s.\-]/.test(t)                       // +55 ...
+      || /\(\s*\d{2}\s*\)/.test(t)                        // (62) ...
+      || /^\d{2}[\s.\-]\d{4,5}[\s.\-]?\d{4}$/.test(t)     // 62 98856-3940
+      || /^\d{4,5}-\d{4}$/.test(t);                       // 98856-3940
+}
+function formatoCPF(s){ return /^\d{3}[.\s]\d{3}[.\s]\d{3}[-\s]?\d{2}$/.test(String(s||'').trim()); }
+/* é CPF ocupando o lugar do telefone? */
+function ehCPFNoContato(raw){
+  if(formatoCPF(raw)) return true;         // escrito como CPF, é CPF
+  if(formatoTelefone(raw)) return false;   // escrito como telefone, é telefone
+  return ehCPF(raw);                       // cru: os verificadores desempatam
+}
 function ehDataNasc(raw){
   const m=String(raw||'').trim().match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
   if(!m) return false;
@@ -3211,7 +3230,7 @@ function ehDataNasc(raw){
 function looksPhone(raw){
   let d=(raw||'').replace(/\D/g,'');
   if(d.length>=12 && d.startsWith('55')) d=d.slice(2);
-  if(ehCPF(d)) return false;                                  // é CPF, não é telefone
+  if(ehCPFNoContato(raw)) return false;                       // é CPF, não é telefone
   if(d.length===11) return dddValido(d.slice(0,2)) && d[2]==='9';   // celular: DDD válido + 9 + 8
   if(d.length===10) return dddValido(d.slice(0,2));                 // fixo: DDD válido + 8
   if(d.length===9) return d[0]==='9';                               // celular sem DDD
@@ -3370,7 +3389,7 @@ function parseWhatsapp(text){
     // telefone: extrai só o trecho do número (ignora outros dígitos na mesma linha)
     const hasMarker = marcaTel;
     const phoneTok = extractPhone(ln);
-    if((hasMarker || looksPhone(phoneTok)) && !money && !ehCPF(soDigitos)){ if(!r.contato) r.contato = formatPhone(phoneTok); continue; }
+    if((hasMarker || looksPhone(phoneTok)) && !money && !(!marcaTel && ehCPF(soDigitos))){ if(!r.contato) r.contato = formatPhone(phoneTok); continue; }
     rest.push(ln);
   }
   const addrRe = /\b(rua|r\.|av\.?|avenida|alameda|al\.|travessa|pra[çc]a|rodovia|rod\.?|estrada|vila|setor|st\.?|bairro|quadra|qd|lote|lt|condom[ií]nio|cond\.?|conjunto|conj\.?|resid\w*|jardim|jd|parque|pq|ch[áa]cara|fazenda|loteamento|n[úu]cleo|apto|apartamento|casa|km|n[ºo°])\b/i;
@@ -3436,7 +3455,7 @@ function sanearContato(r){
   if(!r) return r;
   const bruto=String(r.contato||'').trim();
   if(!bruto) return r;
-  if(ehCPF(bruto.replace(/\D/g,''))){ if(!r.cpf) r.cpf=bruto; r.contato=''; return r; }
+  if(ehCPFNoContato(bruto)){ if(!r.cpf) r.cpf=bruto; r.contato=''; return r; }
   if(ehDataNasc(bruto)){ if(!r.nascimento) r.nascimento=bruto; r.contato=''; }
   return r;
 }
@@ -3833,13 +3852,13 @@ async function saveEntrega(){
   let coord = coordFrom(link);
   let end=$('f-end').value.trim();
   const bairro=$('f-bairro').value.trim(), cidade=$('f-cidade').value.trim();
-  const contato=normFoneSalvar($('f-contato').value);
+  const _contatoDigitado=$('f-contato').value;
+  const contato=normFoneSalvar(_contatoDigitado);
   // Rede de segurança: o telefone errado só aparece lá na frente, quando o entregador tenta
   // falar com o cliente e não consegue. Barra aqui, que é onde ainda dá pra corrigir.
   if(contato){
-    const _d=contato.replace(/\D/g,'');
-    if(ehCPF(_d)){
-      if(!$('f-cpf').value.trim()) $('f-cpf').value=contato;   // já põe no campo certo
+    if(ehCPFNoContato(_contatoDigitado)){
+      if(!$('f-cpf').value.trim()) $('f-cpf').value=_contatoDigitado.trim();   // já põe no campo certo
       $('f-contato').value=''; $('f-contato').focus();
       toast('Isso é um CPF, não um telefone — movi para o campo de CPF. Preencha o contato do cliente.');
       return;
@@ -5940,8 +5959,7 @@ function salvarEnvio(){
   // mesma trava do telefone das entregas: CPF no lugar do contato quebra o aviso de rastreio
   const _ct=$('env-contato').value.trim();
   if(_ct){
-    const _cd=_ct.replace(/\D/g,'');
-    if(ehCPF(_cd)){
+    if(ehCPFNoContato(_ct)){
       if(!$('env-cpf').value.trim()) $('env-cpf').value=_ct;
       $('env-contato').value=''; envApontarCampo('env-contato','Isso é um CPF — movi para o campo de CPF. Preencha o telefone.');
       return;
