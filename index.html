@@ -1899,7 +1899,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v184</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v185</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2037,8 +2037,8 @@
 <!-- payment / finalize modal -->
 <div class="modal-bg" id="loc-modal" onclick="closeLocModal()">
   <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
-    <h3 style="margin-bottom:6px">📍 Solicitar localização</h3>
-    <p style="color:var(--text-soft);font-size:13.5px;margin-bottom:14px">Como você quer pedir ao cliente?</p>
+    <h3 style="margin-bottom:6px" id="loc-modal-t">📍 Solicitar localização</h3>
+    <p style="color:var(--text-soft);font-size:13.5px;margin-bottom:14px" id="loc-modal-s">Como você quer pedir ao cliente?</p>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="btn btn-primary" onclick="locEnviarMsg()">💬 Enviar mensagem (WhatsApp)</button>
       <button class="btn btn-ghost" onclick="locLigar()">📞 Ligar pro cliente</button>
@@ -3179,6 +3179,7 @@ function dddValido(d2){ return DDDS_BR.has(d2); }
 function waNumero(raw){
   let d=(raw||'').replace(/\D/g,'');
   if(!d) return '';
+  if(ehCPF(d)) return '';                                 // CPF no lugar do telefone → não vira WhatsApp
   if(d.length>11 && d.startsWith('55')) d=d.slice(2);   // remove o 55 do país, se já vier
   d=d.replace(/^0+/,'');                                  // remove zeros à esquerda (ex: 062)
   if(d.length===8 || d.length===9) d='62'+d;             // veio sem DDD → assume Goiânia (62)
@@ -3188,12 +3189,32 @@ function waNumero(raw){
   if(d[2]!=='9') return '';                               // celular válido tem o 9 → senão recusa
   return '55'+d;
 }
+/* CPF e celular têm os MESMOS 11 dígitos, e era daí que vinha a troca: CPF digitado sem
+   ponto virava telefone do cliente, e o entregador chegava com o contato errado. Os dois
+   dígitos verificadores resolvem — CPF de verdade fecha a conta, telefone não fecha
+   (a chance de um celular passar por acaso é de ~1%, e ainda tem o DDD como segunda trava). */
+function ehCPF(raw){
+  const d=(raw||'').replace(/\D/g,'');
+  if(d.length!==11 || /^(\d)\1{10}$/.test(d)) return false;
+  const dig = n => {
+    let s=0; for(let i=0;i<n;i++) s += Number(d[i])*(n+1-i);
+    const r=(s*10)%11; return r===10?0:r;
+  };
+  return dig(9)===Number(d[9]) && dig(10)===Number(d[10]);
+}
+function ehDataNasc(raw){
+  const m=String(raw||'').trim().match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
+  if(!m) return false;
+  const dd=+m[1], mm=+m[2];
+  return dd>=1 && dd<=31 && mm>=1 && mm<=12;
+}
 function looksPhone(raw){
   let d=(raw||'').replace(/\D/g,'');
   if(d.length>=12 && d.startsWith('55')) d=d.slice(2);
-  if(d.length===11) return d[2]==='9';   // celular: DDD + 9 + 8 dígitos
-  if(d.length===10) return true;          // fixo: DDD + 8
-  if(d.length===9) return d[0]==='9';     // celular sem DDD (9 + 8 dígitos)
+  if(ehCPF(d)) return false;                                  // é CPF, não é telefone
+  if(d.length===11) return dddValido(d.slice(0,2)) && d[2]==='9';   // celular: DDD válido + 9 + 8
+  if(d.length===10) return dddValido(d.slice(0,2));                 // fixo: DDD válido + 8
+  if(d.length===9) return d[0]==='9';                               // celular sem DDD
   return false;
 }
 // extrai só o trecho que parece telefone da linha (evita pegar outros números que estejam junto)
@@ -3336,13 +3357,20 @@ function parseWhatsapp(text){
     // Preço junto do produto (ex.: "Sneaker Milão 41 - 289,90") NÃO é consumido aqui: fica na linha do produto.
     const soPreco = /^\s*(?:total\s*:?\s*)?(?:[-–•]\s*)?(?:r\$\s*)?\d{1,4}[.,]\d{2}\s*$/i.test(ln);
     if(money && digits<=6 && soPreco){ if(!r.valor) r.valor = money[1]; continue; }
-    // CPF (XXX.XXX.XXX-XX ou com espaços) — não é campo de entrega, ignora
-    const isCPF = /\b\d{3}[.\s]\d{3}[.\s]\d{3}[-\s]\d{2}\b/.test(ln) && !/\+?\s*55\b|\(\d{2}\)/.test(ln);
-    if(isCPF) continue;
+    // CPF: pontuado OU 11 dígitos soltos que fecham os verificadores. Antes só o pontuado
+    // era reconhecido, e o CPF cru caía na regra do telefone — era a troca que o entregador
+    // sentia na entrega. Agora vai para o campo dele, que é onde a vendedora precisa.
+    const soDigitos = ln.replace(/\D/g,'');
+    const marcaTel = /\+?\s*55\b/.test(ln) || /\(\d{2}\)/.test(ln);
+    const linhaCurta = ln.trim().replace(/^(cpf|documento|doc)\s*:?\s*/i,'').replace(/[\d.\s-]/g,'')==='';
+    if(!marcaTel && linhaCurta && ehCPF(soDigitos)){ if(!r.cpf) r.cpf = ln.trim().replace(/^(cpf|documento|doc)\s*:?\s*/i,''); continue; }
+    // data de nascimento solta (10/05/1990) — idem: é da vendedora, não é telefone
+    const soData = ln.trim().replace(/^(nasc\w*|data\s*de\s*nasc\w*|dn)\s*:?\s*/i,'');
+    if(ehDataNasc(soData)){ if(!r.nascimento) r.nascimento = soData; continue; }
     // telefone: extrai só o trecho do número (ignora outros dígitos na mesma linha)
-    const hasMarker = /\+?\s*55\b/.test(ln) || /\(\d{2}\)/.test(ln);
+    const hasMarker = marcaTel;
     const phoneTok = extractPhone(ln);
-    if((hasMarker || looksPhone(phoneTok)) && !money){ if(!r.contato) r.contato = formatPhone(phoneTok); continue; }
+    if((hasMarker || looksPhone(phoneTok)) && !money && !ehCPF(soDigitos)){ if(!r.contato) r.contato = formatPhone(phoneTok); continue; }
     rest.push(ln);
   }
   const addrRe = /\b(rua|r\.|av\.?|avenida|alameda|al\.|travessa|pra[çc]a|rodovia|rod\.?|estrada|vila|setor|st\.?|bairro|quadra|qd|lote|lt|condom[ií]nio|cond\.?|conjunto|conj\.?|resid\w*|jardim|jd|parque|pq|ch[áa]cara|fazenda|loteamento|n[úu]cleo|apto|apartamento|casa|km|n[ºo°])\b/i;
@@ -3400,7 +3428,20 @@ function splitDeliveries(raw){
   if(buf.length) out.push(buf.join('\n'));
   return out;
 }
+/* Regra única do telefone, valendo pra TODA origem — leitor direto, IA e foto: o número
+   é testado como CPF; se validar como CPF, ele não é telefone e vai pro campo de CPF.
+   A chance de um celular de verdade fechar os dois dígitos verificadores é mínima, então
+   o padrão é seguro. Mesma ideia pra data de nascimento solta. */
+function sanearContato(r){
+  if(!r) return r;
+  const bruto=String(r.contato||'').trim();
+  if(!bruto) return r;
+  if(ehCPF(bruto.replace(/\D/g,''))){ if(!r.cpf) r.cpf=bruto; r.contato=''; return r; }
+  if(ehDataNasc(bruto)){ if(!r.nascimento) r.nascimento=bruto; r.contato=''; }
+  return r;
+}
 function fillForm(r){
+  r=sanearContato(r);
   const ehVend = session.role==='vendedora' && !session.geral; // nome travado nela
   if(r.cliente) $('f-cliente').value=r.cliente;
   if(r.vendedora && !ehVend) $('f-vend').value=r.vendedora;
@@ -3569,6 +3610,7 @@ async function aiRodar(modo){
 }
 /* preenche SÓ os campos vazios — nunca apaga/substitui o que já está no formulário */
 function fillFormSoVazios(r){
+  r=sanearContato(r);
   const ehVend = session.role==='vendedora' && !session.geral; // nome travado nela
   const setVazio=(id,val)=>{ const el=$(id); if(val && el && !el.value.trim()) el.value=val; };
   setVazio('f-cliente', r.cliente);
@@ -3792,6 +3834,18 @@ async function saveEntrega(){
   let end=$('f-end').value.trim();
   const bairro=$('f-bairro').value.trim(), cidade=$('f-cidade').value.trim();
   const contato=normFoneSalvar($('f-contato').value);
+  // Rede de segurança: o telefone errado só aparece lá na frente, quando o entregador tenta
+  // falar com o cliente e não consegue. Barra aqui, que é onde ainda dá pra corrigir.
+  if(contato){
+    const _d=contato.replace(/\D/g,'');
+    if(ehCPF(_d)){
+      if(!$('f-cpf').value.trim()) $('f-cpf').value=contato;   // já põe no campo certo
+      $('f-contato').value=''; $('f-contato').focus();
+      toast('Isso é um CPF, não um telefone — movi para o campo de CPF. Preencha o contato do cliente.');
+      return;
+    }
+    if(!waNumero(contato)){ toast('Esse telefone não parece válido — confira o DDD e os dígitos'); $('f-contato').focus(); return; }
+  }
   const pagPrev=$('f-pag-prev').value||'cobrar';
   const valor=$('f-valor').value.trim();
   // TRAVA: precisa de CONTATO ou LOCALIZAÇÃO — senão o entregador não tem como levar nem pedir o endereço
@@ -5883,6 +5937,17 @@ function salvarEnvio(){
   const cidade=$('env-cidade').value.trim();
   if(!cliente){ envApontarCampo('env-cliente','Preencha o nome do cliente'); return; }
   if(!cidade){ envApontarCampo('env-cidade','Preencha a cidade de destino'); return; }
+  // mesma trava do telefone das entregas: CPF no lugar do contato quebra o aviso de rastreio
+  const _ct=$('env-contato').value.trim();
+  if(_ct){
+    const _cd=_ct.replace(/\D/g,'');
+    if(ehCPF(_cd)){
+      if(!$('env-cpf').value.trim()) $('env-cpf').value=_ct;
+      $('env-contato').value=''; envApontarCampo('env-contato','Isso é um CPF — movi para o campo de CPF. Preencha o telefone.');
+      return;
+    }
+    if(!waNumero(_ct)){ envApontarCampo('env-contato','Telefone não parece válido — confira o DDD e os dígitos'); return; }
+  }
   // sem link de rastreio o envio não fecha: é o que a cliente recebe para acompanhar
   if(!$('env-rast').value.trim()){ abrirEnvFaltaLink(); return; }
   // o link normalmente já diz a transportadora; quando não diz, ela escolhe aqui mesmo
@@ -6085,7 +6150,7 @@ async function envPreencherIA(){
   if(btn){ btn.textContent='✨ Lendo...'; btn.disabled=true; }
   toast('✨ Lendo…');
   try{
-    const r=await aiParseEnvio(t);
+    const r=sanearContato(await aiParseEnvio(t));   // mesma regra do CPF vs telefone
     const set=(campo,val)=>{ const el=$(campo); if(el && val) el.value=val; };
     set('env-cliente', r.cliente); set('env-cpf', r.cpf); set('env-nasc', r.nascimento);
     set('env-contato', r.contato); set('env-cep', r.cep); set('env-end', r.endereco);
@@ -8332,6 +8397,8 @@ function cardEntregadorView(p,n,fromGps,total){
       ${e.link
         ? `<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>`
         : `<button class="ent-btn" onclick="pedirLocalizacao('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Solicitar localização</button>`}
+      ${(e.link && !e.endereco)
+        ? `<button class="ent-btn" onclick="pedirEndereco('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">🏠 Solicitar endereço</button>` : ''}
       ${e.temFotoLocal?`<button class="ent-btn" onclick="verFotoLocal('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">📍 Foto da localização</button>`:''}
       ${waNumero(e.contato)?`<button class="ent-btn wa" onclick="avisarCliente('${e.id}')">${WA_ICON} Avisar cliente</button>`:'<span class="ent-btn disabled">sem telefone do cliente</span>'}
       ${telV?`<button class="ent-btn" onclick="falarVendedora('${e.id}')" style="background:rgba(127,174,107,.14);color:var(--calm);border-color:rgba(127,174,107,.4)">👩 Falar com a vendedora</button>`:''}
@@ -8365,11 +8432,21 @@ function ensureMapEnt(){
 }
 /* pede a localização ao cliente pelo WhatsApp (quando a entrega está sem mapa) */
 let locReqId=null;
-function pedirLocalizacao(id){
+function pedirLocalizacao(id){ _pedirAoCliente(id,'local'); }
+/* mesma mecânica, outro pedido: tem o pin no mapa mas não tem endereço escrito, e o
+   entregador precisa do escrito pra se achar quando chega (número, bloco, referência) */
+function pedirEndereco(id){ _pedirAoCliente(id,'endereco'); }
+let locReqTipo='local';
+function _pedirAoCliente(id, tipo){
   const e=entregas.find(x=>x.id===id); if(!e){ toast('Entrega não encontrada'); return; }
   const temTel = waNumero(e.contato) || (e.contato||'').replace(/\D/g,'').length>=8;
   if(!temTel){ toast('Sem telefone do cliente'); return; }
-  locReqId=id;
+  locReqId=id; locReqTipo=tipo||'local';
+  const ehEnd = locReqTipo==='endereco';
+  $('loc-modal-t').textContent = ehEnd ? '🏠 Solicitar endereço' : '📍 Solicitar localização';
+  $('loc-modal-s').textContent = ehEnd
+    ? 'Peça o endereço escrito — rua, número, complemento e um ponto de referência.'
+    : 'Como você quer pedir ao cliente?';
   $('loc-modal').classList.add('open');
 }
 function closeLocModal(){ const m=$('loc-modal'); if(m) m.classList.remove('open'); }
@@ -8378,7 +8455,10 @@ function locEnviarMsg(){
   const num=waNumero(e.contato); if(!num){ toast('Sem WhatsApp válido pra esse número'); return; }
   const nome=e.cliente?e.cliente.trim().split(' ')[0]:'';
   const eu=((ENT[e.entregador]||{}).nome||'').trim().split(' ')[0];
-  const msg=`${eu?('Olá, meu nome é '+eu+', sou o entregador da Loretto Scarpa.'):'Olá! Aqui é da Loretto Scarpa.'} A sua entrega já está em rota. Pra eu chegar no endereço certinho, você poderia me enviar a sua localização?🙏`;
+  const abertura = eu?('Olá, meu nome é '+eu+', sou o entregador da Loretto Scarpa.'):'Olá! Aqui é da Loretto Scarpa.';
+  const msg = locReqTipo==='endereco'
+    ? `${abertura} A sua entrega já está em rota. Já tenho a sua localização no mapa, mas pra eu não me perder na hora de chegar, você poderia me mandar o endereço escrito? Rua, número, complemento (bloco/apartamento) e um ponto de referência 🙏`
+    : `${abertura} A sua entrega já está em rota. Pra eu chegar no endereço certinho, você poderia me enviar a sua localização?🙏`;
   closeLocModal();
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,'_blank');
 }
