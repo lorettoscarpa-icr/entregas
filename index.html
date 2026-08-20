@@ -1902,7 +1902,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v187</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v188</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -8317,10 +8317,7 @@ function pedirContatoVend(id){
   if(!telV){ toast('Sem o WhatsApp da vendedora cadastrado — avise pelo grupo'); return; }
   const nomeV = e.vendedora ? e.vendedora.split(' ')[0] : '';
   const eu = ((ENT[e.entregador]||{}).nome||'').trim().split(' ')[0];
-  const onde = [e.endereco, e.bairro, e.cidade].filter(Boolean).join(' · ');
-  let m = `Oi${nomeV?' '+nomeV:''}! ${eu?'Aqui é o '+eu+', ':''}estou com a entrega d${/a$/i.test(e.cliente||'')?'a':'o'} *${e.cliente||'cliente'}* na minha rota`;
-  m += onde ? ` (${onde})` : '';
-  m += `, mas a entrega está *sem o telefone do cliente* 📵\n\nVocê consegue me passar o contato? Sem ele eu não consigo avisar que estou chegando nem pedir a localização. 🙏`;
+  const m = `Oi${nomeV?' '+nomeV:''}! ${eu?'Aqui é o '+eu+', ':''}estou com a entrega d${/a$/i.test(e.cliente||'')?'a':'o'} ${e.cliente||'cliente'} na minha rota, mas a entrega está sem o telefone do cliente 📵\nVocê consegue me passar o contato?`;
   const wa=`https://wa.me/${telV}?text=${encodeURIComponent(m)}`;
   fecharFalar();
   const bg=document.createElement('div'); bg.id='falar-bg'; bg.className='modal-bg open';
