@@ -1902,7 +1902,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v190</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v191</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -8516,7 +8516,7 @@ function _pedirAoCliente(id, tipo){
   locReqId=id; locReqTipo=tipo||'local';
   const T={
     ambos:    ['📍 Solicitar localização e endereço','Peça os dois de uma vez: a localização no mapa e o endereço escrito.'],
-    endereco: ['🏠 Solicitar endereço','Peça o endereço escrito — rua, quadra e lote, referência, e o nome do prédio ou da empresa.'],
+    endereco: ['🏠 Solicitar endereço','Você já tem a localização — peça o endereço por escrito pra achar na hora de chegar.'],
     local:    ['📍 Solicitar localização','Como você quer pedir ao cliente?'],
   };
   const t=T[locReqTipo]||T.local;
@@ -8531,10 +8531,10 @@ function locEnviarMsg(){
   const eu=((ENT[e.entregador]||{}).nome||'').trim().split(' ')[0];
   const abertura = eu?('Olá, meu nome é '+eu+', sou o entregador da Loretto Scarpa.'):'Olá! Aqui é da Loretto Scarpa.';
   const msg = locReqTipo==='endereco'
-    ? `${abertura} A sua entrega está em rota. Já tenho a sua localização, mas você poderia me mandar o endereço por escrito?\n\nRua, quadra e lote (ou o número, se tiver) e um ponto de referência. Se for prédio, o nome do prédio e o bloco; se for empresa, o nome da empresa.\n\nAssim consigo localizar o endereço com mais facilidade e realizar a sua entrega 🙏`
+    ? `${abertura} A sua entrega está em rota. Já tenho a sua localização, mas você poderia me mandar o endereço por escrito, por favor?\n\nAssim consigo localizar o endereço com mais facilidade e realizar a sua entrega 🤝`
     : locReqTipo==='ambos'
-    ? `${abertura} A sua entrega está em rota. Você poderia me mandar a sua localização e também o endereço por escrito?\n\nRua, quadra e lote (ou o número, se tiver) e um ponto de referência. Se for prédio, o nome do prédio e o bloco; se for empresa, o nome da empresa.\n\nAssim consigo localizar o endereço com mais facilidade e realizar a sua entrega 🙏`
-    : `${abertura} A sua entrega está em rota. Você poderia me enviar a sua localização?\n\nAssim consigo localizar o endereço com mais facilidade e realizar a sua entrega 🙏`;
+    ? `${abertura} A sua entrega já está em rota. Mas não tenho a sua localização e nem o seu endereço por escrito, você poderia me enviar, por favor?\n\nAssim consigo localizar o endereço com mais facilidade e realizar a sua entrega 🤝`
+    : `${abertura} A sua entrega está em rota. Você poderia me enviar a sua localização, por favor?\n\nAssim consigo localizar o endereço com mais facilidade e realizar a sua entrega 🤝`;
   closeLocModal();
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,'_blank');
 }
