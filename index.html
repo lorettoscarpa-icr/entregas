@@ -1331,6 +1331,9 @@
   .fit-chip b{color:var(--gold-lt);font-weight:700}
   .fit-chip.sem-num{border-style:dashed;border-color:rgba(224,179,65,.5)}
   .fit-dica{font-size:11.5px;color:var(--text-mute);margin-top:6px;line-height:1.4}
+  .fit-alerta{color:var(--warn);display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .fit-reler{background:rgba(224,179,65,.16);border:1px solid rgba(224,179,65,.5);color:var(--warn);
+    border-radius:8px;padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer}
   .fit-res-ed{margin-left:auto;font-size:12px;color:var(--text-mute);white-space:nowrap}
   .fit-row{display:flex;gap:6px;margin-bottom:6px}
   .fit-row input{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;
@@ -2034,7 +2037,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v195</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v196</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4107,20 +4110,37 @@ function lerItens(texto){
 }
 const _CALCADO_RX = new RegExp('(?:^|[^a-z])(sneaker|sneker|snkmiaw|snk|loafer|lfr|slipper|slphw|slp|derby|drb|bota|birken|wholecut|dockside|mocassim|sapatenis|sapato|tenis|oxford|monk|mule|chelsea|hawai)','i');
 function _ehCalcado(nome){ return _CALCADO_RX.test(_itNorm(nome)); }
+/* Só dá pra dizer QUAL peça volta quando ele marcou peça a peça. Fechada pela foto,
+   sabemos o número e não os itens — e é melhor dizer isso do que apontar a peça errada. */
+function detalhaVolta(e){
+  if(!itensDe(e)) return false;
+  // recua só quando SABEMOS que ele fechou pela foto; no resto, detalhar é o certo
+  return !(e.status==='entregue' && ['manual','unico','presente'].indexOf(e.entregueModo)>=0);
+}
 function _itemRotulo(it){ return (it.nome||'item') + (it.num?(' · nº '+it.num):''); }
 
 /* ===== PEÇAS: a base do controle de estoque na rua =====
    Sem saber quantas peças saíram não dá pra saber quantas têm que voltar. O campo sugere
    pela quantidade de linhas do produto (o formulário já pede "um modelo por linha"), mas a
    vendedora manda: se ela mexeu, a sugestão para de sobrescrever. */
-let _pecasTocado=false, _formItens=[], _itensTocado=false;
+let _pecasTocado=false, _formItens=[], _itensTocado=false, _itensDeTexto=null;
 /* A lista de peças é lida do produto e mostrada pra ela CONFERIR — o leitor propõe, ela
    decide. Enquanto ela não mexer, continua acompanhando o que ela digita. */
+function _lerDoProduto(){
+  const txt = ($('f-prod')||{}).value||'';
+  _formItens = lerItens(txt).map(it=>({nome:it.nome, num:it.num, valor:it.valor}));
+  _itensDeTexto = txt;
+}
 function sugerirPecas(){
-  if(!_itensTocado){
-    _formItens = lerItens(($('f-prod')||{}).value||'').map(it=>({nome:it.nome, num:it.num, valor:it.valor}));
-  }
+  if(!_itensTocado) _lerDoProduto();
   renderFormItens();
+}
+/* Ela ajustou a lista e DEPOIS mudou o produto — ou abriu uma entrega salva e acrescentou
+   um item. Sobrescrever apagaria a correção dela; ignorar deixaria a sacola errada e o
+   entregador sairia com peça que o sistema não conhece. Então o app avisa e ela decide. */
+function releuProduto(){ _itensTocado=false; _lerDoProduto(); renderFormItens(); toast('Lista atualizada pelo produto ✓'); }
+function _produtoMudou(){
+  return _itensTocado && _itensDeTexto!=null && (($('f-prod')||{}).value||'') !== _itensDeTexto;
 }
 let _itensAberto=false;
 function abrirItensEdit(){ _itensAberto=true; renderFormItens(); }
@@ -4144,7 +4164,9 @@ function renderFormItens(){
         <span class="fit-res-n">🎒 ${n} peça${n>1?'s':''} na sacola</span>
         ${_formItens.map(it=>`<span class="fit-chip${(!it.num&&_ehCalcado(it.nome))?' sem-num':''}">${esc(_itNomeCurto(it.nome)||'peça')}${it.num?` <b>${esc(it.num)}</b>`:''}</span>`).join('')}
         <span class="fit-res-ed">✎ ajustar</span>
-      </div>${semNum?`<div class="fit-dica">💡 ${semNum===1?'Um par está':semNum+' pares estão'} sem numeração — com ela a loja sabe qual par cobrar se voltar.</div>`:''}`;
+      </div>${_produtoMudou()?`<div class="fit-dica fit-alerta">⚠️ Você mudou o produto depois de ajustar a lista — a sacola pode estar desatualizada.
+        <button type="button" class="fit-reler" onclick="releuProduto()">🔄 Reler do produto</button></div>`:''
+      }${semNum?`<div class="fit-dica">💡 ${semNum===1?'Um par está':semNum+' pares estão'} sem numeração — com ela a loja sabe qual par cobrar se voltar.</div>`:''}`;
     res.style.display = _itensAberto ? 'none' : '';
   }
   if(ed) ed.style.display = _itensAberto ? '' : 'none';
@@ -4179,31 +4201,36 @@ function mudarPecas(d){
 function itensDe(e){ return (e && Array.isArray(e.itens) && e.itens.length) ? e.itens : null; }
 function pecasDe(e){ const it=itensDe(e); if(it) return it.length; const n=parseInt(e&&e.pecas,10); return n>0?n:1; }
 /* pergunta do fechamento — só quando a sacola tinha mais de uma peça */
-let _payFicou=null, _payItens=null;
+let _payFicou=null, _payItens=null, _payItensTocado=false;
 function renderPaySacola(){
   const box=$('pay-sacola'); if(!box) return;
   const e=entregas.find(x=>x.id===payId);
   const tot=e?pecasDe(e):1;
   const temLista=!!itensDe(e);
+  const modoLista = temLista && prodModo==='lista';
   // com lista, a caixa é o próprio registro do produto — aparece mesmo com 1 peça
-  if(!e || (tot<2 && !temLista) || (temLista && prodModo!=='lista')){ box.style.display='none'; _payFicou=null; _payItens=null; return; }
+  if(!e || (tot<2 && !modoLista)){ box.style.display='none'; _payFicou=null; _payItens=null; return; }
   box.style.display='';
   $('pay-sacola-n').textContent=tot;
   { const h=box.querySelector('.pay-sacola-h');
     if(h) h.innerHTML = `🎒 Você saiu com <b id="pay-sacola-n">${tot}</b> peça${tot>1?'s':''} nesta entrega`; }
-  const lista=itensDe(e);
+  const lista = modoLista ? itensDe(e) : null;
   if(lista){
-    /* COM lista: ele DESMARCA o que não ficou. O caso comum (cliente ficou com tudo) é
-       zero toque; a peça que volta é o gesto deliberado — que é justamente o que a loja
-       precisa saber. Marcar aqui já vale como o registro do produto: ele não digita nada. */
-    // 1ª vez: tudo marcado (o comum). Corrigindo uma entrega já fechada: respeita o que ele marcou.
-    if(_payItens==null) _payItens = (e.status==='entregue') ? lista.map(it=>!!it.ficou) : lista.map(()=>true);
+    /* COM lista: começa TUDO DESMARCADO e ele MARCA o que o cliente ficou.
+       Fechar no automático com tudo marcado registraria venda que não houve — erro caro e
+       difícil de descobrir depois, porque some junto com a peça. O caso comum resolve num
+       toque em "Ficou com tudo", e ele não consegue confirmar sem ter decidido (a trava
+       está em confirmarPagamento). Marcar aqui já vale como o registro do produto. */
+    if(_payItens==null){
+      _payItens = (e.status==='entregue') ? lista.map(it=>!!it.ficou) : lista.map(()=>false);
+      _payItensTocado = (e.status==='entregue');       // já foi decidido antes: isto é uma correção
+    }
     const ficou=_payItens.filter(Boolean).length, volta=tot-ficou;
-    $('pay-sacola-q').textContent = 'O cliente ficou com o quê?';
+    $('pay-sacola-q').textContent = 'Marque o que o cliente ficou:';
     $('pay-sacola-ops').innerHTML =
       `<div class="pay-atalhos">
-         <button type="button" class="pay-atalho${ficou===tot?' on':''}" onclick="payTodas(true)">✓ Ficou com tudo</button>
-         <button type="button" class="pay-atalho${ficou===0?' on':''}" onclick="payTodas(false)">↩️ Não ficou com nada</button>
+         <button type="button" class="pay-atalho${(_payItensTocado&&ficou===tot)?' on':''}" onclick="payTodas(true)">✓ Ficou com tudo</button>
+         <button type="button" class="pay-atalho${(_payItensTocado&&ficou===0)?' on':''}" onclick="payTodas(false)">↩️ Não ficou com nada</button>
        </div>` +
       lista.map((it,i)=>
       `<button type="button" class="pay-item${_payItens[i]?' on':''}" onclick="togglePayItem(${i})">
@@ -4211,8 +4238,10 @@ function renderPaySacola(){
          <span class="pay-item-tx">${esc(_itNomeCurto(it.nome))}${it.num?` <b>nº ${esc(it.num)}</b>`:''}</span>
          ${it.valor!=null?`<span class="pay-item-v">${_brl(it.valor)}</span>`:''}
        </button>`).join('');
-    $('pay-sacola-volta').innerHTML = volta>0
-      ? `↩️ <b style="color:var(--gold-lt)">${volta} peça${volta>1?'s':''}</b> ${volta>1?'voltam':'volta'} pra loja — desmarcadas acima.`
+    $('pay-sacola-volta').innerHTML = !_payItensTocado
+      ? `<span style="color:var(--warn)">Marque acima o que ficou com o cliente — o resto volta pra loja.</span>`
+      : volta>0
+      ? `↩️ <b style="color:var(--gold-lt)">${volta} peça${volta>1?'s':''}</b> ${volta>1?'voltam':'volta'} pra loja.`
       : `✓ Cliente ficou com as ${tot}. <b style="color:var(--calm)">Nada volta.</b>`;
     return;
   }
@@ -4227,8 +4256,8 @@ function renderPaySacola(){
     : `✓ Nenhuma peça volta desta entrega.`;
 }
 function setPayFicou(n){ _payFicou=n; renderPaySacola(); }
-function togglePayItem(i){ if(_payItens){ _payItens[i]=!_payItens[i]; renderPaySacola(); } }
-function payTodas(v){ if(_payItens){ _payItens=_payItens.map(()=>!!v); renderPaySacola(); } }
+function togglePayItem(i){ if(_payItens){ _payItens[i]=!_payItens[i]; _payItensTocado=true; renderPaySacola(); } }
+function payTodas(v){ if(_payItens){ _payItens=_payItens.map(()=>!!v); _payItensTocado=true; renderPaySacola(); } }
 /* a vendedora escreve "Slipper Hawai 41 e 42" e vira duas peças — repetir a numeração no
    nome polui a tela do entregador; o nº já aparece do lado */
 function _itNomeCurto(nome){
@@ -4241,7 +4270,8 @@ function pecasFicouDe(e){
   if(!e) return 0;
   if(e.status==='nao_entregue' || e.status==='cancelado') return 0;
   if(e.status!=='entregue') return 0;
-  const it=itensDe(e); if(it) return it.filter(x=>x.ficou).length;
+  const it=itensDe(e);
+  if(it && e.entregueModo==='lista') return it.filter(x=>x.ficou).length;   // marcou peça a peça
   const n=parseInt(e.pecasFicou,10);
   if(n>=0 && e.pecasFicou!=null && e.pecasFicou!=='') return Math.min(n, pecasDe(e));
   return 1;
@@ -4249,7 +4279,7 @@ function pecasFicouDe(e){
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
 function maskCEP(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>5) v=v.replace(/(\d{5})(\d{1,3})/,'$1-$2'); el.value=v; }
 function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value='');
-  { const p=$('f-pecas'); if(p) p.value=1; _pecasTocado=false; _itensTocado=false; _itensAberto=false; _formItens=[]; renderFormItens(); } $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
+  { const p=$('f-pecas'); if(p) p.value=1; _pecasTocado=false; _itensTocado=false; _itensAberto=false; _itensDeTexto=null; _formItens=[]; renderFormItens(); } $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -4481,16 +4511,24 @@ function fmtNumEnt(n){
 /* estado do bloco "produto que ficou": lista de itens {foto, legenda, num} */
 let prodItens=[{foto:'',legenda:'',num:''}], prodFotoAlvo=0;
 let prodModo='manual', prodCadastro='';   // manual | unico | presente ; prodCadastro = produto que a vendedora cadastrou
-function setProdModo(m){ prodModo=m; renderProdModo(); _payFicou=null; renderPaySacola(); }   // trocou o modo: recalcula a sugestão de quantas ficaram
+function setProdModo(m){ prodModo=m; renderProdModo(); _payFicou=null; _payItens=null; _payItensTocado=false; renderPaySacola(); }   // trocou o modo: recalcula a sugestão de quantas ficaram
 function renderProdModo(){
   const m=$('prod-modo'); if(!m) return;
   const man=$('prod-manual'), auto=$('prod-auto');
-  if(prodModo==='lista'){
-    // a lista de peças é o próprio registro: sem modos, sem numeração pra digitar
-    m.innerHTML=''; if(man) man.style.display='none'; if(auto) auto.innerHTML='';
+  const opt=(id,ic,lbl)=>`<button type="button" class="prod-modo-btn ${prodModo===id?'on':''}" onclick="setProdModo('${id}')">${ic}<span>${lbl}</span></button>`;
+  const e=entregas.find(x=>x.id===payId);
+  /* Duas saídas, ele escolhe. Marcar da lista é o caminho rápido; mas quando dois modelos
+     são parecidos e ele não sabe qual é qual, a foto + numeração de sempre continua ali. */
+  if(itensDe(e)){
+    m.innerHTML = opt('lista','📋','Marcar da lista') + opt('manual','📷','Foto e numeração') + opt('presente','🎁','Presente');
+    if(man) man.style.display = (prodModo==='manual') ? '' : 'none';
+    if(auto){
+      auto.innerHTML = (prodModo==='manual')
+        ? `<div class="prod-auto-card"><div class="prod-auto-h">📷 Foto e numeração</div><div class="prod-auto-sub">Use quando não der pra saber qual modelo é qual. Registre <b>o que o cliente ficou</b>; o que sobrar na conta volta pra loja.</div></div>`
+        : '';
+    }
     return;
   }
-  const opt=(id,ic,lbl)=>`<button type="button" class="prod-modo-btn ${prodModo===id?'on':''}" onclick="setProdModo('${id}')">${ic}<span>${lbl}</span></button>`;
   m.innerHTML = opt('manual','✍️','Detalhar pedido') + opt('unico','📦','Pedido completo') + opt('presente','🎁','Presente');
   if(man) man.style.display = (prodModo==='manual') ? '' : 'none';
   if(!auto) return;
@@ -4813,7 +4851,7 @@ function abrirPagamento(id){
   payTroca = !!(e && (e.tipo==='troca' || e.tipo==='coleta'));   // troca/coleta: produto e comprovante ficam opcionais
   // bloco "produto que ficou": começa vazio (o entregador escreve; não puxa da vendedora)
   prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0;
-  _payFicou=null; _payItens=null;
+  _payFicou=null; _payItens=null; _payItensTocado=false;
   prodCadastro = (e && e.produto) || '';
   prodModo = jaFin ? (e.entregueModo || (e.entreguePresente ? 'presente' : 'manual')) : ((e && e.presente) ? 'presente' : 'manual');
   // entrega com peças listadas: marcar as caixinhas JÁ É o registro do produto — ele não digita nada
@@ -4997,7 +5035,7 @@ function renderPayFotos(){
   else { if(cb){ cb.textContent='📷 Tirar foto'; cb.classList.remove('done'); } if(ab) ab.textContent='📎 Anexar'; atualizarFotoReq(); }
 }
 function removerPayFoto(i){ payFotos.splice(i,1); renderPayFotos(); }
-function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; payTrocoTeve=null; payTrocoVal=''; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; prodModo='manual'; prodCadastro=''; const pn=$('prod-note'); if(pn) pn.value=''; }
+function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; payTrocoTeve=null; payTrocoVal=''; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; prodModo='manual'; prodCadastro=''; _payItens=null; _payItensTocado=false; const pn=$('prod-note'); if(pn) pn.value=''; }
 function mostrarFaltando(pag, prod){
   pag = pag||[]; prod = prod||[];
   const grupo = (titulo, itens) => itens.length
@@ -5019,6 +5057,9 @@ function confirmarPagamento(){
     // troca/coleta sem cobrança → não exige forma
   }
   if(paySel.includes('cartao') && !payCartaoTipo) { /* crédito/débito não é obrigatório: a vendedora confere pela foto do comprovante */ }
+  // modo lista: ele tem que ter DECIDIDO o que ficou — nem tudo vendido nem tudo devolvido por descuido
+  if(prodModo==='lista' && itensDe(e) && !_payItensTocado && !payTroca)
+    faltaProd.push('Marque o que o cliente ficou (ou toque em “Ficou com tudo”)');
   if(prodModo==='manual'){
     if(!prodItens.length){ if(!payTroca) faltaProd.push('Produto que o cliente ficou'); }   // troca/coleta: produto opcional
     else prodItens.forEach((it,i)=>{
@@ -5044,12 +5085,17 @@ function confirmarPagamento(){
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
   e.pagamentoValores = Object.keys(vals).length ? vals : null;
   { const _li=itensDe(e);
-    if(_li && _payItens){ _li.forEach((it,i)=>{ it.ficou = !!_payItens[i]; }); e.pecasFicou = _li.filter(x=>x.ficou).length; }
-    else if(_li){ _li.forEach(it=>{ it.ficou = true; }); e.pecasFicou = _li.length; }
-    else e.pecasFicou = (pecasDe(e)>=2 && _payFicou!=null) ? _payFicou
+    if(_li && prodModo==='lista' && _payItens){ _li.forEach((it,i)=>{ it.ficou = !!_payItens[i]; }); e.pecasFicou = _li.filter(x=>x.ficou).length; }
+    else if(!_li) e.pecasFicou = (pecasDe(e)>=2 && _payFicou!=null) ? _payFicou
                         : (prodModo==='manual' ? Math.min(prodItens.length, pecasDe(e)) : 1); }   // fecha a conta do que volta
   e.entregueModo = prodModo;
   e.entreguePresente = (prodModo==='presente');
+  if(prodModo!=='lista' && itensDe(e)){
+    // fechou pela foto: sabemos QUANTAS ficaram, não quais — as peças não afirmam nada
+    itensDe(e).forEach(it=>{ it.ficou=false; });
+    e.pecasFicou = (_payFicou!=null) ? _payFicou
+                 : (prodModo==='manual' ? Math.min(prodItens.length, pecasDe(e)) : pecasDe(e));
+  }
   if(prodModo==='lista'){
     // o que ele marcou É o registro do produto — dado de venda por numeração, sem digitação
     const _li=itensDe(e)||[], ficou=_li.filter(x=>x.ficou);
@@ -5899,7 +5945,7 @@ function editar(id){
   $('f-cidade').value=e.cidade||''; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
   $('f-prod').value=e.produto; $('f-valor').value=e.valor;
   { const p=$('f-pecas'); if(p){ p.value=pecasDe(e); _pecasTocado=true; }
-    _itensTocado=true; _formItens=(itensDe(e)||[]).map(it=>({nome:it.nome,num:it.num,valor:it.valor})); renderFormItens();
+    _itensTocado=true; _itensDeTexto=e.produto||''; _formItens=(itensDe(e)||[]).map(it=>({nome:it.nome,num:it.num,valor:it.valor})); renderFormItens();
     if(!_formItens.length){ _itensTocado=false; sugerirPecas(); } } $('f-obs').value=e.observacao||''; $('f-linkpag').value=e.linkPagamento||'';
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||''; $('f-hr-hora2').value=e.horarioHora2||''; toggleHrEntre();
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
@@ -7394,7 +7440,7 @@ function minhaSacolaVolta(ent, dia){
   const juntar=(e, volta, todas, tag)=>{
     if(volta<=0) return;
     n += volta;
-    const li = itensDe(e);
+    const li = detalhaVolta(e) ? itensDe(e) : null;
     if(li) (todas ? li : li.filter(x=>!x.ficou)).forEach(x=>pecas.push({cli:e.cliente, nome:_itNomeCurto(x.nome), num:x.num, tag}));
     else pecas.push({cli:e.cliente, nome:(e.produto||'peça').split('\n')[0], num:'', qtd:volta, tag});
   };
@@ -7545,7 +7591,7 @@ function renderConferencia(){
     // checklist do que tem que voltar: peça a peça, com cliente e vendedora de cada uma
     const det = r.itens.filter(i => (i.p - i.f) > 0).map(i => {
       const e = i.e;
-      const lista = itensDe(e);
+      const lista = detalhaVolta(e) ? itensDe(e) : null;
       const situacao = i.reag ? '📅 remarcada p/ '+esc(rotuloDia(dataDe(e)))
                      : e.status==='entregue' ? 'cliente ficou com '+i.f
                      : e.status==='em_rota' ? 'ainda em rota'
@@ -7554,7 +7600,7 @@ function renderConferencia(){
         ? (i.reag ? lista : lista.filter(x=>!x.ficou)).map(x =>
             `<div class="cf-peca">↩️ <b>${esc(_itNomeCurto(x.nome))}</b>${x.num?` <span class="cf-num">nº ${esc(x.num)}</span>`:''}
                ${x.valor!=null?`<span class="cf-val">${_brl(x.valor)}</span>`:''}</div>`).join('')
-        : `<div class="cf-peca">↩️ <b>${i.p - i.f} peça(s)</b> <span class="cf-num">sem detalhe — entrega antiga</span></div>`;
+        : `<div class="cf-peca">↩️ <b>${i.p - i.f} peça(s)</b> <span class="cf-num">${itensDe(e)?'fechada pela foto — confira com ele quais':'sem detalhe — entrega antiga'}</span></div>`;
       return `<div class="cf-entrega">
         <div class="cf-ent-h">
           <span class="cf-cli">${esc(e.cliente||'(sem nome)')}</span>
@@ -8495,8 +8541,12 @@ function pagamentoLabel(e){
 /* A peça que voltou é venda que não aconteceu — a vendedora precisa saber pra recolocar
    em estoque e, se for o caso, falar com o cliente. Antes ela só via "não entregue". */
 function voltouHTML(e){
-  const li = itensDe(e); if(!li) return '';
-  const volta = li.filter(x=>!x.ficou);
+  if(!itensDe(e)) return '';
+  const n = pecasDe(e) - pecasFicouDe(e);
+  if(n<=0) return '';
+  if(!detalhaVolta(e))
+    return `<div class="frow frow-volta"><span class="ico">↩️</span><span><b>Voltou pra loja:</b> ${n} peça${n>1?'s':''} <span style="color:var(--text-mute)">(o entregador fechou pela foto — não dá pra dizer quais)</span></span></div>`;
+  const volta = itensDe(e).filter(x=>!x.ficou);
   if(!volta.length) return '';
   const val = volta.reduce((t,x)=>t+(x.valor||0),0);
   return `<div class="frow frow-volta"><span class="ico">↩️</span><span><b>Voltou pra loja:</b> ${
