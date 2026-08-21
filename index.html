@@ -719,6 +719,9 @@
   .alerta-card.espera{background:rgba(224,179,65,.12);border:1px solid rgba(224,179,65,.38)}
   .alerta-card.horario{background:rgba(224,106,82,.13);border:1px solid rgba(224,106,82,.42)}
   .alerta-card.dinheiro{background:rgba(127,174,107,.13);border:1px solid rgba(127,174,107,.42)}
+  .alerta-card.sacola{background:rgba(212,180,90,.13);border:1px solid rgba(212,180,90,.42)}
+  .sac-li{padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px;color:var(--text)}
+  .sac-li small{display:block;color:var(--text-mute);font-size:12px;margin-top:2px}
   .alerta-card.resolver{background:rgba(207,138,168,.13);border:1px solid rgba(207,138,168,.45);align-items:flex-start}
   .resolver-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
   .resolver-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(0,0,0,.10);border-radius:9px;padding:7px 10px}
@@ -801,6 +804,7 @@
   .fcard-info{flex:1;min-width:0}
   .fcard-name{font-family:var(--ff-display);font-size:22px;font-weight:600;line-height:1.1;margin-bottom:7px}
   .frow{display:flex;gap:8px;font-size:13.5px;color:var(--text-soft);margin-bottom:4px;line-height:1.45}
+  .frow-volta b{color:var(--gold-lt)}
   .frow .ico{flex-shrink:0}
   .fcard-foto{width:92px;height:92px;object-fit:cover;border-radius:12px;border:1px solid var(--line-strong);cursor:pointer;flex-shrink:0;transition:transform .15s}
   .fcard-foto:hover{transform:scale(1.04)}
@@ -1283,6 +1287,13 @@
   .cf-num{background:rgba(212,180,90,.18);color:var(--gold-lt);border-radius:5px;padding:1px 7px;font-size:11.5px;font-weight:600}
   .cf-val{color:var(--text-mute);font-size:11.5px;margin-left:auto}
   .cf-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:11px}
+  .cf-placar{margin-top:18px;padding:14px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}
+  .cf-placar-h{font-size:12.5px;color:var(--text-mute);margin-bottom:10px;letter-spacing:.02em}
+  .cf-placar-l{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+  .cf-placar-v{color:var(--text-mute);font-size:12px}
+  .cf-placar-r{margin-left:auto;font-size:12.5px}
+  .cf-placar-r.ok{color:var(--calm)}
+  .cf-placar-r.ruim{color:var(--warn)}
   .cf-nota{font-size:12.5px;color:var(--text-mute)}
   .cf-div{font-size:12.5px;color:var(--urgent);background:rgba(224,106,82,.1);border-radius:9px;padding:7px 10px;width:100%}
   .cf-div small{display:block;color:var(--text-mute);margin-top:2px}
@@ -1318,6 +1329,8 @@
   .fit-chip{font-size:12px;color:var(--text-soft);background:var(--surface-2);border:1px solid var(--line);
     border-radius:20px;padding:3px 10px}
   .fit-chip b{color:var(--gold-lt);font-weight:700}
+  .fit-chip.sem-num{border-style:dashed;border-color:rgba(224,179,65,.5)}
+  .fit-dica{font-size:11.5px;color:var(--text-mute);margin-top:6px;line-height:1.4}
   .fit-res-ed{margin-left:auto;font-size:12px;color:var(--text-mute);white-space:nowrap}
   .fit-row{display:flex;gap:6px;margin-bottom:6px}
   .fit-row input{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;
@@ -2021,7 +2034,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v194</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v195</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2133,6 +2146,13 @@
       <h3>Reagendar entrega</h3>
       <p>Escolha a nova data da entrega.</p>
       <input type="date" id="reag-data">
+      <div id="reag-sacola" style="display:none;margin-top:14px">
+        <label class="dev-lbl">As <b id="reag-sac-n">2</b> peças desta entrega:</label>
+        <div class="pay-atalhos">
+          <button type="button" class="pay-atalho on" id="reag-sac-loja" onclick="setReagSacola(true)">🏪 Devolvo na loja hoje</button>
+          <button type="button" class="pay-atalho" id="reag-sac-com" onclick="setReagSacola(false)">🎒 Ficam comigo</button>
+        </div>
+      </div>
       <div class="form-actions">
         <button class="btn btn-ghost" onclick="closeReag()">Cancelar</button>
         <button class="btn btn-primary" onclick="confirmarReag()">Reagendar</button>
@@ -4085,6 +4105,8 @@ function lerItens(texto){
   });
   return itens;
 }
+const _CALCADO_RX = new RegExp('(?:^|[^a-z])(sneaker|sneker|snkmiaw|snk|loafer|lfr|slipper|slphw|slp|derby|drb|bota|birken|wholecut|dockside|mocassim|sapatenis|sapato|tenis|oxford|monk|mule|chelsea|hawai)','i');
+function _ehCalcado(nome){ return _CALCADO_RX.test(_itNorm(nome)); }
 function _itemRotulo(it){ return (it.nome||'item') + (it.num?(' · nº '+it.num):''); }
 
 /* ===== PEÇAS: a base do controle de estoque na rua =====
@@ -4116,11 +4138,13 @@ function renderFormItens(){
   const h=$('f-pecas-hint');
   if(h) h.textContent = _pecasTocado ? 'definido por você' : (n ? n+' peça'+(n>1?'s':'')+' lidas do produto' : 'quantos pares vão na sacola');
   if(res){
+    // calçado sem numeração: o Yuri não sabe qual par cobrar na volta. Aviso leve, nunca trava.
+    const semNum = _formItens.filter(it=>!it.num && _ehCalcado(it.nome)).length;
     res.innerHTML = `<div class="fit-res">
         <span class="fit-res-n">🎒 ${n} peça${n>1?'s':''} na sacola</span>
-        ${_formItens.map(it=>`<span class="fit-chip">${esc(_itNomeCurto(it.nome)||'peça')}${it.num?` <b>${esc(it.num)}</b>`:''}</span>`).join('')}
+        ${_formItens.map(it=>`<span class="fit-chip${(!it.num&&_ehCalcado(it.nome))?' sem-num':''}">${esc(_itNomeCurto(it.nome)||'peça')}${it.num?` <b>${esc(it.num)}</b>`:''}</span>`).join('')}
         <span class="fit-res-ed">✎ ajustar</span>
-      </div>`;
+      </div>${semNum?`<div class="fit-dica">💡 ${semNum===1?'Um par está':semNum+' pares estão'} sem numeração — com ela a loja sabe qual par cobrar se voltar.</div>`:''}`;
     res.style.display = _itensAberto ? 'none' : '';
   }
   if(ed) ed.style.display = _itensAberto ? '' : 'none';
@@ -4659,7 +4683,21 @@ function abrirReag(id){
   const amanha=new Date(); amanha.setDate(amanha.getDate()+1);
   $('reag-data').min=todayKey(); $('reag-data').value=dateKey(amanha);
   $('reag-step1').style.display=''; $('reag-step2').style.display='none';   // sempre começa no passo 1
+  // quem está com a peça na mão é ele: a única pergunta é se ela volta hoje
+  { const e=entregas.find(x=>x.id===id), box=$('reag-sacola');
+    const comEle = !!(e && e.entregador && session && session.role==='entregador');
+    _reagSacolaLoja = true;
+    if(box){
+      box.style.display = comEle ? '' : 'none';
+      if(comEle){ $('reag-sac-n').textContent = pecasDe(e); setReagSacola(true); }
+    } }
   $('reag-modal').classList.add('open');
+}
+let _reagSacolaLoja = true;
+function setReagSacola(v){
+  _reagSacolaLoja = !!v;
+  const a=$('reag-sac-loja'), b=$('reag-sac-com');
+  if(a) a.classList.toggle('on', v); if(b) b.classList.toggle('on', !v);
 }
 function _reagQuando(ymd){
   const amanha=new Date(); amanha.setDate(amanha.getDate()+1);
@@ -4685,6 +4723,13 @@ function confirmarReag(){
   if(antiga && antiga!==nova) e.reagendadaDe = antiga;          // guarda de qual dia veio
   e.reagendadaEm = Date.now();
   e.reagendadaPor = session ? (session.vendedora || (session.role==='entregador' ? ((ENT[session.entregador]||{}).nome||'entregador') : session.role)) : '';
+  /* A peça já saiu da loja. Se a entrega muda de dia, ela some da conta do dia em que saiu —
+     era 8% das entregas escapando. Aqui fica registrado que ela tem que voltar. */
+  const entAntes = e.entregador, saiu = !!(entAntes && e.roteadoEm);
+  const ehEntregador = !!(session && session.role==='entregador');
+  const voltaHoje = saiu && antiga && (!ehEntregador || _reagSacolaLoja);   // a loja reagendou = ele perde a entrega e a peça volta
+  if(voltaHoje){ e.pecasVoltamEm = antiga; e.pecasVoltamCom = entAntes; }
+  else { e.pecasVoltamEm = null; e.pecasVoltamCom = null; }
   e.dataEntrega=nova;
   if(session && session.role==='entregador'){ e.status='em_rota'; e.entregador=session.entregador; e.roteadoEm=Date.now(); }
   else { e.status='aguardando'; e.entregador=null; e.roteadoEm=null; }
@@ -7306,6 +7351,8 @@ function conferenciaDoDia(dia){
   const alvo = dia || confDia || diaAtivo;
   const doDia = entregas.filter(e => dataDe(e)===alvo && e.entregador &&
     ['em_rota','entregue','nao_entregue','cancelado'].includes(e.status));
+  // reagendadas: saíram neste dia com o entregador e voltam pra loja, mesmo tendo mudado de data
+  const reag = entregas.filter(e => e.pecasVoltamEm===alvo && e.pecasVoltamCom && dataDe(e)!==alvo);
   const porEnt = {};
   doDia.forEach(e => {
     const k = e.entregador;
@@ -7317,19 +7364,60 @@ function conferenciaDoDia(dia){
     if(e.status==='em_rota') porEnt[k].abertas++;
     porEnt[k].itens.push({ e, p, f });
   });
+  reag.forEach(e => {
+    const k = e.pecasVoltamCom;
+    if(!porEnt[k]) porEnt[k] = { ent:k, saiu:0, vendeu:0, entregas:0, abertas:0, itens:[] };
+    const p = pecasDe(e);
+    porEnt[k].saiu += p; porEnt[k].entregas++;
+    porEnt[k].itens.push({ e, p, f:0, reag:true });
+  });
   return Object.values(porEnt).map(r => {
     r.volta = r.saiu - r.vendeu;
     // Fase 3: quanto vale o que tem que voltar — é o prejuízo em jogo se sumir
     r.valorVolta = r.itens.reduce((t,i)=>{
       const li = itensDe(i.e);
       if(!li) return t;
-      return t + li.filter(x=>!x.ficou).reduce((s,x)=>s+(x.valor||0),0);
+      return t + (i.reag ? li : li.filter(x=>!x.ficou)).reduce((s,x)=>s+(x.valor||0),0);
     }, 0);
     r.conf = confDe(alvo, r.ent);
     return r;
   }).sort((a,b) => b.volta - a.volta);
 }
 function confDe(dia, ent){ return conferencias.find(c => c.dia===dia && c.entregador===ent) || null; }
+/* O que o entregador ainda tem na mochila hoje. Ele saber ANTES vale mais que o Yuri
+   cobrar depois: peça que ele lembra de trazer não vira prejuízo. */
+function minhaSacolaVolta(ent, dia){
+  const alvo = dia || todayKey();
+  const c = confDe(alvo, ent);
+  if(c) return null;                                   // já conferido na loja: assunto encerrado
+  const pecas=[]; let n=0;
+  const juntar=(e, volta, todas, tag)=>{
+    if(volta<=0) return;
+    n += volta;
+    const li = itensDe(e);
+    if(li) (todas ? li : li.filter(x=>!x.ficou)).forEach(x=>pecas.push({cli:e.cliente, nome:_itNomeCurto(x.nome), num:x.num, tag}));
+    else pecas.push({cli:e.cliente, nome:(e.produto||'peça').split('\n')[0], num:'', qtd:volta, tag});
+  };
+  entregas.filter(e => dataDe(e)===alvo && e.entregador===ent &&
+    ['entregue','nao_entregue','cancelado'].includes(e.status))
+    .forEach(e => juntar(e, pecasDe(e)-pecasFicouDe(e), false, ''));
+  // remarcadas: a entrega mudou de dia, mas a peça está com ele agora
+  entregas.filter(e => e.pecasVoltamEm===alvo && e.pecasVoltamCom===ent && dataDe(e)!==alvo)
+    .forEach(e => juntar(e, pecasDe(e), true, 'remarcada'));
+  return n ? {n, pecas} : null;
+}
+function verMinhaSacola(){
+  const sc = minhaSacolaVolta(session.entregador);
+  if(!sc) return toast('Nada pra devolver 👌');
+  _listaSimples('🎒 Devolver na loja', sc.pecas.map(p =>
+    `<div class="sac-li"><b>${esc(p.nome)}</b>${p.num?` <span class="cf-num">nº ${esc(p.num)}</span>`:''}${p.qtd>1?` <span class="cf-num">${p.qtd}x</span>`:''}<small>de ${esc(p.cli||'cliente')}${p.tag?' · '+p.tag:''}</small></div>`).join(''));
+}
+// reaproveita o visualizador: um modal simples de lista, sem imagem
+function _listaSimples(titulo, html){
+  const t=$('img-modal-title'); if(t) t.textContent=titulo;
+  const g=$('img-gallery'); if(g) g.innerHTML = `<div style="text-align:left">${html}</div>`;
+  $('img-modal').classList.add('open');
+}
 function _confGravar(ent, esperado, voltou, obs){
   const dia = confDia || diaAtivo, id = dia+'_'+ent;
   let c = conferencias.find(x => x.id===id);
@@ -7458,11 +7546,12 @@ function renderConferencia(){
     const det = r.itens.filter(i => (i.p - i.f) > 0).map(i => {
       const e = i.e;
       const lista = itensDe(e);
-      const situacao = e.status==='entregue' ? 'cliente ficou com '+i.f
+      const situacao = i.reag ? '📅 remarcada p/ '+esc(rotuloDia(dataDe(e)))
+                     : e.status==='entregue' ? 'cliente ficou com '+i.f
                      : e.status==='em_rota' ? 'ainda em rota'
                      : e.status==='cancelado' ? 'não comprou' : 'não entregue';
       const pecas = lista
-        ? lista.filter(x=>!x.ficou).map(x =>
+        ? (i.reag ? lista : lista.filter(x=>!x.ficou)).map(x =>
             `<div class="cf-peca">↩️ <b>${esc(_itNomeCurto(x.nome))}</b>${x.num?` <span class="cf-num">nº ${esc(x.num)}</span>`:''}
                ${x.valor!=null?`<span class="cf-val">${_brl(x.valor)}</span>`:''}</div>`).join('')
         : `<div class="cf-peca">↩️ <b>${i.p - i.f} peça(s)</b> <span class="cf-num">sem detalhe — entrega antiga</span></div>`;
@@ -7484,7 +7573,37 @@ function renderConferencia(){
       ${det ? `<div class="cf-itens">${det}</div>` : ''}
       <div class="cf-acts">${acoes}</div>
     </div>`;
-  }).join('');
+  }).join('') + placarHTML();
+}
+/* Sem acumulado a conferência vira ritual: "faltaram 2" no dia 3 é esquecido no dia 10.
+   O placar dos últimos 30 dias é o que transforma isso em responsabilidade. */
+function placarConf(dias){
+  const lim = dateKey(new Date(Date.now() - (dias||30)*864e5));
+  const por = {};
+  conferencias.filter(c => c.dia >= lim).forEach(c => {
+    const k=c.entregador;
+    if(!por[k]) por[k]={ent:k, conf:0, faltou:0, sobrou:0, dias:0};
+    por[k].conf += (c.esperado||0); por[k].faltou += (c.faltou||0); por[k].sobrou += (c.sobrou||0);
+    if(c.faltou>0 || c.sobrou>0) por[k].dias++;
+  });
+  return Object.values(por).sort((a,b)=>(b.faltou+b.sobrou)-(a.faltou+a.sobrou));
+}
+function placarHTML(){
+  const p = placarConf(30);
+  if(!p.length) return '';
+  const totF = p.reduce((t,r)=>t+r.faltou,0), totS = p.reduce((t,r)=>t+r.sobrou,0);
+  return `<div class="cf-placar">
+    <div class="cf-placar-h">📅 Últimos 30 dias${totF?` · <b style="color:var(--urgent)">${totF} peça(s) que não voltaram</b>`:' · <b style="color:var(--calm)">nenhuma peça perdida</b>'}${totS?` · ${totS} sobra(s)`:''}</div>
+    ${p.map(r=>{
+      const ent=ENT[r.ent]||{nome:r.ent,cor:'#888'};
+      const ok = !r.faltou && !r.sobrou;
+      return `<div class="cf-placar-l">
+        <span class="cf-dot" style="background:${ent.cor}"></span>
+        <b>${esc(ent.nome)}</b>
+        <span class="cf-placar-v">${r.conf} conferida(s)</span>
+        <span class="cf-placar-r ${ok?'ok':'ruim'}">${ok?'✓ tudo certo':`${r.faltou?`⚠️ ${r.faltou} não voltou`:''}${r.faltou&&r.sobrou?' · ':''}${r.sobrou?`📦 ${r.sobrou} sobrou`:''}`}</span>
+      </div>`;}).join('')}
+  </div>`;
 }
 
 /* ============ DEVOLUÇÕES — o que volta do cliente para a loja ============
@@ -8373,6 +8492,17 @@ function pagamentoLabel(e){
   if(e.taxaEntrega) base += ` · 🏷️ taxa ${_brl(e.taxaEntrega)}`;
   return base;
 }
+/* A peça que voltou é venda que não aconteceu — a vendedora precisa saber pra recolocar
+   em estoque e, se for o caso, falar com o cliente. Antes ela só via "não entregue". */
+function voltouHTML(e){
+  const li = itensDe(e); if(!li) return '';
+  const volta = li.filter(x=>!x.ficou);
+  if(!volta.length) return '';
+  const val = volta.reduce((t,x)=>t+(x.valor||0),0);
+  return `<div class="frow frow-volta"><span class="ico">↩️</span><span><b>Voltou pra loja:</b> ${
+    volta.map(x=>esc(_itNomeCurto(x.nome))+(x.num?` nº ${esc(x.num)}`:'')).join(' · ')
+  }${val>0?` <span style="color:var(--text-mute)">(${_brl(val)})</span>`:''}</span></div>`;
+}
 function renderFinalizadas(){
   if(session.role!=='vendedora') return;
   const dia=diaAtivo, ehGeral=!!session.geral;
@@ -8483,6 +8613,7 @@ function fcard(e){
         ? `<div class="frow"><span class="ico">🎁</span><span><b>Presente</b>${e.produtoEntregue?` — ${esc(e.produtoEntregue)}`:''}</span></div>`
         : (e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
       ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
+      ${voltouHTML(e)}
       ${e.obsProduto?`<div class="frow"><span class="ico">📝</span><span><b>Obs. do entregador:</b> ${esc(e.obsProduto)}</span></div>`:''}
     </div></div>
 
@@ -8678,6 +8809,16 @@ function renderEntregador(){
         ${entTab!=='pend'?`<button class="btn btn-primary btn-mini" onclick="setEntTab('pend')">Ver e confirmar</button>`:''}
       </div>`;
     }
+    // 🎒 o que ele tem que devolver hoje — antes de voltar pra loja, não depois
+    { const sc = minhaSacolaVolta(session.entregador);
+      if(sc){
+        const amostra = sc.pecas.slice(0,3).map(p=>esc(p.nome)+(p.num?' nº '+p.num:'')).join(' · ');
+        ah += `<div class="alerta-card sacola">
+          <div class="al-ico">🎒</div>
+          <div class="al-txt"><b>${sc.n} ${sc.n===1?'peça pra devolver':'peças pra devolver'} na loja</b><span>${amostra}${sc.pecas.length>3?` · +${sc.pecas.length-3}`:''}</span></div>
+          <button class="btn btn-primary btn-mini" onclick="verMinhaSacola()">Ver a lista</button>
+        </div>`;
+      } }
     eaEl.innerHTML=ah;
   }
   // abas: rótulos, contadores e aba ativa
