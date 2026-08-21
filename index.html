@@ -1298,6 +1298,10 @@
   .pay-sacola-op.on{background:var(--gold);color:var(--ink);border-color:var(--gold)}
   .pay-sacola-volta{font-size:12.5px;margin-top:9px;line-height:1.4}
   .pay-sacola-ops{flex-direction:column}
+  .pay-atalhos{display:flex;gap:7px;margin-bottom:4px}
+  .pay-atalho{flex:1;padding:11px 8px;border-radius:11px;border:1px solid var(--line-strong);background:var(--surface-2);
+    color:var(--text-soft);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .pay-atalho.on{background:rgba(127,174,107,.2);border-color:rgba(127,174,107,.55);color:var(--text)}
   .pay-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border-radius:11px;
     border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:13.5px;cursor:pointer}
   .pay-item.on{background:rgba(127,174,107,.18);border-color:rgba(127,174,107,.5)}
@@ -1308,6 +1312,13 @@
   .pay-item-tx b{color:var(--gold-lt)}
   .pay-item-v{flex:none;font-size:12px;color:var(--text-mute)}
   /* lista de peças no formulário da vendedora */
+  .fit-res{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 12px;border-radius:12px;
+    background:rgba(212,180,90,.08);border:1px solid var(--line);cursor:pointer}
+  .fit-res-n{font-size:13px;font-weight:600;color:var(--gold-lt)}
+  .fit-chip{font-size:12px;color:var(--text-soft);background:var(--surface-2);border:1px solid var(--line);
+    border-radius:20px;padding:3px 10px}
+  .fit-chip b{color:var(--gold-lt);font-weight:700}
+  .fit-res-ed{margin-left:auto;font-size:12px;color:var(--text-mute);white-space:nowrap}
   .fit-row{display:flex;gap:6px;margin-bottom:6px}
   .fit-row input{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;
     font-family:inherit;font-size:13px;color:var(--text);min-width:0}
@@ -1633,9 +1644,12 @@
           </div>
         </div>
         <div class="full" id="f-itens-box" style="display:none">
-          <label>Peças na sacola <span style="color:var(--text-mute);text-transform:none;letter-spacing:0">— li do produto, confira antes de salvar</span></label>
-          <div id="f-itens"></div>
-          <button type="button" class="btn btn-ghost btn-mini" onclick="addItemManual()" style="margin-top:8px">➕ Acrescentar peça</button>
+          <div id="f-itens-resumo" onclick="abrirItensEdit()"></div>
+          <div id="f-itens-edit" style="display:none">
+            <div id="f-itens"></div>
+            <button type="button" class="btn btn-ghost btn-mini" onclick="addItemManual()" style="margin-top:8px">➕ Acrescentar peça</button>
+            <button type="button" class="btn btn-ghost btn-mini" onclick="fecharItensEdit()" style="margin-top:8px">✓ Pronto</button>
+          </div>
         </div>
         <div class="full"><label>Link de pagamento (Stone) — opcional</label><input id="f-linkpag" placeholder="Cole aqui o link da Stone, se o pagamento for por link"></div>
         <div class="full"><label>Observação</label><input id="f-obs" placeholder="Ex: casa com câmera · ligar antes · deixar na portaria"></div>
@@ -2007,7 +2021,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v193</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v194</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2039,11 +2053,12 @@
 <!-- conferência: faltou peça na volta -->
 <div class="modal-bg" id="cf-div-modal">
   <div class="modal modal-sm">
-    <h3>⚠️ Faltou peça na volta</h3>
+    <h3>⚠️ A conta não bateu</h3>
     <p class="dev-sub">Sacola de <b id="cf-div-nome">—</b>. Tinham que voltar <b id="cf-div-esp">0</b> peças.</p>
     <label class="dev-lbl">Quantas voltaram de verdade?</label>
-    <input id="cf-div-qtd" type="number" min="0" inputmode="numeric">
-    <label class="dev-lbl">O que ele falou sobre a que faltou?</label>
+    <input id="cf-div-qtd" type="number" min="0" inputmode="numeric" oninput="cfDivDica()">
+    <div id="cf-div-dica" class="dev-sub" style="margin:-2px 0 10px"></div>
+    <label class="dev-lbl" id="cf-div-obs-l">O que ele falou sobre a que faltou?</label>
     <input id="cf-div-obs" placeholder="Ex: ficou com o cliente pra provar amanhã · esqueceu na moto">
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="fecharConfDiverg()">Cancelar</button>
@@ -2220,7 +2235,7 @@
       <!-- só aparece quando saiu mais de uma peça: é o que fecha a conta do que volta pra loja -->
       <div class="pay-sacola" id="pay-sacola" style="display:none">
         <div class="pay-sacola-h">🎒 Você saiu com <b id="pay-sacola-n">2</b> peças nesta entrega</div>
-        <div class="pay-sacola-q">Quantas o cliente ficou?</div>
+        <div class="pay-sacola-q" id="pay-sacola-q">Quantas o cliente ficou?</div>
         <div class="pay-sacola-ops" id="pay-sacola-ops"></div>
         <div class="pay-sacola-volta" id="pay-sacola-volta"></div>
       </div>
@@ -4085,13 +4100,31 @@ function sugerirPecas(){
   }
   renderFormItens();
 }
+let _itensAberto=false;
+function abrirItensEdit(){ _itensAberto=true; renderFormItens(); }
+function fecharItensEdit(){ _itensAberto=false; renderFormItens(); }
+/* Ela não precisa preencher nada: o resumo mostra o que o sistema leu, em uma linha.
+   Só abre os campos se ela quiser corrigir — o formulário dela não pode engordar. */
 function renderFormItens(){
-  const box=$('f-itens-box'), lista=$('f-itens'); if(!box||!lista) return;
+  const box=$('f-itens-box'), lista=$('f-itens'), res=$('f-itens-resumo'), ed=$('f-itens-edit');
+  if(!box||!lista) return;
   const n=_formItens.length;
   box.style.display = n ? '' : 'none';
   if(!_pecasTocado){ const el=$('f-pecas'); if(el) el.value=Math.max(1,n); }
+  // o contador de peças vira redundante quando a lista existe — some pra não repetir a mesma info
+  { const pr=document.querySelector('.pecas-box'); if(pr) pr.style.display = n ? 'none' : ''; }
   const h=$('f-pecas-hint');
   if(h) h.textContent = _pecasTocado ? 'definido por você' : (n ? n+' peça'+(n>1?'s':'')+' lidas do produto' : 'quantos pares vão na sacola');
+  if(res){
+    res.innerHTML = `<div class="fit-res">
+        <span class="fit-res-n">🎒 ${n} peça${n>1?'s':''} na sacola</span>
+        ${_formItens.map(it=>`<span class="fit-chip">${esc(_itNomeCurto(it.nome)||'peça')}${it.num?` <b>${esc(it.num)}</b>`:''}</span>`).join('')}
+        <span class="fit-res-ed">✎ ajustar</span>
+      </div>`;
+    res.style.display = _itensAberto ? 'none' : '';
+  }
+  if(ed) ed.style.display = _itensAberto ? '' : 'none';
+  if(!_itensAberto) return;                      // fechado: não monta os campos à toa
   lista.innerHTML = _formItens.map((it,i)=>`<div class="fit-row">
       <input class="fit-nome" value="${esc(it.nome||'')}" placeholder="Produto" oninput="setItemCampo(${i},'nome',this.value)">
       <input class="fit-num" value="${esc(it.num||'')}" placeholder="nº" inputmode="numeric" oninput="setItemCampo(${i},'num',this.value)">
@@ -4107,7 +4140,7 @@ function setItemCampo(i,campo,v){
   const el=$('f-pecas'); if(el) el.value=Math.max(1,_formItens.length);
 }
 function addItemManual(){
-  _itensTocado=true; _pecasTocado=true;
+  _itensTocado=true; _pecasTocado=true; _itensAberto=true;
   _formItens.push({nome:'', num:'', valor:null});
   renderFormItens();
   const ins=$('f-itens').querySelectorAll('.fit-nome'); if(ins.length) ins[ins.length-1].focus();
@@ -4127,23 +4160,36 @@ function renderPaySacola(){
   const box=$('pay-sacola'); if(!box) return;
   const e=entregas.find(x=>x.id===payId);
   const tot=e?pecasDe(e):1;
-  if(!e || tot<2){ box.style.display='none'; _payFicou=null; _payItens=null; return; }
+  const temLista=!!itensDe(e);
+  // com lista, a caixa é o próprio registro do produto — aparece mesmo com 1 peça
+  if(!e || (tot<2 && !temLista) || (temLista && prodModo!=='lista')){ box.style.display='none'; _payFicou=null; _payItens=null; return; }
   box.style.display='';
   $('pay-sacola-n').textContent=tot;
+  { const h=box.querySelector('.pay-sacola-h');
+    if(h) h.innerHTML = `🎒 Você saiu com <b id="pay-sacola-n">${tot}</b> peça${tot>1?'s':''} nesta entrega`; }
   const lista=itensDe(e);
   if(lista){
-    // COM lista: ele marca QUAIS ficaram — é o que diz depois qual peça sumiu
-    if(_payItens==null) _payItens = lista.map(it=>!!it.ficou);
-    $('pay-sacola-ops').innerHTML = lista.map((it,i)=>
+    /* COM lista: ele DESMARCA o que não ficou. O caso comum (cliente ficou com tudo) é
+       zero toque; a peça que volta é o gesto deliberado — que é justamente o que a loja
+       precisa saber. Marcar aqui já vale como o registro do produto: ele não digita nada. */
+    // 1ª vez: tudo marcado (o comum). Corrigindo uma entrega já fechada: respeita o que ele marcou.
+    if(_payItens==null) _payItens = (e.status==='entregue') ? lista.map(it=>!!it.ficou) : lista.map(()=>true);
+    const ficou=_payItens.filter(Boolean).length, volta=tot-ficou;
+    $('pay-sacola-q').textContent = 'O cliente ficou com o quê?';
+    $('pay-sacola-ops').innerHTML =
+      `<div class="pay-atalhos">
+         <button type="button" class="pay-atalho${ficou===tot?' on':''}" onclick="payTodas(true)">✓ Ficou com tudo</button>
+         <button type="button" class="pay-atalho${ficou===0?' on':''}" onclick="payTodas(false)">↩️ Não ficou com nada</button>
+       </div>` +
+      lista.map((it,i)=>
       `<button type="button" class="pay-item${_payItens[i]?' on':''}" onclick="togglePayItem(${i})">
          <span class="pay-item-ck">${_payItens[i]?'✓':''}</span>
-         <span class="pay-item-tx">${esc(it.nome||'peça')}${it.num?` <b>nº ${esc(it.num)}</b>`:''}</span>
+         <span class="pay-item-tx">${esc(_itNomeCurto(it.nome))}${it.num?` <b>nº ${esc(it.num)}</b>`:''}</span>
          ${it.valor!=null?`<span class="pay-item-v">${_brl(it.valor)}</span>`:''}
        </button>`).join('');
-    const ficou=_payItens.filter(Boolean).length, volta=tot-ficou;
     $('pay-sacola-volta').innerHTML = volta>0
-      ? `↩️ <b style="color:var(--gold-lt)">${volta} peça${volta>1?'s':''}</b> ${volta>1?'voltam':'volta'} pra loja — o Yuri confere na chegada.`
-      : `✓ O cliente ficou com tudo. Nada volta.`;
+      ? `↩️ <b style="color:var(--gold-lt)">${volta} peça${volta>1?'s':''}</b> ${volta>1?'voltam':'volta'} pra loja — desmarcadas acima.`
+      : `✓ Cliente ficou com as ${tot}. <b style="color:var(--calm)">Nada volta.</b>`;
     return;
   }
   // SEM lista (entregas antigas): só a contagem
@@ -4158,6 +4204,13 @@ function renderPaySacola(){
 }
 function setPayFicou(n){ _payFicou=n; renderPaySacola(); }
 function togglePayItem(i){ if(_payItens){ _payItens[i]=!_payItens[i]; renderPaySacola(); } }
+function payTodas(v){ if(_payItens){ _payItens=_payItens.map(()=>!!v); renderPaySacola(); } }
+/* a vendedora escreve "Slipper Hawai 41 e 42" e vira duas peças — repetir a numeração no
+   nome polui a tela do entregador; o nº já aparece do lado */
+function _itNomeCurto(nome){
+  const n=String(nome||'').replace(/\s*[,;/e]*\s*\b(3[3-9]|4[0-6])\b/g,' ').replace(/\s{2,}/g,' ').trim();
+  return n || String(nome||'peça');
+}
 /* quantas ficaram com o cliente: 0 quando não deu certo; senão o que o entregador registrou,
    com o fallback do modo de fechamento (lista = tantas quanto os itens; único/presente = 1) */
 function pecasFicouDe(e){
@@ -4172,7 +4225,7 @@ function pecasFicouDe(e){
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
 function maskCEP(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>5) v=v.replace(/(\d{5})(\d{1,3})/,'$1-$2'); el.value=v; }
 function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value='');
-  { const p=$('f-pecas'); if(p) p.value=1; _pecasTocado=false; _itensTocado=false; _formItens=[]; renderFormItens(); } $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
+  { const p=$('f-pecas'); if(p) p.value=1; _pecasTocado=false; _itensTocado=false; _itensAberto=false; _formItens=[]; renderFormItens(); } $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -4407,9 +4460,14 @@ let prodModo='manual', prodCadastro='';   // manual | unico | presente ; prodCad
 function setProdModo(m){ prodModo=m; renderProdModo(); _payFicou=null; renderPaySacola(); }   // trocou o modo: recalcula a sugestão de quantas ficaram
 function renderProdModo(){
   const m=$('prod-modo'); if(!m) return;
+  const man=$('prod-manual'), auto=$('prod-auto');
+  if(prodModo==='lista'){
+    // a lista de peças é o próprio registro: sem modos, sem numeração pra digitar
+    m.innerHTML=''; if(man) man.style.display='none'; if(auto) auto.innerHTML='';
+    return;
+  }
   const opt=(id,ic,lbl)=>`<button type="button" class="prod-modo-btn ${prodModo===id?'on':''}" onclick="setProdModo('${id}')">${ic}<span>${lbl}</span></button>`;
   m.innerHTML = opt('manual','✍️','Detalhar pedido') + opt('unico','📦','Pedido completo') + opt('presente','🎁','Presente');
-  const man=$('prod-manual'), auto=$('prod-auto');
   if(man) man.style.display = (prodModo==='manual') ? '' : 'none';
   if(!auto) return;
   if(prodModo==='manual'){ auto.innerHTML=''; return; }
@@ -4713,6 +4771,8 @@ function abrirPagamento(id){
   _payFicou=null; _payItens=null;
   prodCadastro = (e && e.produto) || '';
   prodModo = jaFin ? (e.entregueModo || (e.entreguePresente ? 'presente' : 'manual')) : ((e && e.presente) ? 'presente' : 'manual');
+  // entrega com peças listadas: marcar as caixinhas JÁ É o registro do produto — ele não digita nada
+  if(itensDe(e) && (!jaFin || e.entregueModo==='lista' || !e.entregueModo)) prodModo='lista';
   if(jaFin){
     const lc=fotoProdLocalGetArr(e.id);
     if(lc.length){ prodItens=lc.map(it=>({foto:it.foto||'',legenda:it.legenda||'',num:it.num||''})); }
@@ -4945,7 +5005,16 @@ function confirmarPagamento(){
                         : (prodModo==='manual' ? Math.min(prodItens.length, pecasDe(e)) : 1); }   // fecha a conta do que volta
   e.entregueModo = prodModo;
   e.entreguePresente = (prodModo==='presente');
-  if(prodModo==='manual'){
+  if(prodModo==='lista'){
+    // o que ele marcou É o registro do produto — dado de venda por numeração, sem digitação
+    const _li=itensDe(e)||[], ficou=_li.filter(x=>x.ficou);
+    e.produtoEntregue = ficou.length
+      ? ficou.map(x=>_itNomeCurto(x.nome)+(x.num?` (Nº ${x.num})`:'')).join(' · ')
+      : 'Cliente não ficou com nenhuma peça';
+    e.numeracaoEntregue = '';
+    e.qtdFotosProduto = 0; e.temFotoProduto = false;
+    salvarFotoProduto(e.id, []);
+  } else if(prodModo==='manual'){
     const itensSalvar = prodItens.map(it=>({foto:it.foto||'',legenda:(it.legenda||'').trim(),num:it.num}));
     e.produtoEntregue = resumoProdutos(prodItens);
     e.numeracaoEntregue = '';                       // já incluído no resumo
@@ -7266,6 +7335,7 @@ function _confGravar(ent, esperado, voltou, obs){
   let c = conferencias.find(x => x.id===id);
   if(!c){ c = { id, dia, entregador:ent }; conferencias.push(c); }
   c.esperado = esperado; c.voltou = voltou; c.faltou = Math.max(0, esperado - voltou);
+  c.sobrou = Math.max(0, voltou - esperado);
   c.obs = obs || ''; c.em = Date.now(); c.por = session ? (session.vendedora||session.role) : '';
   _confPend[c.id] = Date.now();
   persistConferencias(); renderConferencia();
@@ -7290,20 +7360,35 @@ function abrirConfDiverg(ent, esperado){
   $('cf-div-nome').textContent = nome;
   $('cf-div-esp').textContent = esperado;
   $('cf-div-qtd').value = (c && typeof c.voltou==='number') ? c.voltou : Math.max(0, esperado-1);
-  $('cf-div-qtd').max = esperado;
+  $('cf-div-qtd').max = esperado + 20;          // pode ter voltado MAIS do que a conta previa
   $('cf-div-obs').value = (c && c.obs) || '';
+  cfDivDica();
   $('cf-div-modal').classList.add('open');
 }
 function fecharConfDiverg(){ $('cf-div-modal').classList.remove('open'); _confDivEnt=null; }
+/* Sobrar peça é tão importante quanto faltar: quer dizer que o entregador marcou como
+   vendida uma peça que voltou — a venda está errada no sistema. */
+function cfDivDica(){
+  const q=parseInt($('cf-div-qtd').value,10);
+  const d=$('cf-div-dica'), l=$('cf-div-obs-l'); if(!d) return;
+  if(isNaN(q)){ d.textContent=''; return; }
+  const dif=q-_confDivEsp;
+  if(dif>0){ d.innerHTML=`📦 <b style="color:var(--warn)">Sobraram ${dif}</b> — alguma foi marcada como vendida sem ter sido. Anote abaixo qual.`;
+             if(l) l.textContent='Quais peças sobraram?'; }
+  else if(dif<0){ d.innerHTML=`⚠️ <b style="color:var(--urgent)">Faltaram ${-dif}</b> na bancada.`;
+             if(l) l.textContent='O que ele falou sobre a que faltou?'; }
+  else { d.innerHTML='✓ Bateu certinho.'; if(l) l.textContent='Observação (opcional)'; }
+}
 function salvarConfDiverg(){
   if(!_confDivEnt) return fecharConfDiverg();
-  const q = Math.max(0, Math.min(_confDivEsp, parseInt($('cf-div-qtd').value,10)||0));
+  const q = Math.max(0, parseInt($('cf-div-qtd').value,10)||0);
   const obs = $('cf-div-obs').value.trim();
   const falta = _confDivEsp - q;
-  if(falta>0 && !obs){ toast('Escreva o que o entregador falou sobre a(s) peça(s) que faltou'); return; }
+  if(falta!==0 && !obs){ toast(falta>0 ? 'Escreva o que o entregador falou sobre a(s) peça(s) que faltou' : 'Anote qual peça sobrou'); return; }
   _confGravar(_confDivEnt, _confDivEsp, q, obs);
   fecharConfDiverg();
-  toast(falta>0 ? `Divergência registrada: faltaram ${falta}` : 'Conferido ✓');
+  toast(falta>0 ? `Divergência registrada: faltaram ${falta}`
+       : falta<0 ? `Registrado: sobraram ${-falta}` : 'Conferido ✓');
 }
 
 function renderConferencia(){
@@ -7317,7 +7402,7 @@ function renderConferencia(){
   const totVolta = totSaiu - totVend;
   const abertas = linhas.reduce((t,r)=>t+r.abertas,0);
   const pend = linhas.filter(r => r.volta>0 && !r.conf).length;
-  const diverg = linhas.filter(r => r.conf && r.conf.faltou>0);
+  const diverg = linhas.filter(r => r.conf && (r.conf.faltou>0 || r.conf.sobrou>0));
 
   const valVolta = linhas.reduce((t,r)=>t+r.valorVolta,0);
   const nav = `<div class="cf-nav">
@@ -7339,7 +7424,7 @@ function renderConferencia(){
   }
   const alerta = diverg.length
     ? `<div class="cf-alerta">⚠️ <b>${diverg.length} ${diverg.length===1?'divergência':'divergências'}</b> neste dia —
-        ${diverg.reduce((t,r)=>t+r.conf.faltou,0)} peça(s) sem explicação. Fale com ${diverg.map(r=>esc((ENT[r.ent]||{}).nome||r.ent)).join(', ')}.</div>`
+        ${diverg.reduce((t,r)=>t+r.conf.faltou+(r.conf.sobrou||0),0)} peça(s) fora da conta. Fale com ${diverg.map(r=>esc((ENT[r.ent]||{}).nome||r.ent)).join(', ')}.</div>`
     : '';
 
   box.innerHTML = topo + alerta + linhas.map(r => {
@@ -7353,6 +7438,11 @@ function renderConferencia(){
       estado = `<span class="cf-tag pend">⏳ ${r.volta} a conferir</span>`;
       acoes = `<button class="btn btn-primary btn-mini" onclick="confConfirmar('${r.ent}',${r.volta})">✓ Conferi as ${r.volta} peças</button>
                <button class="btn btn-ghost btn-mini" onclick="abrirConfDiverg('${r.ent}',${r.volta})">⚠️ Faltou alguma</button>`;
+    } else if(c.sobrou > 0){
+      estado = `<span class="cf-tag falta">📦 sobraram ${c.sobrou}</span>`;
+      acoes = `<div class="cf-div">Voltaram <b>${c.voltou}</b>, a conta previa <b>${c.esperado}</b>${c.obs?` — ${esc(c.obs)}`:''}
+                 <small>alguma peça foi marcada como vendida sem ter sido · por ${esc(c.por||'')} · ${c.em?fmtClock(c.em):''}</small></div>
+               <button class="btn btn-ghost btn-mini" onclick="abrirConfDiverg('${r.ent}',${r.volta})">✎ Corrigir</button>`;
     } else if(c.faltou > 0){
       estado = `<span class="cf-tag falta">⚠️ faltaram ${c.faltou}</span>`;
       acoes = `<div class="cf-div">Voltaram <b>${c.voltou}</b> de <b>${c.esperado}</b>${c.obs?` — ${esc(c.obs)}`:''}
@@ -7373,7 +7463,7 @@ function renderConferencia(){
                      : e.status==='cancelado' ? 'não comprou' : 'não entregue';
       const pecas = lista
         ? lista.filter(x=>!x.ficou).map(x =>
-            `<div class="cf-peca">↩️ <b>${esc(x.nome||'peça')}</b>${x.num?` <span class="cf-num">nº ${esc(x.num)}</span>`:''}
+            `<div class="cf-peca">↩️ <b>${esc(_itNomeCurto(x.nome))}</b>${x.num?` <span class="cf-num">nº ${esc(x.num)}</span>`:''}
                ${x.valor!=null?`<span class="cf-val">${_brl(x.valor)}</span>`:''}</div>`).join('')
         : `<div class="cf-peca">↩️ <b>${i.p - i.f} peça(s)</b> <span class="cf-num">sem detalhe — entrega antiga</span></div>`;
       return `<div class="cf-entrega">
