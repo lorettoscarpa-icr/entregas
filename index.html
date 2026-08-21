@@ -1244,6 +1244,57 @@
   .envfin-busca:focus{outline:none;border-color:var(--gold);background:var(--surface-3)}
   .envfin-dia{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:16px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;color:var(--gold-lt);text-transform:capitalize}
   .envfin-dia span{font-size:11.5px;font-weight:400;color:var(--text-mute);text-transform:none}
+  /* ---- conferência do dia (operação) ---- */
+  .cf-topo{display:flex;gap:11px;flex-wrap:wrap;margin-bottom:12px}
+  .cf-kpi{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px}
+  .cf-kpi b{display:block;font-family:var(--ff-display);font-size:29px;font-weight:600;line-height:1;color:var(--text)}
+  .cf-kpi span{font-size:11.5px;color:var(--text-mute);letter-spacing:.03em}
+  .cf-kpi.destaque{border-color:var(--line-strong);background:rgba(212,180,90,.09)}
+  .cf-kpi.destaque b{color:var(--gold-lt)}
+  .cf-alerta{background:rgba(224,106,82,.12);border:1px solid rgba(224,106,82,.45);border-radius:12px;
+    padding:11px 14px;font-size:13px;color:var(--text-soft);margin-bottom:13px;line-height:1.45}
+  .cf-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:11px}
+  .cf-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .cf-head b{font-size:15.5px}
+  .cf-dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .cf-conta{font-size:12.5px;color:var(--text-mute);margin-left:auto}
+  .cf-conta i{font-style:normal;font-weight:700;color:var(--text-soft)}
+  .cf-conta i.v{color:var(--gold-lt);font-size:14px}
+  .cf-tag{font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
+  .cf-tag.ok{background:rgba(127,174,107,.16);color:var(--calm)}
+  .cf-tag.pend{background:rgba(212,180,90,.18);color:var(--gold-lt)}
+  .cf-tag.falta{background:rgba(224,106,82,.18);color:var(--urgent)}
+  .cf-itens{margin-top:10px;border-top:1px solid var(--line);padding-top:9px;display:flex;flex-direction:column;gap:6px}
+  .cf-item{display:flex;align-items:baseline;gap:9px;font-size:13px;color:var(--text-soft)}
+  .cf-item small{color:var(--text-mute);font-size:11.5px;margin-left:auto}
+  .cf-item-n{font-weight:700;color:var(--gold-lt);font-size:12.5px}
+  .cf-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:11px}
+  .cf-nota{font-size:12.5px;color:var(--text-mute)}
+  .cf-div{font-size:12.5px;color:var(--urgent);background:rgba(224,106,82,.1);border-radius:9px;padding:7px 10px;width:100%}
+  .cf-div small{display:block;color:var(--text-mute);margin-top:2px}
+  /* quantas peças o cliente ficou — no fechamento do entregador */
+  .pay-sacola{margin-top:16px;padding:13px 14px;border-radius:12px;background:rgba(212,180,90,.09);
+    border:1px solid var(--line-strong)}
+  .pay-sacola-h{font-size:13px;color:var(--text-soft)}
+  .pay-sacola-h b{color:var(--gold-lt);font-size:15px}
+  .pay-sacola-q{font-size:14px;font-weight:600;color:var(--text);margin:9px 0 8px}
+  .pay-sacola-ops{display:flex;gap:7px;flex-wrap:wrap}
+  .pay-sacola-op{min-width:46px;height:44px;border-radius:11px;border:1px solid var(--line-strong);
+    background:var(--surface-2);color:var(--text);font-family:inherit;font-size:16px;font-weight:700;cursor:pointer}
+  .pay-sacola-op.on{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+  .pay-sacola-volta{font-size:12.5px;margin-top:9px;line-height:1.4}
+  /* peças que saem na sacola — base do controle do que volta pra loja */
+  .pecas-row{display:flex;gap:12px;align-items:flex-start}
+  .pecas-box{flex:none;width:132px}
+  .pecas-ctl{display:flex;align-items:center;gap:4px}
+  .pecas-ctl input{width:52px;text-align:center;font-weight:700;font-size:16px;
+    -moz-appearance:textfield;appearance:textfield}
+  .pecas-ctl input::-webkit-outer-spin-button,.pecas-ctl input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .pecas-b{flex:none;width:34px;height:40px;border-radius:9px;border:1px solid var(--line-strong);
+    background:var(--surface-2);color:var(--gold-lt);font-size:19px;font-weight:700;cursor:pointer;line-height:1}
+  .pecas-b:active{transform:translateY(1px)}
+  .pecas-hint{display:block;font-size:10.5px;color:var(--text-mute);margin-top:4px;line-height:1.3;text-transform:none;letter-spacing:0}
+  @media(max-width:600px){ .pecas-row{flex-wrap:wrap} .pecas-box{width:100%} .pecas-ctl input{flex:1;width:auto} }
   .pegar-atrasada{background:rgba(224,179,65,.18);color:#e8c766;border:1px solid rgba(224,179,65,.45);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700}
   .ag{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:16px}
   .ag-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);border-left:3px solid #8f9cd6}
@@ -1535,7 +1586,18 @@
             <input id="f-taxa-valor" placeholder="Valor R$" inputmode="decimal" style="flex:1;display:none">
           </div>
         </div>
-        <div><label>Produto</label><textarea id="f-prod" rows="2" placeholder="Um modelo por linha, com o valor (ex.: Sneaker Milão 41 - 289,90)" style="resize:vertical;min-height:44px;font-family:inherit"></textarea></div>
+        <div class="full pecas-row">
+          <div style="flex:1"><label>Produto</label><textarea id="f-prod" rows="2" placeholder="Um modelo por linha, com o valor (ex.: Sneaker Milão 41 - 289,90)" style="resize:vertical;min-height:44px;font-family:inherit" oninput="sugerirPecas()"></textarea></div>
+          <div class="pecas-box">
+            <label>Peças que saem</label>
+            <div class="pecas-ctl">
+              <button type="button" class="pecas-b" onclick="mudarPecas(-1)" aria-label="Menos uma peça">−</button>
+              <input id="f-pecas" type="number" min="1" max="30" value="1" inputmode="numeric" onchange="_pecasTocado=true">
+              <button type="button" class="pecas-b" onclick="mudarPecas(1)" aria-label="Mais uma peça">+</button>
+            </div>
+            <small class="pecas-hint" id="f-pecas-hint">quantos pares vão na sacola</small>
+          </div>
+        </div>
         <div class="full"><label>Link de pagamento (Stone) — opcional</label><input id="f-linkpag" placeholder="Cole aqui o link da Stone, se o pagamento for por link"></div>
         <div class="full"><label>Observação</label><input id="f-obs" placeholder="Ex: casa com câmera · ligar antes · deixar na portaria"></div>
         <div class="full"><label class="chk-row"><input type="checkbox" id="f-presente"><span>🎁 Embalagem de presente</span><small>marcado sozinho quando a IA identifica cliente mulher — pode ajustar</small></label></div>
@@ -1553,6 +1615,7 @@
     <button class="tab on" id="tab-painel" onclick="switchTab('painel')">Painel</button>
     <button class="tab" id="tab-pendentes" onclick="switchTab('pendentes')">⏳ Pendentes<span id="c-tab-pendentes"></span></button>
     <button class="tab" id="tab-envios" onclick="switchTab('envios')" style="display:none">📮 Envios<span id="c-tab-envios"></span></button>
+    <button class="tab" id="tab-confer" onclick="switchTab('confer')" style="display:none">📦 Conferência<span id="c-tab-confer"></span></button>
     <button class="tab" id="tab-mapa" onclick="switchTab('mapa')">Mapa &amp; Rotas</button>
     <button class="tab" id="tab-fin" onclick="switchTab('fin')" style="display:none">Finalizadas</button>
     <button class="tab" id="tab-entlive" onclick="abrirEntregadores()" style="display:none" title="Abre o mapa da frota em outra aba">Entregadores ↗</button>
@@ -1602,6 +1665,9 @@
     </div>
   </div>
   </div>
+
+  <!-- conferência do dia: o que saiu, o que vendeu e o que tem que voltar (operação) -->
+  <div id="view-confer" style="display:none"></div>
 
   <!-- map & route suggestions -->
   <div id="view-mapa" style="display:none">
@@ -1902,7 +1968,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v191</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v192</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -1928,6 +1994,22 @@
     <p class="dev-semtel" id="dev-aviso-semtel" style="display:none">Sem telefone dessa vendedora cadastrado — avise pelo grupo e marque abaixo.</p>
     <button type="button" class="env-aviso-skip" onclick="marcarAvisadaPorFora()">avisei por fora (grupo, pessoalmente)</button>
     <button type="button" class="env-aviso-skip" onclick="fecharAvisoDev()">avisar depois — fica cobrando no painel</button>
+  </div>
+</div>
+
+<!-- conferência: faltou peça na volta -->
+<div class="modal-bg" id="cf-div-modal">
+  <div class="modal modal-sm">
+    <h3>⚠️ Faltou peça na volta</h3>
+    <p class="dev-sub">Sacola de <b id="cf-div-nome">—</b>. Tinham que voltar <b id="cf-div-esp">0</b> peças.</p>
+    <label class="dev-lbl">Quantas voltaram de verdade?</label>
+    <input id="cf-div-qtd" type="number" min="0" inputmode="numeric">
+    <label class="dev-lbl">O que ele falou sobre a que faltou?</label>
+    <input id="cf-div-obs" placeholder="Ex: ficou com o cliente pra provar amanhã · esqueceu na moto">
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="fecharConfDiverg()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConfDiverg()">Registrar</button>
+    </div>
   </div>
 </div>
 
@@ -2095,6 +2177,13 @@
         <input type="file" id="prod-arq-input" accept="image/*" onchange="carregarProdFoto(this)" style="display:none">
         <div id="prod-itens"></div>
         <button type="button" class="btn pay-cam-btn" id="prod-add-btn" onclick="addProdItem()" style="width:100%;margin-top:10px">➕ Adicionar produto</button>
+      </div>
+      <!-- só aparece quando saiu mais de uma peça: é o que fecha a conta do que volta pra loja -->
+      <div class="pay-sacola" id="pay-sacola" style="display:none">
+        <div class="pay-sacola-h">🎒 Você saiu com <b id="pay-sacola-n">2</b> peças nesta entrega</div>
+        <div class="pay-sacola-q">Quantas o cliente ficou?</div>
+        <div class="pay-sacola-ops" id="pay-sacola-ops"></div>
+        <div class="pay-sacola-volta" id="pay-sacola-volta"></div>
       </div>
       <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:16px 0 6px">Observação do produto (opcional)</label>
       <input id="prod-note" placeholder="Ex: levou também a meia / pequeno detalhe na caixa">
@@ -2570,6 +2659,11 @@ let _envShadow={}, _envPend={}, _envSynced=false, _envAssinado=false;
    o Edson acompanha e confere na chegada, e só então a troca é liberada. Fica em lista
    própria porque o ciclo é outro (dura dias, atravessa a virada do dia) e não se mistura
    com a fila de saída dos envios. */
+/* conferências: uma por entregador por dia (o Yuri fecha a sacola na bancada) */
+const CONF_KEY = 'loretto_conferencias_v1';
+let conferencias = (function(){ try{ const r=localStorage.getItem(CONF_KEY); return r?(JSON.parse(r)||[]):[]; }catch(e){ return []; } })();
+let _confShadow={}, _confPend={}, _confSynced=false, _confAssinado=false;
+
 const DEV_KEY = 'loretto_devolucoes_v1';
 let devolucoes = (function(){ try{ const r=localStorage.getItem(DEV_KEY); return r?(JSON.parse(r)||[]):[]; }catch(e){ return []; } })();
 let _devShadow={}, _devPend={}, _devSynced=false, _devAssinado=false;
@@ -2645,7 +2739,7 @@ function initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
     FIREBASE_ON = true;
-    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); assinarDevolucoes(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
+    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); assinarDevolucoes(); assinarConferencias(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
     return true;
   }catch(e){ console.warn('Firebase init falhou — seguindo com localStorage', e); FIREBASE_ON=false; return false; }
 }
@@ -2706,6 +2800,37 @@ function assinarEnvios(){
     persistEnvios();          // sobe o que foi criado offline nesta sessão
     _rerenderAtual();
   }, err=>console.warn('Firebase: leitura de envios bloqueada — verifique as regras do Firestore', err));
+}
+/* ---- conferências: mesma mecânica dos envios ---- */
+function persistConferencias(){
+  try{ localStorage.setItem(CONF_KEY, JSON.stringify(conferencias)); }catch(e){}
+  if(!FIREBASE_ON || !fdb) return;
+  conferencias.forEach(c=>{
+    if(!_confSynced && _confPend[c.id]===undefined) return;
+    if(_confShadow[c.id] === JSON.stringify(c)) return;
+    c.atualizadoEm = Date.now();
+    const j = JSON.stringify(c);
+    _confShadow[c.id]=j; _confPend[c.id]=c.atualizadoEm;
+    let payload; try{ payload=JSON.parse(j); }catch(_){ payload=c; }
+    fdb.collection('conferencias').doc(String(c.id)).set(payload)
+      .catch(err=>console.warn('Firebase: conferência não salvou (id '+c.id+')', err));
+  });
+}
+function assinarConferencias(){
+  if(!FIREBASE_ON || _confAssinado) return; _confAssinado=true;
+  fdb.collection('conferencias').onSnapshot(snap=>{
+    const nuvem=[];
+    snap.forEach(doc=>{ nuvem.push(doc.data()); if(_confPend[doc.id]!==undefined && !doc.metadata.hasPendingWrites) delete _confPend[doc.id]; });
+    const porId={}; conferencias.forEach(c=>porId[c.id]=c);
+    nuvem.forEach(x=>{ const meu=porId[x.id]; if(!meu || (x.atualizadoEm||0) >= (meu.atualizadoEm||0)) porId[x.id]=x; });
+    const naNuvem=new Set(nuvem.map(x=>String(x.id)));
+    conferencias = Object.values(porId).filter(c => naNuvem.has(String(c.id)) || !_confSynced || _confPend[c.id]!==undefined);
+    _confShadow={}; conferencias.forEach(c=>{ if(naNuvem.has(String(c.id))) _confShadow[c.id]=JSON.stringify(c); });
+    _confSynced=true;
+    try{ localStorage.setItem(CONF_KEY, JSON.stringify(conferencias)); }catch(e){}
+    persistConferencias();
+    _rerenderAtual();
+  }, err=>console.warn('Firebase: leitura de conferências bloqueada', err));
 }
 /* ---- devoluções: mesma mecânica dos envios (vence o carimbo mais novo) ---- */
 function persistDevolucoes(){
@@ -3841,9 +3966,62 @@ function fmtFoneFinal(el){                                            // formata
   setFoneHint(a);
 }
 function normFoneSalvar(raw){ const a=analisarFone(raw); return (a.ok && a.fmt) ? a.fmt : (a.d || (raw||'').trim()); }
+/* ===== PEÇAS: a base do controle de estoque na rua =====
+   Sem saber quantas peças saíram não dá pra saber quantas têm que voltar. O campo sugere
+   pela quantidade de linhas do produto (o formulário já pede "um modelo por linha"), mas a
+   vendedora manda: se ela mexeu, a sugestão para de sobrescrever. */
+let _pecasTocado=false;
+function _linhasProduto(){
+  return String(($('f-prod')||{}).value||'').split('\n').map(s=>s.trim()).filter(Boolean).length;
+}
+function sugerirPecas(){
+  if(_pecasTocado) return;
+  const el=$('f-pecas'); if(!el) return;
+  const n=Math.max(1,_linhasProduto());
+  el.value=n;
+  const h=$('f-pecas-hint');
+  if(h) h.textContent = n>1 ? n+' linhas no produto' : 'quantos pares vão na sacola';
+}
+function mudarPecas(d){
+  const el=$('f-pecas'); if(!el) return;
+  el.value=Math.max(1,Math.min(30,(parseInt(el.value,10)||1)+d));
+  _pecasTocado=true;
+  const h=$('f-pecas-hint'); if(h) h.textContent='definido por você';
+}
+function pecasDe(e){ const n=parseInt(e&&e.pecas,10); return n>0?n:1; }
+/* pergunta do fechamento — só quando a sacola tinha mais de uma peça */
+let _payFicou=null;
+function renderPaySacola(){
+  const box=$('pay-sacola'); if(!box) return;
+  const e=entregas.find(x=>x.id===payId);
+  const tot=e?pecasDe(e):1;
+  if(!e || tot<2){ box.style.display='none'; _payFicou=null; return; }
+  box.style.display='';
+  $('pay-sacola-n').textContent=tot;
+  if(_payFicou==null) _payFicou = (typeof e.pecasFicou==='number') ? e.pecasFicou : (prodModo==='manual' ? Math.min(prodItens.length,tot) : 1);
+  let ops='';
+  for(let i=0;i<=tot;i++) ops+=`<button type="button" class="pay-sacola-op${i===_payFicou?' on':''}" onclick="setPayFicou(${i})">${i}</button>`;
+  $('pay-sacola-ops').innerHTML=ops;
+  const volta=tot-_payFicou;
+  $('pay-sacola-volta').innerHTML = volta>0
+    ? `↩️ <b style="color:var(--gold-lt)">${volta} peça${volta>1?'s':''}</b> ${volta>1?'voltam':'volta'} pra loja — o Yuri confere na chegada.`
+    : `✓ Nenhuma peça volta desta entrega.`;
+}
+function setPayFicou(n){ _payFicou=n; renderPaySacola(); }
+/* quantas ficaram com o cliente: 0 quando não deu certo; senão o que o entregador registrou,
+   com o fallback do modo de fechamento (lista = tantas quanto os itens; único/presente = 1) */
+function pecasFicouDe(e){
+  if(!e) return 0;
+  if(e.status==='nao_entregue' || e.status==='cancelado') return 0;
+  if(e.status!=='entregue') return 0;
+  const n=parseInt(e.pecasFicou,10);
+  if(n>=0 && e.pecasFicou!=null && e.pecasFicou!=='') return Math.min(n, pecasDe(e));
+  return 1;
+}
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
 function maskCEP(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>5) v=v.replace(/(\d{5})(\d{1,3})/,'$1-$2'); el.value=v; }
-function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value=''); $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
+function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value='');
+  { const p=$('f-pecas'); if(p) p.value=1; _pecasTocado=false; const h=$('f-pecas-hint'); if(h) h.textContent='quantos pares vão na sacola'; } $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -3907,6 +4085,7 @@ async function saveEntrega(){
     tipo:$('f-tipo').value||'entrega',
     pagPrevisto:pagPrev,
     produto:$('f-prod').value.trim(),
+    pecas: Math.max(1, Math.min(30, parseInt($('f-pecas')&&$('f-pecas').value,10)||1)),   // peças que saem na sacola
     valor,
     linkPagamento:limparLinkPag($('f-linkpag').value),
     observacao:$('f-obs').value.trim(),
@@ -4072,7 +4251,7 @@ function fmtNumEnt(n){
 /* estado do bloco "produto que ficou": lista de itens {foto, legenda, num} */
 let prodItens=[{foto:'',legenda:'',num:''}], prodFotoAlvo=0;
 let prodModo='manual', prodCadastro='';   // manual | unico | presente ; prodCadastro = produto que a vendedora cadastrou
-function setProdModo(m){ prodModo=m; renderProdModo(); }
+function setProdModo(m){ prodModo=m; renderProdModo(); _payFicou=null; renderPaySacola(); }   // trocou o modo: recalcula a sugestão de quantas ficaram
 function renderProdModo(){
   const m=$('prod-modo'); if(!m) return;
   const opt=(id,ic,lbl)=>`<button type="button" class="prod-modo-btn ${prodModo===id?'on':''}" onclick="setProdModo('${id}')">${ic}<span>${lbl}</span></button>`;
@@ -4255,6 +4434,7 @@ function confirmarDesfecho(){
   if(desfStatus==='nao_entregue' && desfFoiLocal===null){ toast('Responda se você foi até o endereço do cliente'); return; }
   e.status=desfStatus; e.motivo=$('desf-motivo').value.trim()||desfMotivo; e.desfechoEm=Date.now(); e.aCaminhoDe=null;
   e.foiAoLocal = desfStatus==='nao_entregue' ? desfFoiLocal : null;   // só faz sentido no "não consegui entregar"
+  e.pecasFicou = 0;                       // não deu certo: a sacola volta inteira
   e.entregador=e.entregador||null;
   persist(); closeDesf(); render();
   if(session.role==='entregador') renderEntregador();
@@ -4376,6 +4556,7 @@ function abrirPagamento(id){
   payTroca = !!(e && (e.tipo==='troca' || e.tipo==='coleta'));   // troca/coleta: produto e comprovante ficam opcionais
   // bloco "produto que ficou": começa vazio (o entregador escreve; não puxa da vendedora)
   prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0;
+  _payFicou=null;
   prodCadastro = (e && e.produto) || '';
   prodModo = jaFin ? (e.entregueModo || (e.entreguePresente ? 'presente' : 'manual')) : ((e && e.presente) ? 'presente' : 'manual');
   if(jaFin){
@@ -4401,6 +4582,7 @@ function abrirPagamento(id){
   const h=document.querySelector('#pay-modal h3'); if(h) h.textContent = jaFin ? 'Corrigir entrega' : 'Finalizar entrega';
   const okBtn=document.querySelector('#pay-modal .form-actions .btn-primary'); if(okBtn) okBtn.textContent = jaFin ? '✓ Salvar correção' : '✓ Confirmar entrega';
   renderPayOpts(); renderCartaoTipo(); renderPayVals(); renderTaxa(); atualizarFotoReq(); $('pay-modal').classList.add('open');
+  renderPaySacola();
 }
 function renderPayOpts(){
   $('pay-opts').innerHTML = PAGAMENTOS.map(p=>`<div class="pay-opt ${paySel.includes(p.id)?'on':''}" onclick="escolherPag('${p.id}')"><span class="pi">${p.ico}</span>${p.label}</div>`).join('');
@@ -4602,6 +4784,8 @@ function confirmarPagamento(){
   // valores por forma (ex: Pix 120 + Cartão 80) — formas "sem cobrança" não têm valor
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
   e.pagamentoValores = Object.keys(vals).length ? vals : null;
+  e.pecasFicou = (pecasDe(e)>=2 && _payFicou!=null) ? _payFicou
+                 : (prodModo==='manual' ? Math.min(prodItens.length, pecasDe(e)) : 1);   // fecha a conta do que volta
   e.entregueModo = prodModo;
   e.entreguePresente = (prodModo==='presente');
   if(prodModo==='manual'){
@@ -5436,7 +5620,8 @@ function editar(id){
   $('f-cliente').value=e.cliente; $('f-contato').value=formatPhone(e.contato); $('f-bairro').value=e.bairro;
   $('f-cpf').value=e.cpf||''; $('f-nasc').value=e.nascimento||'';
   $('f-cidade').value=e.cidade||''; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
-  $('f-prod').value=e.produto; $('f-valor').value=e.valor; $('f-obs').value=e.observacao||''; $('f-linkpag').value=e.linkPagamento||'';
+  $('f-prod').value=e.produto; $('f-valor').value=e.valor;
+  { const p=$('f-pecas'); if(p){ p.value=pecasDe(e); _pecasTocado=true; const h=$('f-pecas-hint'); if(h) h.textContent='desta entrega'; } } $('f-obs').value=e.observacao||''; $('f-linkpag').value=e.linkPagamento||'';
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||''; $('f-hr-hora2').value=e.horarioHora2||''; toggleHrEntre();
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
   if($('f-presente'))$('f-presente').checked=!!e.presente;
@@ -5493,8 +5678,9 @@ const ROUTE_COLORS=['#d4b45a','#6fb0a6','#c97b5a','#8e9cd6','#cf8aa8','#9bbf6f']
 
 function switchTab(name){
   tabAtiva = name;
-  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes', isEnv = name==='envios';
-  $('view-painel').style.display = (isMapa||isFin||isRank||isPend||isEnv)?'none':'';
+  const isMapa = name==='mapa', isFin = name==='fin', isRank = name==='ranking', isPend = name==='pendentes', isEnv = name==='envios', isConf = name==='confer';
+  $('view-painel').style.display = (isMapa||isFin||isRank||isPend||isEnv||isConf)?'none':'';
+  $('view-confer').style.display = isConf?'':'none';
   $('view-mapa').style.display = isMapa?'':'none';
   $('view-fin').style.display = isFin?'':'none';
   $('view-ranking').style.display = isRank?'':'none';
@@ -5508,10 +5694,11 @@ function switchTab(name){
   $('tab-ranking').classList.toggle('on', isRank);
   $('tab-pendentes').classList.toggle('on', isPend);
   $('tab-envios').classList.toggle('on', isEnv);
+  $('tab-confer').classList.toggle('on', isConf);
   const dt=$('destaques-topo');
   if(dt){ if(name==='painel'){ dt.innerHTML=destaquesHTML(true); dt.style.display=''; } else dt.style.display='none'; }  // destaques só no Painel
   if(isMapa){ assinarRastreio(); ensureMap(); renderMap(); if(!suggestion && aguardandoHoje().some(e=>coordOf(e))) sugerirRotas(); }
-  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else if(isEnv){ renderEnvios(); } else { animateNext(); render(); } }
+  else { pararAssinarRastreio(); if(isFin){ renderFinalizadas(); } else if(isRank){ $('view-ranking').innerHTML = rankingHTML(); } else if(isPend){ renderPendentes(); } else if(isEnv){ renderEnvios(); } else if(isConf){ renderConferencia(); } else { animateNext(); render(); } }
 }
 function ensureMap(){
   if(mapInited){ if(map) setTimeout(()=>map.invalidateSize(),50); return; }
@@ -6855,6 +7042,145 @@ function renderEnvBoard(){
     + `<div class="board envios-board">${colEmbalar}${colLevar}${colRota}${colFeito}${colDevolucoesHTML()}</div>`;
 }
 
+/* ============ CONFERÊNCIA DO DIA — o que saiu, o que vendeu, o que tem que voltar ============
+   A conta é sempre: SAIU − VENDEU = TEM QUE VOLTAR. Ninguém digita o que volta; o Yuri só
+   confirma o número na bancada. Bateu, fecha. Não bateu, a divergência fica registrada com
+   nome, dia e quantidade — que é o começo da conversa com o entregador. */
+function conferenciaDoDia(dia){
+  const alvo = dia || diaAtivo;
+  const doDia = entregas.filter(e => dataDe(e)===alvo && e.entregador &&
+    ['em_rota','entregue','nao_entregue','cancelado'].includes(e.status));
+  const porEnt = {};
+  doDia.forEach(e => {
+    const k = e.entregador;
+    if(!porEnt[k]) porEnt[k] = { ent:k, saiu:0, vendeu:0, entregas:0, abertas:0, itens:[] };
+    const p = pecasDe(e), f = pecasFicouDe(e);
+    porEnt[k].saiu += p;
+    porEnt[k].vendeu += f;
+    porEnt[k].entregas++;
+    if(e.status==='em_rota') porEnt[k].abertas++;
+    porEnt[k].itens.push({ e, p, f });
+  });
+  return Object.values(porEnt).map(r => {
+    r.volta = r.saiu - r.vendeu;
+    r.conf = confDe(alvo, r.ent);
+    return r;
+  }).sort((a,b) => b.volta - a.volta);
+}
+function confDe(dia, ent){ return conferencias.find(c => c.dia===dia && c.entregador===ent) || null; }
+function _confGravar(ent, esperado, voltou, obs){
+  const dia = diaAtivo, id = dia+'_'+ent;
+  let c = conferencias.find(x => x.id===id);
+  if(!c){ c = { id, dia, entregador:ent }; conferencias.push(c); }
+  c.esperado = esperado; c.voltou = voltou; c.faltou = Math.max(0, esperado - voltou);
+  c.obs = obs || ''; c.em = Date.now(); c.por = session ? (session.vendedora||session.role) : '';
+  _confPend[c.id] = Date.now();
+  persistConferencias(); renderConferencia();
+  return c;
+}
+function confConfirmar(ent, esperado){
+  _confGravar(ent, esperado, esperado, '');
+  toast('Conferido ✓ — as '+esperado+' peças voltaram');
+}
+function confDesfazer(ent){
+  const id = diaAtivo+'_'+ent;
+  conferencias = conferencias.filter(c => c.id!==id);
+  try{ localStorage.setItem(CONF_KEY, JSON.stringify(conferencias)); }catch(e){}
+  if(FIREBASE_ON && fdb) fdb.collection('conferencias').doc(String(id)).delete().catch(()=>{});
+  renderConferencia(); toast('Conferência desfeita');
+}
+let _confDivEnt=null, _confDivEsp=0;
+function abrirConfDiverg(ent, esperado){
+  _confDivEnt=ent; _confDivEsp=esperado;
+  const c = confDe(diaAtivo, ent);
+  const nome = (ENT[ent]||{}).nome || ent;
+  $('cf-div-nome').textContent = nome;
+  $('cf-div-esp').textContent = esperado;
+  $('cf-div-qtd').value = (c && typeof c.voltou==='number') ? c.voltou : Math.max(0, esperado-1);
+  $('cf-div-qtd').max = esperado;
+  $('cf-div-obs').value = (c && c.obs) || '';
+  $('cf-div-modal').classList.add('open');
+}
+function fecharConfDiverg(){ $('cf-div-modal').classList.remove('open'); _confDivEnt=null; }
+function salvarConfDiverg(){
+  if(!_confDivEnt) return fecharConfDiverg();
+  const q = Math.max(0, Math.min(_confDivEsp, parseInt($('cf-div-qtd').value,10)||0));
+  const obs = $('cf-div-obs').value.trim();
+  const falta = _confDivEsp - q;
+  if(falta>0 && !obs){ toast('Escreva o que o entregador falou sobre a(s) peça(s) que faltou'); return; }
+  _confGravar(_confDivEnt, _confDivEsp, q, obs);
+  fecharConfDiverg();
+  toast(falta>0 ? `Divergência registrada: faltaram ${falta}` : 'Conferido ✓');
+}
+
+function renderConferencia(){
+  const box = $('view-confer'); if(!box) return;
+  if(!session || !session.geral){ box.innerHTML = '<div class="empty">Só a operação faz a conferência.</div>'; return; }
+  const dia = diaAtivo;
+  const linhas = conferenciaDoDia(dia);
+  const totSaiu = linhas.reduce((t,r)=>t+r.saiu,0);
+  const totVend = linhas.reduce((t,r)=>t+r.vendeu,0);
+  const totVolta = totSaiu - totVend;
+  const abertas = linhas.reduce((t,r)=>t+r.abertas,0);
+  const pend = linhas.filter(r => r.volta>0 && !r.conf).length;
+  const diverg = linhas.filter(r => r.conf && r.conf.faltou>0);
+
+  const topo = `<div class="cf-topo">
+      <div class="cf-kpi"><b>${totSaiu}</b><span>saíram da loja</span></div>
+      <div class="cf-kpi"><b>${totVend}</b><span>ficaram com clientes</span></div>
+      <div class="cf-kpi destaque"><b>${totVolta}</b><span>${totVolta===1?'tem que voltar':'têm que voltar'}</span></div>
+    </div>
+    <p class="vmin-sub">Conferência de <b>${esc(rotuloDia(dia))}</b>${abertas?` · <span style="color:var(--warn)">${abertas} ${abertas===1?'entrega ainda em rota':'entregas ainda em rota'}</span>`:''}.</p>`;
+
+  if(!linhas.length){
+    box.innerHTML = topo + '<div class="empty">Nenhuma saída registrada neste dia.</div>';
+    return;
+  }
+  const alerta = diverg.length
+    ? `<div class="cf-alerta">⚠️ <b>${diverg.length} ${diverg.length===1?'divergência':'divergências'}</b> neste dia —
+        ${diverg.reduce((t,r)=>t+r.conf.faltou,0)} peça(s) sem explicação. Fale com ${diverg.map(r=>esc((ENT[r.ent]||{}).nome||r.ent)).join(', ')}.</div>`
+    : '';
+
+  box.innerHTML = topo + alerta + linhas.map(r => {
+    const ent = ENT[r.ent] || { nome:r.ent, cor:'#888' };
+    const c = r.conf;
+    let estado, acoes;
+    if(r.volta === 0){
+      estado = '<span class="cf-tag ok">✓ nada a devolver</span>';
+      acoes = '<span class="cf-nota">Tudo que saiu ficou com os clientes.</span>';
+    } else if(!c){
+      estado = `<span class="cf-tag pend">⏳ ${r.volta} a conferir</span>`;
+      acoes = `<button class="btn btn-primary btn-mini" onclick="confConfirmar('${r.ent}',${r.volta})">✓ Conferi as ${r.volta} peças</button>
+               <button class="btn btn-ghost btn-mini" onclick="abrirConfDiverg('${r.ent}',${r.volta})">⚠️ Faltou alguma</button>`;
+    } else if(c.faltou > 0){
+      estado = `<span class="cf-tag falta">⚠️ faltaram ${c.faltou}</span>`;
+      acoes = `<div class="cf-div">Voltaram <b>${c.voltou}</b> de <b>${c.esperado}</b>${c.obs?` — ${esc(c.obs)}`:''}
+                 <small>por ${esc(c.por||'')} · ${c.em?fmtClock(c.em):''}</small></div>
+               <button class="btn btn-ghost btn-mini" onclick="abrirConfDiverg('${r.ent}',${r.volta})">✎ Corrigir</button>
+               <button class="btn btn-ghost btn-mini" onclick="confConfirmar('${r.ent}',${r.volta})">✓ Apareceu, resolver</button>`;
+    } else {
+      estado = `<span class="cf-tag ok">✓ conferido</span>`;
+      acoes = `<span class="cf-nota">${c.voltou} peça(s) conferidas por ${esc(c.por||'')}${c.em?' às '+fmtClock(c.em):''}.</span>
+               <button class="iconbtn" onclick="confDesfazer('${r.ent}')" title="Desfazer conferência">↩</button>`;
+    }
+    const det = r.itens.filter(i => (i.p - i.f) > 0).map(i =>
+      `<div class="cf-item"><span>${esc(i.e.cliente||'(sem nome)')}</span>
+        <span class="cf-item-n">${i.p - i.f} de ${i.p}</span>
+        <small>${i.e.status==='entregue' ? 'cliente ficou com '+i.f : (i.e.status==='em_rota' ? 'ainda em rota' : (i.e.status==='cancelado'?'não comprou':'não entregue'))}</small></div>`).join('');
+
+    return `<div class="cf-card">
+      <div class="cf-head">
+        <span class="cf-dot" style="background:${ent.cor}"></span>
+        <b>${esc(ent.nome)}</b>
+        <span class="cf-conta"><i>${r.saiu}</i> saiu − <i>${r.vendeu}</i> vendeu = <i class="v">${r.volta}</i> volta</span>
+        ${estado}
+      </div>
+      ${det ? `<div class="cf-itens">${det}</div>` : ''}
+      <div class="cf-acts">${acoes}</div>
+    </div>`;
+  }).join('');
+}
+
 /* ============ DEVOLUÇÕES — o que volta do cliente para a loja ============
    Caminho: a vendedora registra a partir do envio já despachado (com o rastreio da
    volta e o motivo) → 🔄 voltando → o Edson confere na chegada → ✓ recebido (libera a
@@ -7381,6 +7707,7 @@ function applyRole(){
     if(fvend){ fvend.readOnly=!ehGeral; fvend.style.opacity=ehGeral?'':'.65'; if(!ehGeral) fvend.value=session.vendedora; }
     if(vchips) vchips.style.display = ehGeral ? '' : 'none';
     $('tab-fin').style.display='';                   // aba de finalizadas (pagamento/foto) p/ vendedoras
+    { const tc=$('tab-confer'); if(tc) tc.style.display = session.geral ? '' : 'none'; }   // conferência: só operação
     $('tab-mapa').style.display = ehGeral ? '' : 'none';   // Mapa & Rotas só pra operação (vendedora não monta rota)
     { const _te=$('tab-entlive'); if(_te) _te.style.display=''; }   // Entregadores ao vivo: operação E vendedoras
     // filtro por entregador e Configurações: só operação (vendedora não usa)
