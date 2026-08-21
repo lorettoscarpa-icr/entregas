@@ -1665,6 +1665,7 @@
             <div id="f-itens"></div>
             <button type="button" class="btn btn-ghost btn-mini" onclick="addItemManual()" style="margin-top:8px">➕ Acrescentar peça</button>
             <button type="button" class="btn btn-ghost btn-mini" onclick="fecharItensEdit()" style="margin-top:8px">✓ Pronto</button>
+            <button type="button" class="btn btn-ghost btn-mini" onclick="releuProduto()" style="margin-top:8px" title="Descarta os ajustes e lê tudo de novo do produto">↺ Refazer pelo produto</button>
           </div>
         </div>
         <div class="full"><label>Link de pagamento (Stone) — opcional</label><input id="f-linkpag" placeholder="Cole aqui o link da Stone, se o pagamento for por link"></div>
@@ -2037,7 +2038,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v196</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v197</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4123,25 +4124,72 @@ function _itemRotulo(it){ return (it.nome||'item') + (it.num?(' · nº '+it.num)
    Sem saber quantas peças saíram não dá pra saber quantas têm que voltar. O campo sugere
    pela quantidade de linhas do produto (o formulário já pede "um modelo por linha"), mas a
    vendedora manda: se ela mexeu, a sugestão para de sobrescrever. */
-let _pecasTocado=false, _formItens=[], _itensTocado=false, _itensDeTexto=null;
+let _pecasTocado=false, _formItens=[], _itensTocado=false, _itensDeTexto=null, _itensBase=null;
 /* A lista de peças é lida do produto e mostrada pra ela CONFERIR — o leitor propõe, ela
    decide. Enquanto ela não mexer, continua acompanhando o que ela digita. */
+/* ===== A LISTA ACOMPANHA O PRODUTO, SEM ATROPELAR A VENDEDORA =====
+   Ela ajusta a lista à mão e depois mexe no produto (acrescenta uma linha, corrige um
+   valor). Reler apagaria a correção dela; não reler deixaria o entregador saindo com peça
+   que o sistema não conhece. Então o app faz as duas coisas: relê o produto e reaplica as
+   correções dela por cima. Cada peça guarda de qual linha do produto ela nasceu (_de), o
+   que permite casar a lista velha com a nova sem precisar perguntar nada. */
+function _sig(it){ return [String(it.nome||'').trim(), String(it.num||''), it.valor==null?'':it.valor].join('|'); }
 function _lerDoProduto(){
   const txt = ($('f-prod')||{}).value||'';
-  _formItens = lerItens(txt).map(it=>({nome:it.nome, num:it.num, valor:it.valor}));
+  const base = lerItens(txt);
+  _formItens = base.map(it=>({nome:it.nome, num:it.num, valor:it.valor, _de:_sig(it)}));
+  _itensBase = base.map(_sig);
+  _itensDeTexto = txt;
+}
+/* Reabrir uma entrega salva: as peças guardadas precisam reencontrar a linha do produto
+   que as gerou. Casamento exato não basta — se ela corrigiu o NOME, a assinatura mudou.
+   Então tenta em três passadas, da mais segura pra mais tolerante. */
+function _casarSalvos(salvos, texto){
+  const base = lerItens(texto), sig = base.map(_sig);
+  const livre = sig.map(()=>true);
+  const achar = (fn)=>{ for(let i=0;i<base.length;i++) if(livre[i] && fn(base[i],i)) return i; return -1; };
+  const out = salvos.map(()=>null);
+  const tentar = (fn)=>{
+    salvos.forEach((it,j)=>{
+      if(out[j]!=null) return;
+      const i = achar((b2,i2)=>fn(it,b2,i2,j));
+      if(i>=0){ livre[i]=false; out[j]=sig[i]; }
+    });
+  };
+  tentar((it,b2)=> _sig(it)===_sig(b2));                                        // 1) igual
+  tentar((it,b2)=> String(it.num||'')===String(b2.num||'') && it.valor===b2.valor && (it.num||it.valor!=null));  // 2) mesma numeração e valor
+  tentar((it,b2,i2,j)=> i2===j);                                               // 3) mesma posição
+  return { base:sig, de:out };
+}
+function _casarComProduto(){
+  const txt = ($('f-prod')||{}).value||'';
+  const nova = lerItens(txt), novaSig = nova.map(_sig);
+  const antes = _itensBase || [];
+  // o que ela editou, indexado pela linha de origem; e o que ela acrescentou na mão
+  const dela = {}, naMao = [];
+  _formItens.forEach(it=>{
+    if(it._de==null){ naMao.push(it); return; }
+    (dela[it._de] = dela[it._de] || []).push(it);
+  });
+  const saida = [];
+  nova.forEach((it,i)=>{
+    const s = novaSig[i];
+    if(dela[s] && dela[s].length){ saida.push(dela[s].shift()); return; }   // ela corrigiu esta peça: vale a versão dela
+    if(antes.indexOf(s)>=0) return;                                        // ela apagou esta peça: continua apagada
+    saida.push({nome:it.nome, num:it.num, valor:it.valor, _de:s});          // linha nova no produto: entra
+  });
+  _formItens = saida.concat(naMao);
+  _itensBase = novaSig;
   _itensDeTexto = txt;
 }
 function sugerirPecas(){
+  const txt = ($('f-prod')||{}).value||'';
   if(!_itensTocado) _lerDoProduto();
+  else if(_itensDeTexto!=null && txt!==_itensDeTexto) _casarComProduto();
   renderFormItens();
 }
-/* Ela ajustou a lista e DEPOIS mudou o produto — ou abriu uma entrega salva e acrescentou
-   um item. Sobrescrever apagaria a correção dela; ignorar deixaria a sacola errada e o
-   entregador sairia com peça que o sistema não conhece. Então o app avisa e ela decide. */
-function releuProduto(){ _itensTocado=false; _lerDoProduto(); renderFormItens(); toast('Lista atualizada pelo produto ✓'); }
-function _produtoMudou(){
-  return _itensTocado && _itensDeTexto!=null && (($('f-prod')||{}).value||'') !== _itensDeTexto;
-}
+/* saída de emergência: joga fora os ajustes e recomeça do texto */
+function releuProduto(){ _itensTocado=false; _lerDoProduto(); renderFormItens(); toast('Lista refeita pelo produto ✓'); }
 let _itensAberto=false;
 function abrirItensEdit(){ _itensAberto=true; renderFormItens(); }
 function fecharItensEdit(){ _itensAberto=false; renderFormItens(); }
@@ -4164,9 +4212,7 @@ function renderFormItens(){
         <span class="fit-res-n">🎒 ${n} peça${n>1?'s':''} na sacola</span>
         ${_formItens.map(it=>`<span class="fit-chip${(!it.num&&_ehCalcado(it.nome))?' sem-num':''}">${esc(_itNomeCurto(it.nome)||'peça')}${it.num?` <b>${esc(it.num)}</b>`:''}</span>`).join('')}
         <span class="fit-res-ed">✎ ajustar</span>
-      </div>${_produtoMudou()?`<div class="fit-dica fit-alerta">⚠️ Você mudou o produto depois de ajustar a lista — a sacola pode estar desatualizada.
-        <button type="button" class="fit-reler" onclick="releuProduto()">🔄 Reler do produto</button></div>`:''
-      }${semNum?`<div class="fit-dica">💡 ${semNum===1?'Um par está':semNum+' pares estão'} sem numeração — com ela a loja sabe qual par cobrar se voltar.</div>`:''}`;
+      </div>${semNum?`<div class="fit-dica">💡 ${semNum===1?'Um par está':semNum+' pares estão'} sem numeração — com ela a loja sabe qual par cobrar se voltar.</div>`:''}`;
     res.style.display = _itensAberto ? 'none' : '';
   }
   if(ed) ed.style.display = _itensAberto ? '' : 'none';
@@ -4187,7 +4233,7 @@ function setItemCampo(i,campo,v){
 }
 function addItemManual(){
   _itensTocado=true; _pecasTocado=true; _itensAberto=true;
-  _formItens.push({nome:'', num:'', valor:null});
+  _formItens.push({nome:'', num:'', valor:null, _de:null});
   renderFormItens();
   const ins=$('f-itens').querySelectorAll('.fit-nome'); if(ins.length) ins[ins.length-1].focus();
 }
@@ -4279,7 +4325,7 @@ function pecasFicouDe(e){
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
 function maskCEP(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>5) v=v.replace(/(\d{5})(\d{1,3})/,'$1-$2'); el.value=v; }
 function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value='');
-  { const p=$('f-pecas'); if(p) p.value=1; _pecasTocado=false; _itensTocado=false; _itensAberto=false; _itensDeTexto=null; _formItens=[]; renderFormItens(); } $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
+  { const p=$('f-pecas'); if(p) p.value=1; _pecasTocado=false; _itensTocado=false; _itensAberto=false; _itensDeTexto=null; _itensBase=null; _formItens=[]; renderFormItens(); } $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
   if(!cliente){ toast('Informe o cliente'); $('f-cliente').focus(); return; }
@@ -5945,7 +5991,11 @@ function editar(id){
   $('f-cidade').value=e.cidade||''; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
   $('f-prod').value=e.produto; $('f-valor').value=e.valor;
   { const p=$('f-pecas'); if(p){ p.value=pecasDe(e); _pecasTocado=true; }
-    _itensTocado=true; _itensDeTexto=e.produto||''; _formItens=(itensDe(e)||[]).map(it=>({nome:it.nome,num:it.num,valor:it.valor})); renderFormItens();
+    _itensTocado=true; _itensDeTexto=e.produto||'';
+    { const salvos=(itensDe(e)||[]), c=_casarSalvos(salvos, e.produto||'');
+      _itensBase=c.base;
+      _formItens=salvos.map((it,j)=>({nome:it.nome,num:it.num,valor:it.valor,_de:c.de[j]})); }
+    renderFormItens();
     if(!_formItens.length){ _itensTocado=false; sugerirPecas(); } } $('f-obs').value=e.observacao||''; $('f-linkpag').value=e.linkPagamento||'';
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||''; $('f-hr-hora2').value=e.horarioHora2||''; toggleHrEntre();
   $('f-tipo').value=e.tipo||'entrega'; $('f-pag-prev').value=e.pagPrevisto||'cobrar';
