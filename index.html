@@ -2050,7 +2050,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v198</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v199</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4143,6 +4143,17 @@ const CAT_ABREV={slp:'slipper',slphw:'slipper hawai',snk:'sneaker',sneker:'sneak
   wc:'social wholecut',wholecut:'social wholecut',holly:'hollywood',tok:'tokyo'};
 const CAT_CORAB={vd:'verde',pr:'preto',ab:'all black',off:'off white',pt:'preto',preta:'preto',
   mar:'marfim',am:'azul marinho',caf:'cafe',gt:'grafite',car:'caramelo',bra:'branco',branca:'branco'};
+/* mesma cor, nomes diferentes: "branco" e "All White" são a mesma coisa. Só vale quando o
+   modelo tem UMA cor daquela família — senão seria chute. */
+const CAT_FAM={branco:['branco','all white','white'],
+  preto:['preto','preto.','all black','preta','black'], cafe:['cafe','marrom'],
+  cinza:['cinza','grafite'], marinho:['azul marinho','marinho']};
+function _catFam(c){
+  c=_itNorm(c);
+  for(const f in CAT_FAM) for(const v of CAT_FAM[f]){ const n=_itNorm(v);
+    if(c===n || c.indexOf(n)>=0) return f; }
+  return null;
+}
 let _catVoc=null;
 function _catV(){
   if(_catVoc) return _catVoc;
@@ -4208,6 +4219,8 @@ function catCasar(nome){
     const cs=cores.filter(o=>o.n.indexOf(fr)===0);
     if(cs.length===1) return {mod,cor:cs[0].c};
   }
+  { const fams=new Set(); pal.forEach(w=>{ const f=_catFam(CAT_CORAB[w]||w); if(f) fams.add(f); });
+    for(const f of fams){ const iguais=cores.filter(o=>_catFam(o.n)===f); if(iguais.length===1) return {mod,cor:iguais[0].c}; } }
   if(cores.length===1) return {mod,cor:cores[0].c};
   return {mod};
 }
