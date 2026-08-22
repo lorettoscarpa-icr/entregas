@@ -4284,19 +4284,38 @@ function itensSemCor(){ return _formItens.filter(it=>!!_itemPedeCor(it)); }
      aparelho e só é rebaixada quando o Yuri troca alguma. Do 2º dia em diante custa zero.
    · A foto inteira (~35 KB) só é buscada quando ele TOCA pra ver, e só a do modelo tocado.
    Sem foto cadastrada não aparece nada — nenhum espaço vazio, nenhuma requisição. */
+/* Duas origens, em documentos separados de propósito:
+   · "catalogo" — tiradas do PDF do catálogo, fixas, uma vez só;
+   · "loja"     — as que o Yuri sobe na Central de Estoque.
+   Se dividissem o mesmo documento, a publicação de um apagaria o outro. Onde as duas
+   existem, vale a do Yuri: é a foto atual do produto, o PDF é o que tinha na época. */
 const FOTO_TB_KEY='loretto_fotos_thumb';
-let _fotoTB=(function(){ try{ const r=localStorage.getItem(FOTO_TB_KEY); return r?(JSON.parse(r)||{}):{}; }catch(e){ return {}; } })();
-let _fotoTBts=parseInt(localStorage.getItem(FOTO_TB_KEY+'_ts'))||0;
+const _fotoSrc=(function(){ try{ const r=localStorage.getItem(FOTO_TB_KEY); const v=r?JSON.parse(r):null;
+    return (v&&v.loja!==undefined)?v:{catalogo:(v||{}),loja:{}}; }catch(e){ return {catalogo:{},loja:{}}; } })();
+let _fotoTB={};
+const _fotoTs={catalogo:0, loja:0};
+function _fotoMontar(){
+  const m={};
+  ['catalogo','loja'].forEach(k=>{                       // loja por último = loja vence
+    const src=_fotoSrc[k]||{};
+    Object.keys(src).forEach(mid=>{ m[mid]=Object.assign({}, m[mid]||{}, src[mid]||{}); });
+  });
+  _fotoTB=m;
+}
+_fotoMontar();
 function assinarFotos(){
   if(!(FIREBASE_ON&&fdb)) return;
-  fdb.collection('ls_fotos_thumb').doc('loja').onSnapshot(d=>{
-    const v=d.data(); if(!v||!v.t) return;
-    if((v.ts||0)<=_fotoTBts) return;                      // nada mudou: não mexe em nada
-    _fotoTB=v.t; _fotoTBts=v.ts||Date.now();
-    try{ localStorage.setItem(FOTO_TB_KEY, JSON.stringify(_fotoTB));
-         localStorage.setItem(FOTO_TB_KEY+'_ts', String(_fotoTBts)); }catch(e){}
-    if(payId) renderPaySacola();
-  }, ()=>{});
+  /* Tudo dentro de ls_rep_fotos: as regras do Firestore liberam essa coleção, e criar
+     coleção nova daria permissão negada — em silêncio, que é o pior jeito de falhar. */
+  ['catalogo','loja'].forEach(qual=>{
+    fdb.collection('ls_rep_fotos').doc(qual+'_thumb').onSnapshot(d=>{
+      const v=d.data(); if(!v||!v.t) return;
+      if((v.ts||0)<=_fotoTs[qual]) return;                // nada mudou: não mexe em nada
+      _fotoSrc[qual]=v.t; _fotoTs[qual]=v.ts||Date.now(); _fotoMontar();
+      try{ localStorage.setItem(FOTO_TB_KEY, JSON.stringify(_fotoSrc)); }catch(e){}
+      if(payId) renderPaySacola();
+    }, ()=>{});
+  });
 }
 /* A cor que a vendedora escolheu manda: foi quem viu o sapato sair. Sem cor, só vale
    quando o modelo tem uma foto só — com duas, foto errada é pior que foto nenhuma. */
@@ -4318,12 +4337,14 @@ function verFotoModelo(mid,cor,rot){
   const mini=(_fotoTB[mid]||{})[cor]||'';
   if(mini) mostrarImagens(rot, [mini]);                   // mostra já o que tem no aparelho
   if(!(FIREBASE_ON&&fdb)) return;
-  fdb.collection('ls_fotos').doc(String(mid)).get().then(d=>{
-    const v=d.exists?d.data():null, f=v&&v.f&&v.f[cor];
+  /* a do Yuri primeiro; a do catálogo é o retrato reserva */
+  const pega=pre=>fdb.collection('ls_rep_fotos').doc(pre+String(mid)).get()
+    .then(d=>{ const v=d.exists?d.data():null; return (v&&v.f&&v.f[cor])||null; }).catch(()=>null);
+  pega('full_').then(f=> f || pega('cat_')).then(f=>{
     if(!f) return;
     _fotoFull[k]=f;
     if($('img-modal').classList.contains('open')) mostrarImagens(rot, [f]);   // troca pela nítida
-  }).catch(()=>{});
+  });
 }
 window.verFotoItemDaLista=function(ev,i){
   if(ev){ ev.stopPropagation(); ev.preventDefault(); }
