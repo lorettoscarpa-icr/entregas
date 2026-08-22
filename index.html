@@ -1331,9 +1331,21 @@
   .fit-chip b{color:var(--gold-lt);font-weight:700}
   .fit-chip.sem-num{border-style:dashed;border-color:rgba(224,179,65,.5)}
   .fit-dica{font-size:11.5px;color:var(--text-mute);margin-top:6px;line-height:1.4}
-  .fit-alerta{color:var(--warn);display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:8px}
-  .fit-reler{background:rgba(224,179,65,.16);border:1px solid rgba(224,179,65,.5);color:var(--warn);
-    border-radius:8px;padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer}
+  /* pergunta da cor: ela está com a conversa aberta e sabe a resposta — um toque resolve */
+  .fit-cor{margin-top:10px;padding:11px 13px;border-radius:12px;background:rgba(224,179,65,.09);
+    border:1px solid rgba(224,179,65,.4)}
+  .fit-cor-t{font-size:12.5px;color:var(--text-soft);margin-bottom:9px}
+  .fit-cor-t b{color:var(--warn)}
+  .fit-cor-ops{display:flex;gap:7px;flex-wrap:wrap}
+  .fit-cor-b{display:inline-flex;align-items:center;gap:7px;background:var(--surface-2);
+    border:1px solid var(--line-strong);color:var(--text);border-radius:20px;padding:9px 13px;
+    font-family:inherit;font-size:12.5px;cursor:pointer;min-height:40px}
+  .fit-cor-b:hover{border-color:var(--gold);background:rgba(212,180,90,.14)}
+  .fit-cor-b i{width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.25);flex:none}
+  .fit-cor.pisca{animation:fitPisca .9s ease}
+  @keyframes fitPisca{0%,100%{background:rgba(224,179,65,.09)}30%,70%{background:rgba(224,179,65,.3)}}
+  @media (prefers-reduced-motion:reduce){.fit-cor.pisca{animation:none;outline:2px solid var(--warn)}}
+  .fit-chip.sem-cor{border-style:dashed;border-color:rgba(224,179,65,.55)}
   .fit-res-ed{margin-left:auto;font-size:12px;color:var(--text-mute);white-space:nowrap}
   .fit-row{display:flex;gap:6px;margin-bottom:6px}
   .fit-row input{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;
@@ -2038,7 +2050,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v197</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v198</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2817,7 +2829,7 @@ function initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
     FIREBASE_ON = true;
-    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); assinarDevolucoes(); assinarConferencias(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
+    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); assinarDevolucoes(); assinarConferencias(); assinarCatalogo(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
     return true;
   }catch(e){ console.warn('Firebase init falhou — seguindo com localStorage', e); FIREBASE_ON=false; return false; }
 }
@@ -4109,6 +4121,106 @@ function lerItens(texto){
   });
   return itens;
 }
+/* ===== CATÁLOGO DA LOJA (o mesmo da Central de Estoque) =====
+   A vendedora escreve o modelo; o catálogo diz quais cores aquele modelo TEM. Com isso ela
+   escolhe a cor num toque em vez de digitar — e o Yuri para de receber peça sem cor, que
+   hoje é o motivo nº 1 de ele ter que cadastrar a etiqueta na mão. */
+const CAT_KEY='loretto_catalogo_cache';
+let catalogo = (function(){ try{ const r=localStorage.getItem(CAT_KEY); return r?(JSON.parse(r)||[]):[]; }catch(e){ return []; } })();
+function assinarCatalogo(){
+  if(!(FIREBASE_ON&&fdb)) return;
+  fdb.collection('ls_catalogo').doc('loja').onSnapshot(d=>{
+    const v=d.data();
+    if(v && Array.isArray(v.catalogo) && v.catalogo.length){
+      catalogo=v.catalogo; _catVoc=null;
+      try{ localStorage.setItem(CAT_KEY, JSON.stringify(catalogo)); }catch(e){}
+      if(_formItens.length) renderFormItens();
+    }
+  }, ()=>{});
+}
+const CAT_ABREV={slp:'slipper',slphw:'slipper hawai',snk:'sneaker',sneker:'sneaker',lfr:'loafer',
+  drb:'derby',brk:'birken',hw:'hawai',hk:'hong kong',ny:'nova york',bs:'bota social',
+  wc:'social wholecut',wholecut:'social wholecut',holly:'hollywood',tok:'tokyo'};
+const CAT_CORAB={vd:'verde',pr:'preto',ab:'all black',off:'off white',pt:'preto',preta:'preto',
+  mar:'marfim',am:'azul marinho',caf:'cafe',gt:'grafite',car:'caramelo',bra:'branco',branca:'branco'};
+let _catVoc=null;
+function _catV(){
+  if(_catVoc) return _catVoc;
+  const cores={}, modpal={};
+  catalogo.forEach(m=>{
+    (m.cores||[]).forEach(c=>_itNorm(c.nome).split(' ').forEach(w=>{ if(w.length>2) cores[w]=1; }));
+    _itNorm(m.nome).split(' ').forEach(w=>{ if(w.length>3){ (modpal[w]=modpal[w]||{})[m.id]=1; } });
+  });
+  Object.values(CAT_CORAB).forEach(v=>_itNorm(v).split(' ').forEach(w=>cores[w]=1));
+  _catVoc={cores,modpal}; return _catVoc;
+}
+function _catExp(t){
+  let x=_itNorm(t).replace(/[\/\-]/g,' ');
+  x=x.replace(/\bmi\s*aw\b/g,'milao all white').replace(/\bmiaw\b/g,'milao all white');
+  return x.split(/\s+/).map(w=>CAT_ABREV[w]||w).join(' ');
+}
+function _catSim(a,b){
+  if(a===b) return 1;
+  let m=0; const us={};
+  for(let i=0;i<a.length;i++) for(let j=0;j<b.length;j++)
+    if(!us[j] && a[i]===b[j] && Math.abs(i-j)<=2){ us[j]=1; m++; break; }
+  return (2*m)/(a.length+b.length);
+}
+/* mesma lógica da Central de Estoque: acha o modelo e, se der, a cor */
+function catCasar(nome){
+  if(!catalogo.length) return {};
+  const t=_catExp(nome), pal=t.split(' '), V=_catV();
+  const mods=catalogo.map(m=>({n:_itNorm(m.nome),m})).sort((a,b)=>b.n.length-a.n.length);
+  let mod=null;
+  for(const o of mods) if(t.indexOf(o.n)>=0){ mod=o.m; break; }
+  if(!mod){
+    const livres=pal.filter(w=>w.length>2 && !V.cores[w]);
+    const pont=[];
+    mods.forEach(o=>{
+      const ws=o.n.split(' '); let achou=0;
+      ws.forEach(w=>{
+        if(livres.indexOf(w)>=0){ achou+=1; return; }
+        if(w.length<4) return;
+        let best=0;
+        livres.forEach(x=>{
+          if(x.length<4) return;
+          if(V.modpal[x] && !V.modpal[x][o.m.id]) return;
+          const r=_catSim(x,w); if(r>best) best=r;
+        });
+        if(best>=.72) achou+=best;
+      });
+      if(achou>=1) pont.push({p:achou/ws.length,a:achou,m:o.m});
+    });
+    pont.sort((a,b)=>(b.p-a.p)||(b.a-a.a));
+    if(pont.length){
+      const seg=pont.find(x=>x.m.id!==pont[0].m.id);
+      if(pont[0].p>=.66 && (pont[0].p-(seg?seg.p:0))>=.08) mod=pont[0].m;
+    }
+  }
+  if(!mod) return {};
+  const cores=(mod.cores||[]).filter(c=>!c.off).map(c=>({n:_itNorm(c.nome),c})).sort((a,b)=>b.n.length-a.n.length);
+  for(const o of cores) if(t.indexOf(o.n)>=0) return {mod,cor:o.c};
+  for(const o of cores){ const ws=o.n.split(' '); if(ws.length>1 && ws.every(w=>pal.indexOf(w)>=0)) return {mod,cor:o.c}; }
+  for(const w of pal){ const a=CAT_CORAB[w]; if(!a) continue;
+    const h=cores.find(o=>o.n===a||o.n.indexOf(a)===0); if(h) return {mod,cor:h.c}; }
+  for(let tam=3;tam>=1;tam--) for(let i=0;i+tam<=pal.length;i++){
+    const fr=pal.slice(i,i+tam).join(' '); if(fr.length<4) continue;
+    const cs=cores.filter(o=>o.n.indexOf(fr)===0);
+    if(cs.length===1) return {mod,cor:cs[0].c};
+  }
+  if(cores.length===1) return {mod,cor:cores[0].c};
+  return {mod};
+}
+/* peças que precisam da cor: o app sabe o modelo, ela só toca. Sem modelo conhecido,
+   não trava — ela ficaria presa sem ter o que escolher. */
+function _itemPedeCor(it){
+  if(it.cor) return null;
+  if(!_ehCalcado(it.nome)) return null;
+  const m=catCasar(it.nome);
+  return (m.mod && !m.cor) ? m.mod : null;
+}
+function itensSemCor(){ return _formItens.filter(it=>!!_itemPedeCor(it)); }
+
 const _CALCADO_RX = new RegExp('(?:^|[^a-z])(sneaker|sneker|snkmiaw|snk|loafer|lfr|slipper|slphw|slp|derby|drb|bota|birken|wholecut|dockside|mocassim|sapatenis|sapato|tenis|oxford|monk|mule|chelsea|hawai)','i');
 function _ehCalcado(nome){ return _CALCADO_RX.test(_itNorm(nome)); }
 /* Só dá pra dizer QUAL peça volta quando ele marcou peça a peça. Fechada pela foto,
@@ -4210,9 +4322,18 @@ function renderFormItens(){
     const semNum = _formItens.filter(it=>!it.num && _ehCalcado(it.nome)).length;
     res.innerHTML = `<div class="fit-res">
         <span class="fit-res-n">🎒 ${n} peça${n>1?'s':''} na sacola</span>
-        ${_formItens.map(it=>`<span class="fit-chip${(!it.num&&_ehCalcado(it.nome))?' sem-num':''}">${esc(_itNomeCurto(it.nome)||'peça')}${it.num?` <b>${esc(it.num)}</b>`:''}</span>`).join('')}
+        ${_formItens.map(it=>`<span class="fit-chip${(!it.num&&_ehCalcado(it.nome))?' sem-num':''}${_itemPedeCor(it)?' sem-cor':''}">${esc(_itNomeCurto(it.nome)||'peça')}${it.cor?` · ${esc(it.cor)}`:''}${it.num?` <b>${esc(it.num)}</b>`:''}</span>`).join('')}
         <span class="fit-res-ed">✎ ajustar</span>
-      </div>${semNum?`<div class="fit-dica">💡 ${semNum===1?'Um par está':semNum+' pares estão'} sem numeração — com ela a loja sabe qual par cobrar se voltar.</div>`:''}`;
+      </div>${semNum?`<div class="fit-dica">💡 ${semNum===1?'Um par está':semNum+' pares estão'} sem numeração — com ela a loja sabe qual par cobrar se voltar.</div>`:''}
+      ${_formItens.map((it,i)=>{
+        const mod=_itemPedeCor(it); if(!mod) return '';
+        return `<div class="fit-cor" id="fcor-${i}">
+          <div class="fit-cor-t">Qual a cor do <b>${esc(mod.nome)}</b>?</div>
+          <div class="fit-cor-ops">${(mod.cores||[]).filter(c=>!c.off).map(c=>
+            `<button type="button" class="fit-cor-b" onclick="setItemCor(${i},'${esc(c.nome).replace(/'/g,'&#39;')}')">
+               <i style="background:${c.hex||'#888'}"></i>${esc(c.nome)}</button>`).join('')}</div>
+        </div>`;
+      }).join('')}`;
     res.style.display = _itensAberto ? 'none' : '';
   }
   if(ed) ed.style.display = _itensAberto ? '' : 'none';
@@ -4223,6 +4344,11 @@ function renderFormItens(){
       <input class="fit-val" value="${it.valor!=null?String(it.valor).replace('.',','):''}" placeholder="valor" inputmode="decimal" oninput="setItemCampo(${i},'valor',this.value)">
       <button type="button" class="fit-x" onclick="removerItemForm(${i})" aria-label="Remover peça">✕</button>
     </div>`).join('');
+}
+function setItemCor(i,nome){
+  if(!_formItens[i]) return;
+  _formItens[i].cor=nome; _itensTocado=true;
+  renderFormItens();
 }
 function setItemCampo(i,campo,v){
   if(!_formItens[i]) return;
@@ -4333,6 +4459,16 @@ async function saveEntrega(){
   if(!vendedora){ toast('Informe a vendedora'); $('f-vend').focus(); return; }
   const dataEntrega = $('f-data').value || todayKey();
   if(dataEntrega < todayKey()){ toast('Não dá pra cadastrar entrega em dia que já passou'); $('f-data').focus(); return; }
+  /* Cor: só exige quando o app RECONHECE o modelo — aí a resposta é um toque num botão.
+     Se ele não reconhece, ela ficaria presa sem ter o que escolher, então passa direto.
+     Sem a cor, o Yuri tem que cadastrar a etiqueta na mão quando a peça volta. */
+  { const faltam=itensSemCor();
+    if(faltam.length){
+      const el=$('fcor-'+_formItens.indexOf(faltam[0]));
+      if(el){ el.scrollIntoView({block:'center',behavior:'smooth'}); el.classList.remove('pisca'); void el.offsetWidth; el.classList.add('pisca'); }
+      toast(faltam.length===1 ? 'Escolha a cor da peça' : 'Escolha a cor das '+faltam.length+' peças');
+      return;
+    } }
   let link = $('f-link').value.trim();
   let coord = coordFrom(link);
   let end=$('f-end').value.trim();
@@ -4391,7 +4527,8 @@ async function saveEntrega(){
     produto:$('f-prod').value.trim(),
     pecas: Math.max(1, Math.min(30, parseInt($('f-pecas')&&$('f-pecas').value,10)||1)),   // peças que saem na sacola
     itens: _formItens.filter(it=>String(it.nome||'').trim()||it.num)
-             .map(it=>({nome:String(it.nome||'').trim(), num:String(it.num||'').trim(), valor:it.valor!=null?it.valor:null, ficou:false})),
+             .map(it=>({nome:String(it.nome||'').trim(), num:String(it.num||'').trim(), valor:it.valor!=null?it.valor:null,
+                        cor:String(it.cor||'').trim()||null, ficou:false})),
     valor,
     linkPagamento:limparLinkPag($('f-linkpag').value),
     observacao:$('f-obs').value.trim(),
@@ -5994,7 +6131,7 @@ function editar(id){
     _itensTocado=true; _itensDeTexto=e.produto||'';
     { const salvos=(itensDe(e)||[]), c=_casarSalvos(salvos, e.produto||'');
       _itensBase=c.base;
-      _formItens=salvos.map((it,j)=>({nome:it.nome,num:it.num,valor:it.valor,_de:c.de[j]})); }
+      _formItens=salvos.map((it,j)=>({nome:it.nome,num:it.num,valor:it.valor,cor:it.cor||'',_de:c.de[j]})); }
     renderFormItens();
     if(!_formItens.length){ _itensTocado=false; sugerirPecas(); } } $('f-obs').value=e.observacao||''; $('f-linkpag').value=e.linkPagamento||'';
   $('f-hr-tipo').value=e.horarioTipo||''; $('f-hr-hora').value=e.horarioHora||''; $('f-hr-hora2').value=e.horarioHora2||''; toggleHrEntre();
