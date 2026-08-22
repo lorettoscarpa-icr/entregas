@@ -2050,7 +2050,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v200</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v201</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -2829,7 +2829,7 @@ function initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
     fdb = firebase.firestore();
     FIREBASE_ON = true;
-    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); assinarDevolucoes(); assinarConferencias(); assinarCatalogo(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
+    firebase.auth().onAuthStateChanged(u=>{ if(u && !_clienteMode){ assinarEntregas(); assinarEnvios(); assinarDevolucoes(); assinarConferencias(); assinarCatalogo(); assinarLicoes(); } });   // rastreio NÃO aqui: só liga ao abrir o Mapa (assinarRastreio/pararAssinarRastreio)
     return true;
   }catch(e){ console.warn('Firebase init falhou — seguindo com localStorage', e); FIREBASE_ON=false; return false; }
 }
@@ -4229,13 +4229,41 @@ function catCasar(nome){
   if(cores.length===1) return {mod,cor:cores[0].c};
   return {mod};
 }
+/* O que ela ensina fica sabido: "grafite", no Loafer Verona, é o "Ártico Camurça"
+   cadastrado. É vocabulário DAQUELE modelo, não a cor daquela peça — por isso a chave é
+   (modelo + a palavra que ela escreveu), e nunca "a cor deste modelo é X". Fica na nuvem,
+   junto com as lições da Central de Estoque, valendo pra loja toda. */
+const LIC_KEY='loretto_licoes_cor';
+let _licCor = (function(){ try{ const r=localStorage.getItem(LIC_KEY); return r?(JSON.parse(r)||{}):{}; }catch(e){ return {}; } })();
+function _palCor(nome){
+  const V=_catV();
+  return _catExp(nome).split(' ').filter(w=>V.cores[w]||CAT_CORAB[w]).sort().join(' ');
+}
+function _chaveCor(modId,nome){ const c=_palCor(nome); return c?(modId+'|'+c):''; }
+function assinarLicoes(){
+  if(!(FIREBASE_ON&&fdb)) return;
+  fdb.collection('ls_conf_licoes').doc('loja').onSnapshot(d=>{
+    const v=d.data();
+    if(v && v.cores){ _licCor=v.cores; try{ localStorage.setItem(LIC_KEY,JSON.stringify(_licCor)); }catch(e){}
+      if(_formItens.length) renderFormItens(); }
+  }, ()=>{});
+}
+function _ensinarCor(mod,nome,corNome){
+  const k=_chaveCor(mod.id,nome); if(!k) return;
+  _licCor[k]=corNome;
+  try{ localStorage.setItem(LIC_KEY,JSON.stringify(_licCor)); }catch(e){}
+  if(FIREBASE_ON&&fdb) fdb.collection('ls_conf_licoes').doc('loja').set({cores:_licCor,ts:Date.now()},{merge:true}).catch(()=>{});
+}
 /* peças que precisam da cor: o app sabe o modelo, ela só toca. Sem modelo conhecido,
    não trava — ela ficaria presa sem ter o que escolher. */
 function _itemPedeCor(it){
   if(it.cor) return null;
   if(!_ehCalcado(it.nome)) return null;
   const m=catCasar(it.nome);
-  return (m.mod && !m.cor) ? m.mod : null;
+  if(!m.mod || m.cor) return null;
+  const apr=_licCor[_chaveCor(m.mod.id, it.nome)];        // já ensinaram o que essa palavra quer dizer
+  if(apr && (m.mod.cores||[]).some(c=>c.nome===apr)){ it.cor=apr; return null; }
+  return m.mod;
 }
 function itensSemCor(){ return _formItens.filter(it=>!!_itemPedeCor(it)); }
 
@@ -4364,8 +4392,11 @@ function renderFormItens(){
     </div>`).join('');
 }
 function setItemCor(i,nome){
-  if(!_formItens[i]) return;
-  _formItens[i].cor=nome; _itensTocado=true;
+  const it=_formItens[i]; if(!it) return;
+  it.cor=nome; _itensTocado=true;
+  // se ela escreveu uma cor que o app não entendeu, aprende pra não perguntar de novo
+  const m=catCasar(it.nome);
+  if(m.mod) _ensinarCor(m.mod, it.nome, nome);
   renderFormItens();
 }
 function setItemCampo(i,campo,v){
