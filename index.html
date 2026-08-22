@@ -2050,7 +2050,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v199</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v200</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4147,7 +4147,7 @@ const CAT_CORAB={vd:'verde',pr:'preto',ab:'all black',off:'off white',pt:'preto'
    modelo tem UMA cor daquela família — senão seria chute. */
 const CAT_FAM={branco:['branco','all white','white'],
   preto:['preto','preto.','all black','preta','black'], cafe:['cafe','marrom'],
-  cinza:['cinza','grafite'], marinho:['azul marinho','marinho']};
+  mouro:['mouro','pinhao'], cinza:['cinza','grafite'], marinho:['azul marinho','marinho']};
 function _catFam(c){
   c=_itNorm(c);
   for(const f in CAT_FAM) for(const v of CAT_FAM[f]){ const n=_itNorm(v);
@@ -4183,7 +4183,12 @@ function catCasar(nome){
   const t=_catExp(nome), pal=t.split(' '), V=_catV();
   const mods=catalogo.map(m=>({n:_itNorm(m.nome),m})).sort((a,b)=>b.n.length-a.n.length);
   let mod=null;
-  for(const o of mods) if(t.indexOf(o.n)>=0){ mod=o.m; break; }
+  /* "Loafer katar MOURO gravata": a cor entra no meio do nome. Procurar o nome seguido
+     acharia só "Loafer Katar". Vale o modelo com MAIS palavras presentes no texto. */
+  { let maisN=0;
+    for(const o of mods){ const ws=o.n.split(' ');
+      if(ws.every(w=>pal.indexOf(w)>=0) && ws.length>maisN){ maisN=ws.length; mod=o.m; } } }
+  if(!mod) for(const o of mods) if(t.indexOf(o.n)>=0){ mod=o.m; break; }
   if(!mod){
     const livres=pal.filter(w=>w.length>2 && !V.cores[w]);
     const pont=[];
