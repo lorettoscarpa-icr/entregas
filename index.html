@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v204">
+<meta name="app-ver" content="v205">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -741,6 +741,12 @@
   .alerta-card.horario{background:rgba(224,106,82,.13);border:1px solid rgba(224,106,82,.42)}
   .alerta-card.dinheiro{background:rgba(127,174,107,.13);border:1px solid rgba(127,174,107,.42)}
   .alerta-card.sacola{background:rgba(212,180,90,.13);border:1px solid rgba(212,180,90,.42)}
+  /* envio parado: a cobrança dentro do aviso, com alvo de dedo no celular */
+  .env-cobrar{margin-top:9px;display:flex}
+  .env-cobrar .mini{flex:1;min-height:38px}
+  .env-cobrado{margin-top:9px;font-size:12.5px;color:var(--calm);text-align:center;
+    padding:9px 10px;border:1px solid rgba(127,174,107,.3);border-radius:9px;background:rgba(127,174,107,.08)}
+  @media (max-width:760px){ .env-cobrar .mini{min-height:46px;font-size:13.5px} }
   .sac-li{padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px;color:var(--text)}
   .sac-li small{display:block;color:var(--text-mute);font-size:12px;margin-top:2px}
   .alerta-card.resolver{background:rgba(207,138,168,.13);border:1px solid rgba(207,138,168,.45);align-items:flex-start}
@@ -1235,7 +1241,7 @@
   .av-cnt{background:var(--gold);color:var(--ink);font-weight:800;font-size:12px;min-width:24px;height:24px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 7px}
   .av-row{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;border-left:3px solid transparent}
   .av-row:last-child{border-bottom:none}
-  .av-row.blue{border-left-color:#8f9cd6} .av-row.pink{border-left-color:#cf8aa8} .av-row.teal{border-left-color:#6fc0b0} .av-row.green{border-left-color:#7fae6b} .av-row.amber{border-left-color:#e0b341}
+  .av-row.red{border-left-color:#e06a52} .av-row.blue{border-left-color:#8f9cd6} .av-row.pink{border-left-color:#cf8aa8} .av-row.teal{border-left-color:#6fc0b0} .av-row.green{border-left-color:#7fae6b} .av-row.amber{border-left-color:#e0b341}
   .av-ic{font-size:18px;width:22px;text-align:center;flex:none}
   .av-lbl{flex:1;font-size:14px;color:var(--text-soft)}
   .av-rcnt{font-weight:700;font-size:13px;color:var(--text)}
@@ -3289,8 +3295,30 @@ function renderAvisos(){
   if(!total){ box.innerHTML=''; return; }
   let rows='';
   if(envParados.length){
-    const li=envParados.map(v=>'<div class="exp-row"><span class="exp-cli" onclick="irParaEnvio(\''+v.id+'\')" style="cursor:pointer">'+esc(v.cliente||'(sem nome)')+'<small>era pra sair '+esc(envAtrasoTxt(v))+' · '+esc(envMotivoParado(v))+([v.cidade,v.uf].filter(Boolean).length?' · '+esc([v.cidade,v.uf].filter(Boolean).join(' - ')):'')+'</small></span><span class="acts"><button class="mini prim" onclick="event.stopPropagation();irParaEnvio(\''+v.id+'\')">abrir</button></span></div>').join('');
-    rows+=_avLinha('envparado','⏱','amber','Envios que passaram do dia de sair',envParados.length,'<div class="av-exp"><div class="av-note">Passaram do dia em que deviam sair da loja e já vieram para o quadro de hoje.</div>'+li+'</div>');
+    /* O aviso já existia, mas ficava fechado entre outros seis e sem nada pra fazer: ela
+       via "envios que passaram do dia" e seguia a vida. O que move alguém é a IDADE — e a
+       possibilidade de resolver dali mesmo, sem abrir outro painel. */
+    const pior=Math.max.apply(null, envParados.map(diasParado));
+    const grave=pior>=4;
+    const idade = pior<=0 ? '' : (pior===1 ? ' · o mais antigo é de ontem'
+                                           : ' · o mais antigo está parado há '+pior+' dias');
+    const jaCobrou=envParados.every(envCobradoHoje);
+    const cobrar = jaCobrou
+      ? '<div class="env-cobrado">✓ Edson avisado hoje — se não sair, chame de novo amanhã</div>'
+      : '<button class="mini prim" onclick="event.stopPropagation();cobrarEdsonTodos()">💬 Cobrar o Edson'+
+        (envParados.length>1?' sobre os '+envParados.length:'')+'</button>';
+    const li=envParados.map(v=>{
+      const d=diasParado(v);
+      const quanto = d<=0?'hoje':(d===1?'ontem':d+' dias parado');
+      return '<div class="exp-row"><span class="exp-cli" onclick="irParaEnvio(\''+v.id+'\')" style="cursor:pointer">'+
+        esc(v.cliente||'(sem nome)')+'<small>'+esc(quanto)+' · '+esc(envMotivoParado(v))+
+        ([v.cidade,v.uf].filter(Boolean).length?' · '+esc([v.cidade,v.uf].filter(Boolean).join(' - ')):'')+
+        '</small></span><span class="acts"><button class="mini" onclick="event.stopPropagation();irParaEnvio(\''+v.id+'\')">abrir</button></span></div>';
+    }).join('');
+    rows+=_avLinha('envparado', grave?'🚨':'⏱', grave?'red':'amber',
+      'Envios lançados que não saíram'+idade, envParados.length,
+      '<div class="av-exp"><div class="av-note">Foram lançados no painel de Envios e ainda não foram despachados.</div>'+
+      li+'<div class="env-cobrar">'+cobrar+'</div></div>');
   }
   if(dinheiro.length){
     const li=dinheiro.map(e=>{
@@ -6792,6 +6820,53 @@ function cobrarEdson(id){
   persistEnvios(); render();
 }
 function enviosParados(){ return enviosVisiveis().filter(envAtrasadoDia).sort((a,b)=>dataEnvioDe(a)<dataEnvioDe(b)?-1:1); }
+
+/* ---------- o envio parado aparece na tela de ENTREGAS ----------
+   Elas vivem na tela de entregas e quase não abrem a de envios: o pacote ficava lá,
+   lançado e sem sair, sem ninguém ver. Medindo a base: 53% dos envios saíram atrasados, e
+   um bloco de seis ficou parado de 8 a 10 dias.
+   Como o atraso acontece em 59% dos dias, um aviso que grita sempre viraria papel de
+   parede. Então quem grita é a IDADE: dois dias é um lembrete, quatro é problema. */
+function diasParado(v){
+  const d=dataEnvioDe(v); if(!d) return 0;
+  const p=d.split('-'), a=new Date(+p[0],+p[1]-1,+p[2]), h=new Date();
+  return Math.max(0, Math.round((new Date(h.getFullYear(),h.getMonth(),h.getDate())-a)/864e5));
+}
+function envParadosMeus(){
+  return enviosParados().sort((a,b)=>diasParado(b)-diasParado(a));
+}
+function envCobradoHoje(v){ return v.cobradoEm && dateKey(new Date(v.cobradoEm))===todayKey(); }
+function envMsgCobrarVarios(lista){
+  const quem = session && session.vendedora ? session.vendedora : '';
+  let m='Oi Edson! ⏰\n\n';
+  m += lista.length===1 ? 'Tem 1 envio parado esperando embalagem:\n\n'
+                        : `Tem ${lista.length} envios parados esperando embalagem:\n\n`;
+  lista.forEach(v=>{
+    const d=diasParado(v);
+    m += `• *${v.cliente||'(sem nome)'}* — ${d<=0?'de hoje':(d===1?'de ontem':'parado há '+d+' dias')}`;
+    const t=TRSP[v.transportadora]; if(t) m += ` · ${t.nome}`;
+    m += '\n';
+  });
+  m += '\nConsegue embalar pra eles saírem hoje?';
+  if(quem) m += `\n\n— ${quem}`;
+  return m;
+}
+function cobrarEdsonTodos(){
+  const lista=envParadosMeus(); if(!lista.length) return;
+  const tel=TEL_VEND['Edson']||'5562999266976';
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(envMsgCobrarVarios(lista))}`,'_blank');
+  const agora=Date.now(), quem = session ? (session.vendedora||session.role) : '';
+  lista.forEach(v=>{ v.cobradoEm=agora; v.cobradoPor=quem; });
+  persistEnvios(); render();
+  toast(lista.length===1?'Edson avisado ✓':'Edson avisado sobre os '+lista.length+' envios ✓');
+}
+/* Dentro da Central troca de aba; fora dela abre o painel de envios pelo link próprio. */
+function abrirPainelEnvios(){
+  if(window.top!==window.self){
+    try{ parent.postMessage({tipo:'central-abrir', painel:'envios'}, '*'); return; }catch(_){}
+  }
+  location.href = location.pathname + '?painel=envios';
+}
 
 function opcoesTrsp(sel){
   return '<option value="">Escolha a transportadora…</option>' +
