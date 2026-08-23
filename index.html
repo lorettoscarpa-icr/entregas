@@ -10547,7 +10547,14 @@ function setCustoFre(k,v){ config.custos.freelance[k]=Number(v)||0; saveCfg(); r
    roteamento de rua e a animação da moto rodam no app separado, sem
    adicionar listeners nem render extra a este dashboard. */
 const FROTA_URL = 'https://lorettoscarpa-icr.github.io/rastreio/equipe.html';
-function abrirEntregadores(){ window.open(FROTA_URL, '_blank', 'noopener'); }
+/* Dentro da Central, pede pra ela trocar de aba. Abrir outra janela tirava a pessoa da
+   Central; no celular, voltar é recomeçar do zero — e ela tinha que logar de novo. */
+function abrirEntregadores(){
+  if(window.top!==window.self){
+    try{ parent.postMessage({tipo:'central-abrir', painel:'rastreio'}, '*'); return; }catch(_){}
+  }
+  window.open(FROTA_URL, '_blank', 'noopener');
+}
 
 function tick(){
   const n=new Date();
