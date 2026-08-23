@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="app-ver" content="v204">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -499,6 +500,26 @@
   .ent-noloc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid rgba(224,106,82,.22)}
   .ent-noloc-row span{display:flex;flex-direction:column;gap:1px;font-size:13.5px;color:var(--text)}
   .ent-noloc-row small{color:var(--text-mute);font-size:11.5px}
+  /* aviso de versão nova: discreto, embaixo, e some se ela tocar no × */
+  #lsAtualizar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));
+    z-index:99999;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);
+    padding:10px 12px;border-radius:999px;font-family:inherit;font-size:13px;
+    background:rgba(20,22,18,.96);color:#f4efe2;border:1px solid rgba(220,189,96,.55);
+    box-shadow:0 8px 28px rgba(0,0,0,.45);animation:lsaSobe .28s ease}
+  @keyframes lsaSobe{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+  @media (prefers-reduced-motion:reduce){#lsAtualizar{animation:none}}
+  #lsAtualizar .lsa-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #lsAtualizar .lsa-ok{flex:none;border:0;border-radius:999px;padding:8px 14px;min-height:36px;cursor:pointer;
+    font-family:inherit;font-size:13px;font-weight:700;background:#dcbd60;color:#20240f}
+  #lsAtualizar .lsa-ok:disabled{opacity:.65;cursor:default}
+  #lsAtualizar .lsa-x{flex:none;border:0;background:transparent;color:rgba(244,239,226,.55);
+    font-size:19px;line-height:1;cursor:pointer;padding:6px 4px;min-height:34px}
+  #lsAtualizar .lsa-x:hover{color:#f4efe2}
+  @media (max-width:760px){
+    #lsAtualizar{font-size:14px;padding:12px 12px;gap:8px;width:calc(100vw - 24px);justify-content:space-between}
+    #lsAtualizar .lsa-ok{min-height:44px;padding:10px 16px}
+    #lsAtualizar .lsa-x{min-height:44px;min-width:34px}
+  }
   body.cliente #app-ver{display:none}
   .det-inline{margin-top:10px;padding:11px 13px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;font-size:13px;line-height:1.5}
   .det-inline-fotos{margin-top:8px}
@@ -2058,7 +2079,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v203</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px"></div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4525,7 +4546,10 @@ function _itensDoTexto(e){
          conferido, e some o risco de inventar peça que não saiu na sacola;
        · cada linha tem que ter numeração ou ser calçado — senão recado ("ja pago o
          sapato"), telefone e endereço virariam "peça" pra ele marcar. */
-    if(li.length===pecas && li.every(it=>String(it.num||'').trim()||_ehCalcado(it.nome)))
+    /* E a lista só entra se ACRESCENTAR alguma coisa: uma peça só, sem numeração, é o
+       texto repetido dentro de uma caixinha — atrito puro pra quem já sabe o que levou. */
+    const vale = li.length>=2 || li.some(it=>String(it.num||'').trim());
+    if(li.length===pecas && vale && li.every(it=>String(it.num||'').trim()||_ehCalcado(it.nome)))
       r=li.map(it=>({nome:it.nome, num:it.num, valor:it.valor, cor:null, ficou:false}));
   }
   _itDeriv[id]=r;
@@ -10684,6 +10708,90 @@ if('serviceWorker' in navigator){
   try{ navigator.serviceWorker.getRegistrations().then(rs=>{ rs.forEach(r=>r.unregister()); }).catch(()=>{}); }catch(_){}
   try{ if(window.caches && caches.keys){ caches.keys().then(ks=>ks.forEach(k=>caches.delete(k))).catch(()=>{}); } }catch(_){}
 }
+
+/* ====== AVISO DE VERSÃO NOVA ======
+   O app é um arquivo só, instalado na tela inicial do celular. Sem isso, dá pra ficar
+   semanas rodando uma versão velha sem ninguém perceber — foi assim que uma entrega foi
+   salva sem a lista de peças e o entregador não entendeu por quê.
+   Como funciona: pergunta ao servidor SÓ os primeiros 3 KB do arquivo publicado e lê o
+   <meta name="app-ver"> de lá. Não baixa o app inteiro (é ~1 MB) — custa alguns bytes.
+   E NUNCA recarrega sozinho: quem toca é a pessoa, senão o que ela está digitando some. */
+(function(){
+  var META=document.querySelector('meta[name="app-ver"]');
+  var AQUI=(META&&META.content||'').trim();
+  var alvo=document.getElementById('app-ver'); if(alvo&&!alvo.textContent) alvo.textContent=AQUI;
+  if(!AQUI) return;
+  if(location.protocol==='file:') return;                 // aberto do disco: não há o que checar
+  var avisada=null, ultima=0, MIN=10*60*1000, CICLO=30*60*1000;
+
+  function lerVersaoPublicada(){
+    // ?_v= e no-store juntos: alguns celulares ignoram um ou outro
+    var url=location.pathname+'?_v='+Date.now();
+    return fetch(url,{cache:'no-store',headers:{'Range':'bytes=0-3071'}}).then(function(r){
+      if(!r.ok && r.status!==206) throw 0;
+      if(r.status===206 || !r.body || !r.body.getReader) return r.text();
+      // servidor ignorou o Range: lê só o começo e corta a conexão em vez de baixar 1 MB
+      var rd=r.body.getReader(), dec=new TextDecoder(), txt='';
+      return (function passo(){
+        return rd.read().then(function(o){
+          if(o.done) return txt;
+          txt+=dec.decode(o.value,{stream:true});
+          if(txt.length>=3072){ try{rd.cancel();}catch(e){} return txt; }
+          return passo();
+        });
+      })();
+    }).then(function(txt){
+      var m=/<meta\s+name="app-ver"\s+content="([^"]+)"/i.exec(txt||'');
+      return m?m[1].trim():'';
+    });
+  }
+
+  function mostrar(nova){
+    if(document.getElementById('lsAtualizar')) return;
+    var d=document.createElement('div');
+    d.id='lsAtualizar';
+    d.setAttribute('role','status');
+    d.innerHTML='<span class="lsa-txt">Tem versão nova do sistema</span>'+
+      '<button type="button" class="lsa-ok">Atualizar</button>'+
+      '<button type="button" class="lsa-x" aria-label="Agora não">&times;</button>';
+    d.querySelector('.lsa-ok').onclick=atualizar;
+    d.querySelector('.lsa-x').onclick=function(){ d.remove(); ultima=Date.now(); avisada=null; };
+    document.body.appendChild(d);
+  }
+
+  function atualizar(){
+    var b=document.querySelector('#lsAtualizar .lsa-ok');
+    if(b){ b.disabled=true; b.textContent='Atualizando…'; }
+    var fim=function(){ try{ location.reload(); }catch(e){ location.href=location.pathname; } };
+    var ps=[];
+    try{ if(window.caches&&caches.keys) ps.push(caches.keys().then(function(ks){
+      return Promise.all(ks.map(function(k){return caches.delete(k);})); })); }catch(e){}
+    try{ if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)
+      ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+        rs.forEach(function(r){ try{r.unregister();}catch(e){} }); })); }catch(e){}
+    // não espera pra sempre: 2s e recarrega de qualquer jeito
+    var t=setTimeout(fim,2000);
+    Promise.all(ps).then(function(){ clearTimeout(t); fim(); }, function(){ clearTimeout(t); fim(); });
+  }
+
+  function checar(){
+    if(avisada) return;
+    if(Date.now()-ultima<MIN) return;
+    ultima=Date.now();
+    lerVersaoPublicada().then(function(v){
+      if(v && v!==AQUI){ avisada=v; mostrar(v); }
+    }).catch(function(){});
+  }
+
+  // primeira checagem sem atrapalhar o carregamento; depois de tempos em tempos;
+  // e quando ela volta pro app (é aí que costuma ter ficado velho)
+  setTimeout(function(){ ultima=0; checar(); }, 20000);
+  setInterval(checar, CICLO);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) checar(); });
+  window.LS_checarVersao=function(){ ultima=0; avisada=null; return checar(); };
+  window.LS_versao=function(){ return AQUI; };
+})();
+
 </script>
 </body>
 </html>
