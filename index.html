@@ -2058,7 +2058,7 @@
   </div>
 </div>
 
-<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v202</div>
+<div id="app-ver" style="position:fixed;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;z-index:9;pointer-events:none;letter-spacing:.5px">v203</div>
 
 <!-- meu pagamento (entregador avulso) -->
 <div class="modal-bg" id="pa-ent-modal">
@@ -4506,7 +4506,36 @@ function mudarPecas(d){
   _pecasTocado=true;
   const h=$('f-pecas-hint'); if(h) h.textContent='definido por você';
 }
-function itensDe(e){ return (e && Array.isArray(e.itens) && e.itens.length) ? e.itens : null; }
+/* A lista do entregador não pode depender de QUANDO a entrega foi cadastrada. Entrega
+   criada antes deste recurso existir — ou por um aparelho com o app velho em cache — vinha
+   sem o campo `itens`, e ele caía no fluxo antigo sem entender por quê.
+   Então: se o campo existe, manda ele (inclusive vazio: se ela apagou as peças, apagou).
+   Se NÃO existe, lê do texto do produto na hora — mas só quando dá pra confiar. */
+const _itDeriv={};
+function _itensDoTexto(e){
+  const id=e&&e.id; if(!id) return null;
+  if(_itDeriv[id]!==undefined) return _itDeriv[id];
+  let r=null;
+  const txt=String(e.produto||'').trim();
+  const pecas=Math.max(1, parseInt(e.pecas,10)||1);
+  if(txt){
+    const li=lerItens(txt);
+    /* Duas travas, medidas contra as 1.243 entregas antigas:
+       · a conta tem que bater com o que ela declarou — assim nada muda no que já foi
+         conferido, e some o risco de inventar peça que não saiu na sacola;
+       · cada linha tem que ter numeração ou ser calçado — senão recado ("ja pago o
+         sapato"), telefone e endereço virariam "peça" pra ele marcar. */
+    if(li.length===pecas && li.every(it=>String(it.num||'').trim()||_ehCalcado(it.nome)))
+      r=li.map(it=>({nome:it.nome, num:it.num, valor:it.valor, cor:null, ficou:false}));
+  }
+  _itDeriv[id]=r;
+  return r;
+}
+function itensDe(e){
+  if(!e) return null;
+  if(Array.isArray(e.itens)) return e.itens.length ? e.itens : null;
+  return _itensDoTexto(e);
+}
 function pecasDe(e){ const it=itensDe(e); if(it) return it.length; const n=parseInt(e&&e.pecas,10); return n>0?n:1; }
 /* pergunta do fechamento — só quando a sacola tinha mais de uma peça */
 let _payFicou=null, _payItens=null, _payItensTocado=false;
@@ -5412,6 +5441,10 @@ function confirmarPagamento(){
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
   e.pagamentoValores = Object.keys(vals).length ? vals : null;
   { const _li=itensDe(e);
+    /* Lista lida do texto na hora: ao fechar ela vira a lista de verdade da entrega. Sem
+       isso o que ele marcou se perderia no salvamento, e o Yuri não teria as candidatas
+       da sacola na conferência. */
+    if(_li && !Array.isArray(e.itens)) e.itens=_li;
     if(_li && prodModo==='lista' && _payItens){ _li.forEach((it,i)=>{ it.ficou = !!_payItens[i]; }); e.pecasFicou = _li.filter(x=>x.ficou).length; }
     else if(!_li) e.pecasFicou = (pecasDe(e)>=2 && _payFicou!=null) ? _payFicou
                         : (prodModo==='manual' ? Math.min(prodItens.length, pecasDe(e)) : 1); }   // fecha a conta do que volta
