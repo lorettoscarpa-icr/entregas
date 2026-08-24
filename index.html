@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v206">
+<meta name="app-ver" content="v207">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -661,6 +661,10 @@
   .pay-val-row{display:flex;align-items:center;gap:10px;margin-top:8px}
   .pay-val-row label{flex:0 0 auto;min-width:96px;font-family:var(--ff-eyebrow);font-size:12px;letter-spacing:.04em;color:var(--text-soft);display:flex;align-items:center;gap:6px}
   .pay-val-row input{flex:1;text-align:right}
+  /* discreto de propósito: quem não divide o cartão nem precisa reparar que existe */
+  .pay-sep{display:inline-block;margin-top:9px;background:none;border:0;padding:4px 0;cursor:pointer;
+    font-family:var(--ff-eyebrow);font-size:12px;color:var(--gold-lt);opacity:.85;min-height:32px}
+  .pay-sep:hover{opacity:1;text-decoration:underline}
   .pay-val-total{display:flex;justify-content:space-between;align-items:center;margin-top:11px;padding-top:9px;border-top:1px dashed var(--line);font-size:13px;color:var(--text-soft)}
   .pay-val-total b{color:var(--gold-lt);font-size:17px;font-weight:700;font-family:var(--ff-body);font-variant-numeric:tabular-nums}
   .pay-opt{font-family:var(--ff-body);background:var(--bg2);border:1px solid var(--line);border-radius:13px;padding:15px;cursor:pointer;color:var(--text);transition:.15s;font-size:14px;font-weight:500;display:flex;align-items:center;gap:9px}
@@ -2315,7 +2319,8 @@
       </div>
       <div id="pay-foto-prev"></div>
       <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:16px 0 6px">Observação do pagamento (opcional)</label>
-      <input id="pay-note" placeholder="Ex: R$ 120 no pix + R$ 80 no cartão">
+      <!-- a divisão do valor agora tem campo próprio; aqui é pro que não cabe em campo -->
+      <input id="pay-note" placeholder="Ex: pix caiu no nome da esposa">
     </div>
     <div class="fin-bloco">
       <div class="fin-bloco-h">👟 Produto que o cliente ficou *</div>
@@ -2521,9 +2526,28 @@ const PAGAMENTOS = [
   {id:'japago',   label:'Já estava pago',  ico:'✅'},
   {id:'parceria', label:'Parceria',        ico:'🤝'},
 ];
+/* O cartão pode virar duas linhas quando o cliente divide entre crédito e débito. Não são
+   opções na tela — quem precisa abre pelo "separar crédito e débito" na linha do valor.
+   Assim quem só passa o cartão (35% das entregas) continua com um toque só. */
+const PAG_CARTAO = ['cartao','cartao_credito','cartao_debito'];
+const PAGAMENTOS_EXTRA = [
+  {id:'cartao_credito', label:'Cartão crédito', ico:'💳'},
+  {id:'cartao_debito',  label:'Cartão débito',  ico:'💳'},
+];
 const PAG_SEM_COBRANCA = ['japago','parceria'];   // não cobram → sem foto e sem valor
 const PAG_SEM_FOTO = ['japago','parceria','link']; // não exigem comprovante do entregador (no link, a vendedora confere o pagamento)
-const PAG = Object.fromEntries(PAGAMENTOS.map(p=>[p.id,p]));
+const PAG = Object.fromEntries(PAGAMENTOS.concat(PAGAMENTOS_EXTRA).map(p=>[p.id,p]));
+/* As formas de uma entrega. Novo: e.pagamentos (lista, sem limite). Antigo: pagamento +
+   pagamento2 — que continuam sendo gravados, pra nada que já existe parar de funcionar. */
+function pagsDe(e){
+  if(!e) return [];
+  if(Array.isArray(e.pagamentos) && e.pagamentos.length) return e.pagamentos.filter(Boolean);
+  var base=[e.pagamento, e.pagamento2].filter(Boolean);
+  if(e.cartaoTipo) base=base.map(m=>m==='cartao'?('cartao_'+e.cartaoTipo):m);
+  return base;
+}
+// temPag(e,'cartao') também acha crédito e débito — são cartão
+function temPag(e,m){ return pagsDe(e).some(x=> x===m || String(x).indexOf(m+'_')===0 ); }
 // Taxa de entrega (R$ 19,90). Cobra: cidade fora de Goiânia/Aparecida (qualquer outro município),
 // troca SEM defeito, ou quando mandam cobrar. Não cobra: 2+ pares na outra cidade, ou troca por defeito.
 const TAXA_ENTREGA = 19.90;
@@ -3312,8 +3336,8 @@ function renderAvisos(){
   const hoje=dateKey(), lim48=Date.now()-48*3600*1000;
   const pend=entregas.filter(e=>(e.status==='aguardando'||e.status==='em_rota') && dataDe(e)<hoje && _podeVerBusca(e) && !e.pendResolvido && !e.pendDescartado && !pendDismissed.has(e.id));
   const resolver=entregas.filter(e=>['nao_entregue','cancelado'].includes(e.status) && _podeVerBusca(e) && !e.alertaResolverVisto && (Date.now()-(e.desfechoEm||0)<4*864e5)).sort((a,b)=>(b.desfechoEm||0)-(a.desfechoEm||0));
-  const link=entregas.filter(e=>e.status==='entregue' && !e.linkConferido && (e.pagamento==='link'||e.pagamento2==='link') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
-  const dinheiro=entregas.filter(e=>e.status==='entregue' && !e.dinheiroRecebido && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+  const link=entregas.filter(e=>e.status==='entregue' && !e.linkConferido && temPag(e,'link') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+  const dinheiro=entregas.filter(e=>e.status==='entregue' && !e.dinheiroRecebido && temPag(e,'dinheiro') && _podeVerBusca(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
   const reag=entregas.filter(e=>e.reagendadaEm && e.reagendadaEm>lim48 && e.status!=='entregue' && e.status!=='cancelado' && _podeVerBusca(e)).sort((a,b)=>b.reagendadaEm-a.reagendadaEm);
   const envParados=(typeof enviosParados==='function') ? enviosParados() : [];
   const total=pend.length+resolver.length+link.length+dinheiro.length+reag.length+envParados.length;
@@ -3374,7 +3398,7 @@ function renderAvisos(){
 function renderLinkAlerta(){
   const box=$('link-alerta'); if(!box) return;
   if(session && session.role==='entregador'){ box.innerHTML=''; return; }
-  const pend=entregas.filter(e=> e.status==='entregue' && !e.linkConferido && (e.pagamento==='link'||e.pagamento2==='link') && _podeVerBusca(e))
+  const pend=entregas.filter(e=> e.status==='entregue' && !e.linkConferido && temPag(e,'link') && _podeVerBusca(e))
                      .sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
   if(!pend.length){ box.innerHTML=''; return; }
   box.innerHTML=`<div class="link-box">
@@ -3410,7 +3434,7 @@ function confirmarDinheiroEntregue(id){
   toast('Confirmado: dinheiro entregue na loja ✓');
 }
 function confirmarTodoDinheiroEntregue(){
-  const meus=entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && !e.dinheiroEntregueLoja);
+  const meus=entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && temPag(e,'dinheiro') && !e.dinheiroEntregueLoja);
   if(!meus.length){ toast('Nada em aberto'); return; }
   if(!confirm(`Confirmar que você entregou na loja o dinheiro de ${meus.length} entrega(s)?`)) return;
   const agora=Date.now();
@@ -3422,7 +3446,7 @@ function confirmarTodoDinheiroEntregue(){
    confirmar que entregou o dinheiro na loja. Enquanto isso ela não vê os detalhes do
    pagamento — e sem essa informação também não tem como lançar a venda no sistema. */
 function bloqDinheiro(e){
-  const ehDin = (e.pagamento==='dinheiro' || e.pagamento2==='dinheiro');
+  const ehDin = temPag(e,'dinheiro');
   return ehDin && !e.dinheiroEntregueLoja && !!session && session.role==='vendedora';
 }
 function toggleLancado(id){
@@ -5281,7 +5305,8 @@ function maskMoeda(el){
   const cents=d.slice(-2), reais=d.slice(0,-2);
   el.value=Number(reais).toLocaleString('pt-BR')+','+cents;
 }
-function _brl(n){ return 'R$ '+Number(n||0).toFixed(2).replace('.',','); }
+/* Com o ponto de milhar: uma sacola de 4 pares passa de mil e "R$ 1000,00" trava a leitura. */
+function _brl(n){ return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function _extrairNum(txt){ const m=/\b([23][0-9]|4[0-6])\b/.exec(txt||''); return m?m[1]:''; }
 function abrirPagamento(id){
   if(_bloqueado(id)) return;
@@ -5289,7 +5314,7 @@ function abrirPagamento(id){
   const e=entregas.find(x=>x.id===id);
   const jaFin = e && e.status==='entregue';
   if(jaFin){                                   // CORRIGIR: traz o que já foi registrado
-    paySel = [e.pagamento, e.pagamento2].filter(Boolean);
+    paySel = pagsDe(e).slice();
     payVal = Object.assign({}, e.pagamentoValores||{});
     payCartaoTipo = e.cartaoTipo || null;
     payTaxa = taxaDe(e) > 0;
@@ -5335,7 +5360,12 @@ function abrirPagamento(id){
   renderPaySacola();
 }
 function renderPayOpts(){
-  $('pay-opts').innerHTML = PAGAMENTOS.map(p=>`<div class="pay-opt ${paySel.includes(p.id)?'on':''}" onclick="escolherPag('${p.id}')"><span class="pi">${p.ico}</span>${p.label}</div>`).join('');
+  /* A opção "Cartão" fica acesa também quando ele já separou em crédito/débito — continua
+     sendo cartão, e é por ela que se desmarca tudo de uma vez. */
+  $('pay-opts').innerHTML = PAGAMENTOS.map(p=>{
+    const on = p.id==='cartao' ? paySel.some(x=>PAG_CARTAO.includes(x)) : paySel.includes(p.id);
+    return `<div class="pay-opt ${on?'on':''}" onclick="escolherPag('${p.id}')"><span class="pi">${p.ico}</span>${p.label}</div>`;
+  }).join('');
 }
 function renderCartaoTipo(){
   const wrap=$('pay-cartao'); if(!wrap) return;
@@ -5363,24 +5393,50 @@ function renderPayTroca(){
   const lbl=$('pay-foto-lbl'); if(lbl) lbl.textContent = payTroca ? 'Foto do pagamento (opcional na troca)' : 'Foto do pagamento';
 }
 function togglePayTroca(){ payTroca=!payTroca; renderPayTroca(); }
+/* Sem teto: o cliente pode dividir a conta em quantas formas quiser — crédito, débito, pix
+   e dinheiro na mesma venda, se for o caso. O limite de 2 travava justamente quem precisava. */
 function escolherPag(m){
   if(PAG_SEM_COBRANCA.includes(m)){ paySel = paySel.includes(m) ? [] : [m]; }   // exclusiva
   else {
     paySel = paySel.filter(x=>!PAG_SEM_COBRANCA.includes(x));
-    if(paySel.includes(m)) paySel = paySel.filter(x=>x!==m);
-    else if(paySel.length<2) paySel.push(m);
-    else { toast('Você pode marcar no máximo 2 formas'); return; }
+    if(m==='cartao'){                       // tirar o cartão leva junto crédito e débito
+      if(paySel.some(x=>PAG_CARTAO.includes(x))) paySel = paySel.filter(x=>!PAG_CARTAO.includes(x));
+      else paySel.push('cartao');
+    }
+    else if(paySel.includes(m)) paySel = paySel.filter(x=>x!==m);
+    else paySel.push(m);
   }
-  if(!paySel.includes('cartao')) payCartaoTipo=null;   // tirou o cartão → limpa crédito/débito
+  if(!paySel.some(x=>PAG_CARTAO.includes(x))) payCartaoTipo=null;
   renderPayOpts(); renderCartaoTipo(); renderPayVals(); atualizarFotoReq();
+}
+/* Um toque separa a linha do cartão em crédito e débito; outro junta de volta, somando. */
+function separarCartao(){
+  var i=paySel.indexOf('cartao'); if(i<0) return;
+  paySel.splice(i,1,'cartao_credito','cartao_debito');
+  var v=payVal['cartao']; if(v){ payVal['cartao_credito']=v; delete payVal['cartao']; }
+  renderPayOpts(); renderPayVals();
+}
+function juntarCartao(){
+  var soma=_num(payVal['cartao_credito'])+_num(payVal['cartao_debito']);
+  paySel=paySel.filter(x=>x!=='cartao_debito').map(x=>x==='cartao_credito'?'cartao':x);
+  delete payVal['cartao_credito']; delete payVal['cartao_debito'];
+  if(soma>0) payVal['cartao']=soma.toFixed(2).replace('.',',');
+  renderPayOpts(); renderPayVals();
 }
 function renderPayVals(){
   const wrap=$('pay-vals'); if(!wrap) return;
   const sel = paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m));
   if(!sel.length){ wrap.innerHTML=''; renderTotal(); return; }
-  const linhas = sel.map(m=>{ const p=PAG_MAP[m];
+  const linhas = sel.map(m=>{ const p=PAG_MAP[m]||{ico:'💳',label:m};
     return `<div class="pay-val-row"><label>${p.ico} ${p.label}</label><input inputmode="numeric" id="pv-${m}" placeholder="R$ 0,00" value="${payVal[m]||''}" oninput="maskMoeda(this);setPayVal('${m}',this.value)"></div>`;
   }).join('');
+  /* Só aparece pra quem tem cartão na conta, e é um link pequeno: quem não divide nunca
+     precisa nem reparar que existe. */
+  const cartaoAcao = sel.includes('cartao')
+    ? `<button type="button" class="pay-sep" onclick="separarCartao()">＋ separar crédito e débito</button>`
+    : (sel.includes('cartao_credito')||sel.includes('cartao_debito'))
+    ? `<button type="button" class="pay-sep" onclick="juntarCartao()">− juntar num cartão só</button>`
+    : '';
   const titulo = sel.length>1 ? 'Quanto em cada forma' : 'Valor recebido';
   let trocoHTML='';
   if(sel.includes('dinheiro')){
@@ -5393,7 +5449,7 @@ function renderPayVals(){
       ${payTrocoTeve===true?`<input inputmode="numeric" id="pv-troco" placeholder="R$ 0,00 — troco devolvido ao cliente" value="${payTrocoVal||''}" oninput="maskMoeda(this);payTrocoVal=this.value" style="margin-top:8px">`:''}
     </div>`;
   }
-  wrap.innerHTML = `<label class="pay-val-lbl">${titulo} <span class="pay-val-hint">— digite só os números (a vírgula entra sozinha)</span></label>${linhas}${trocoHTML}`;
+  wrap.innerHTML = `<label class="pay-val-lbl">${titulo} <span class="pay-val-hint">— digite só os números (a vírgula entra sozinha)</span></label>${linhas}${cartaoAcao}${trocoHTML}`;
   renderTotal();
 }
 function setTrocoTeve(v){ payTrocoTeve=v; if(!v) payTrocoVal=''; renderPayVals(); }
@@ -5529,10 +5585,18 @@ function confirmarPagamento(){
   const corrigindo = e.status==='entregue';
   e.status='entregue'; if(!e.entregueEm) e.entregueEm=Date.now(); e.reabertoEm=null; e.aCaminhoDe=null;
   if(payTroca && e.tipo!=='troca' && e.tipo!=='coleta') e.tipo='troca';   // marcado como troca na finalização
-  e.pagamento=paySel[0]; e.pagamento2=paySel[1]||null; e.pagamentoObs=$('pay-note').value.trim();
+  /* A lista completa manda. pagamento/pagamento2 continuam sendo gravados por baixo, com o
+     cartão voltando a ser "cartao" + cartaoTipo — assim os relatórios, os filtros e
+     qualquer aparelho ainda na versão velha seguem lendo o que sempre leram. */
+  e.pagamentos = paySel.slice();
+  const _pgVelho = paySel.map(m=>PAG_CARTAO.includes(m)?'cartao':m).filter((m,i,a)=>a.indexOf(m)===i);
+  e.pagamento=_pgVelho[0]||null; e.pagamento2=_pgVelho[1]||null; e.pagamentoObs=$('pay-note').value.trim();
   e.obsProduto = ($('prod-note')?$('prod-note').value.trim():'') || '';
   e.troco = (paySel.includes('dinheiro') && payTrocoTeve===true) ? (_num(payTrocoVal)||0) : null;
-  e.cartaoTipo = paySel.includes('cartao') ? payCartaoTipo : null;
+  // cartaoTipo só afirma alguma coisa quando há UM cartão; dividido, quem conta é a lista
+  e.cartaoTipo = paySel.includes('cartao_credito') && !paySel.includes('cartao_debito') ? 'credito'
+               : paySel.includes('cartao_debito') && !paySel.includes('cartao_credito') ? 'debito'
+               : (paySel.includes('cartao') ? payCartaoTipo : null);
   e.taxaEntrega = payTaxa ? payTaxaVal : 0;
   // valores por forma (ex: Pix 120 + Cartão 80) — formas "sem cobrança" não têm valor
   const vals={}; paySel.filter(m=>!PAG_SEM_COBRANCA.includes(m)).forEach(m=>{ const n=_num(payVal[m]); if(n>0) vals[m]=n; });
@@ -5672,7 +5736,7 @@ function dinheiroReceberList(){
   const ehVendPessoal = session.role==='vendedora' && !session.geral && !!session.vendedora;
   const alvo = ehVendPessoal ? norm(session.vendedora) : null;
   const inEsc = e => !ehVendPessoal || (e.vendedora && norm(e.vendedora)===alvo);
-  return entregas.filter(e=> e.status==='entregue' && !e.dinheiroRecebido && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && inEsc(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+  return entregas.filter(e=> e.status==='entregue' && !e.dinheiroRecebido && temPag(e,'dinheiro') && inEsc(e)).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
 }
 function togglePend(k){
   _pendOpen[k] = !_pendOpen[k];
@@ -9037,10 +9101,13 @@ function renderMinhasColuna(){
 }
 
 /* ===== aba "Finalizadas" (vendedora): pagamento + foto + numeração ===== */
-const PAG_MAP = Object.fromEntries(PAGAMENTOS.map(p=>[p.id,p]));
+const PAG_MAP = Object.fromEntries(PAGAMENTOS.concat(PAGAMENTOS_EXTRA).map(p=>[p.id,p]));
 function pagamentoLabel(e){
   const vals=e.pagamentoValores||{};
-  const nomes=[e.pagamento, e.pagamento2].filter(Boolean).map(id=>{ const p=PAG_MAP[id]; if(!p) return ''; const v=vals[id];
+  /* Registro antigo guarda o valor do cartão em "cartao"; a forma virou cartao_credito na
+     leitura. Sem este fallback o valor sumia da etiqueta de tudo que já está na nuvem. */
+  const nomes=pagsDe(e).map(id=>{ const p=PAG_MAP[id]; if(!p) return '';
+    const v = vals[id]!=null ? vals[id] : (PAG_CARTAO.includes(id) ? vals['cartao'] : null);
     const tipo = (id==='cartao' && e.cartaoTipo) ? ` (${e.cartaoTipo==='credito'?'crédito':'débito'})` : '';
     return `${p.ico} ${p.label}${tipo}${v?` ${_brl(v)}`:''}`; }).filter(Boolean);
   let base = nomes.length ? nomes.join(' + ') : (e.pagPrevisto==='pago' ? '✅ Já estava pago' : '💵 A cobrar');
@@ -9226,7 +9293,7 @@ function fcard(e){
       <div class="fcard-info">
         <div class="fcard-pag">${esc(pagamentoLabel(e))}</div>
         ${totalLine}
-        ${(e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') ? (e.dinheiroRecebido
+        ${temPag(e,'dinheiro') ? (e.dinheiroRecebido
             ? `<div class="frow"><span class="ico">💵</span><span style="color:var(--calm)">Dinheiro recebido no caixa ✓${e.dinheiroRecebidoPor?` · ${esc(e.dinheiroRecebidoPor)}`:''}</span></div>`
             : `<div class="frow dinheiro-pend"><span class="ico">💵</span><span>Dinheiro ainda com o entregador — <button class="mini prim" onclick="confirmarDinheiro('${e.id}')">✓ confirmar recebimento</button></span></div>`) : ''}
         ${obsPag}
@@ -9404,7 +9471,7 @@ function renderEntregador(){
       <div class="al-txt"><b>${esperaEnt.length} ${esperaEnt.length===1?'entrega esperando':'entregas esperando'} há mais de ${URGENCIA.urgente} min</b><span>Pegue na aba “Aguardando rota” pra não atrasar o cliente.</span></div>
       ${entTab!=='aguard'?`<button class="btn btn-primary btn-mini" onclick="setEntTab('aguard')">Ver disponíveis</button>`:''}
     </div>`;
-    const meuDinAl = entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && !e.dinheiroEntregueLoja);
+    const meuDinAl = entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && temPag(e,'dinheiro') && !e.dinheiroEntregueLoja);
     if(meuDinAl.length){
       const totAl=meuDinAl.reduce((s,e)=>s+((e.pagamentoValores&&e.pagamentoValores.dinheiro!=null)?_num(e.pagamentoValores.dinheiro):_num(e.valor)),0);
       ah += `<div class="alerta-card dinheiro">
@@ -9432,7 +9499,7 @@ function renderEntregador(){
     ? somaQtd(envios.filter(v=>v.status==='embalado' && v.transportadora && !coletaNaLoja(v))) : 0;
   if(cA) cA.textContent = (aguard.length+_envFila) ? ` ${aguard.length+_envFila}` : '';
   const pendEntTab = entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e) < _hoje && !pendDismissed.has(e.id));
-  const meuDinheiro = entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && (e.pagamento==='dinheiro'||e.pagamento2==='dinheiro') && !e.dinheiroEntregueLoja).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
+  const meuDinheiro = entregas.filter(e=>e.status==='entregue' && e.entregador===session.entregador && temPag(e,'dinheiro') && !e.dinheiroEntregueLoja).sort((a,b)=>(b.entregueEm||0)-(a.entregueEm||0));
   if(cP) cP.textContent = (pendEntTab.length+meuDinheiro.length) ? ` ${pendEntTab.length+meuDinheiro.length}` : '';
   $('ent-tab-rota').classList.toggle('on', entTab==='rota');
   $('ent-tab-aguard').classList.toggle('on', entTab==='aguard');
