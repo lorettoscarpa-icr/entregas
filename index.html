@@ -478,6 +478,7 @@
   .ent-fin-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;flex-wrap:wrap}
   .ent-fin-cli{font-size:14.5px;color:var(--text)}
   .ent-fin-cli small{display:block;color:var(--text-mute);font-size:12px;margin-top:1px}
+  .ent-fin-cli small.ent-fin-ficou{color:var(--text-soft)}
   .ent-fin-hora{display:inline-block;font-family:var(--ff-data,monospace);font-size:11.5px;color:var(--gold-lt);background:rgba(212,180,90,.14);border:1px solid var(--line-strong);border-radius:7px;padding:1px 6px;margin-left:4px;vertical-align:1px}
   .ent-fin-acts{display:flex;gap:7px;flex-shrink:0}
   .ent-resumo{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:16px}
@@ -4824,6 +4825,22 @@ function mostrarImagens(titulo, fotos){
 /* visão completa de uma entrega finalizada — expande INLINE no próprio card (sem janela em tela cheia) */
 const detFotosCache = {};   // fotos já carregadas (id -> html das miniaturas); evita recarregar e travar no "carregando" a cada re-render
 function _detRow(ico,label,val){ return val?`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)"><span style="width:22px;flex:none">${ico}</span><span><b>${label}:</b> ${val}</span></div>`:''; }
+/* ===== o que ele marcou, na própria linha da entrega finalizada =====
+   O título da lista dele diz "errou? toque para corrigir". Só que pra saber se errou ele
+   tinha que abrir os detalhes de uma por uma. O que ele marcou cabe numa linha. */
+function ficouResumo(e){
+  if(e.status!=='entregue') return '';
+  const li=itensDe(e); if(!li || !li.length) return '';
+  const tot=li.length, n=pecasFicouDe(e), volta=Math.max(0,tot-n);
+  if(tot<2 && volta<=0) return '';                 // uma peça só, ficou com o cliente: já está dito
+  if(!volta) return `👟 ficou com ${tot>1?'as '+tot+' peças':'a peça'}`;
+  if(!n) return `↩ nada ficou — ${tot>1?`as ${tot} voltaram`:'a peça voltou'}`;
+  if(!detalhaVolta(e))                              // fechou pela foto: sabe quantas, não quais
+    return `👟 ${n} de ${tot} ${n>1?'ficaram':'ficou'} · ${volta} ${volta>1?'voltaram':'voltou'}`;
+  const fic=li.filter(x=>x.ficou);
+  const nomes=fic.slice(0,2).map(x=>esc(_itNomeCurto(x.nome))+(x.num?` nº ${esc(x.num)}`:'')).join(' · ');
+  return `👟 ficou: ${nomes}${fic.length>2?` <span style="opacity:.7">+${fic.length-2}</span>`:''}`;
+}
 function detalhesHTML(e){
   const ent=(ENT[e.entregador]||{}).nome||e.entregador||'';
   const quando=e.entregueEm?new Date(e.entregueEm).toLocaleString('pt-BR'):'';
@@ -4833,8 +4850,12 @@ function detalhesHTML(e){
   html+=_detRow('🏘️','Bairro/Cidade',esc([e.bairro,e.cidade].filter(Boolean).join(' - ')));
   html+=_detRow('📍','Endereço',esc(e.endereco||''));
   if(mapaHref(e)) html+=_detRow('🧭','Mapa',`<a href="${esc(mapaHref(e))}" target="_blank" style="color:var(--gold)">abrir no mapa</a>`);
-  html+=_detRow('🧾','Produto (pedido)',prodValorHtml(e));
-  html+=_detRow('👟','Ficou com',esc(ficou));
+  /* A mesma sacola marcada que a vendedora vê. Aqui ela serve pra outra coisa: o título da
+     lista dele diz "errou? toque para corrigir" — é conferindo o que marcou que ele corrige. */
+  const _sac = sacolaHTML(e, true);
+  if(_sac) html+=`<div style="padding:6px 0;border-bottom:1px solid var(--line)">${_sac}</div>`;
+  else html+=_detRow('🧾','Produto (pedido)',prodValorHtml(e));
+  if(!_sac || !detalhaVolta(e)) html+=_detRow('👟','Ficou com',esc(ficou));
   html+=_detRow('💳','Pagamento',e.pagamento?esc(pagamentoLabel(e)):'');
   if(e.linkPagamento){ const _lp=limparLinkPag(e.linkPagamento); if(_lp) html+=_detRow('🔗','Link de pagamento',`<a href="${esc(_lp)}" target="_blank" style="color:var(--gold)">abrir link da Stone</a>`); }
   if(e.troco!=null) html+=_detRow('💰','Troco devolvido', e.troco>0?_brl(e.troco):'sem troco');
@@ -9533,7 +9554,8 @@ function renderEntregador(){
         : 'Não entregue' + (e.foiAoLocal===true ? ' · fui até lá (conta no acerto)' : e.foiAoLocal===false ? ' · não fui (não conta)' : '');
       const fh = _finalStamp(e) ? fmtClock(_finalStamp(e)) : '';
       return `<div class="ent-fin-row">
-        <span class="ent-fin-cli">${ic} ${esc(e.cliente)}${fh?` <span class="ent-fin-hora">🕒 ${fh}</span>`:''}<small>${esc(desc)}</small></span>
+        <span class="ent-fin-cli">${ic} ${esc(e.cliente)}${fh?` <span class="ent-fin-hora">🕒 ${fh}</span>`:''}<small>${esc(desc)}</small>${
+          (()=>{ const r=ficouResumo(e); return r?`<small class="ent-fin-ficou">${r}</small>`:''; })()}</span>
         <span class="ent-fin-acts"><button class="btn btn-ghost btn-mini" onclick="verDetalhesEntrega('${e.id}')">${detAberto.has(e.id)?'📋 Ocultar':'📋 Ver detalhes'}</button>${e.status==='entregue'?`<button class="btn btn-ghost btn-mini" onclick="abrirPagamento('${e.id}')">✏️ Corrigir</button>`:''}<button class="btn btn-ghost btn-mini" onclick="desfazerFinal('${e.id}')">↩ Desfazer</button></span>
       </div>${detAberto.has(e.id)?detalhesHTML(e):''}`;
     }).join('')}
