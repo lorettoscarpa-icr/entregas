@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v207">
+<meta name="app-ver" content="v208">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -1672,7 +1672,8 @@
           <label>Bairro <button type="button" class="link-btn" id="btn-bairro" onclick="buscarBairro()">📍 buscar pelo mapa</button></label>
           <input id="f-bairro" placeholder="Vila / setor">
         </div>
-        <div><label>Cidade</label><input id="f-cidade" placeholder="Goiânia / Aparecida..."></div>
+        <div><label>Cidade</label><input id="f-cidade" placeholder="Goiânia / Aparecida..." oninput="limparCidadeAuto()">
+          <small id="f-cidade-dica" style="display:none;font-size:11px;color:var(--gold-lt);opacity:.85">—</small></div>
         <div class="full"><label>Endereço escrito</label><input id="f-end" placeholder="Rua, número, referência"></div>
         <div class="full"><label>Link do endereço (mapa) <button type="button" class="link-btn" id="btn-geo" onclick="localizarPorEndereco()">🔍 localizar pelo endereço</button></label><input id="f-link" placeholder="https://maps... (cole o pin do WhatsApp)"></div>
         <div class="full">
@@ -4076,6 +4077,102 @@ function buscarBairro(){
   if(!c){ toast('Cole o link do mapa primeiro'); return; }
   buscarBairroAuto(c, true);
 }
+/* ================= A CIDADE SE PREENCHE SOZINHA =================
+   O caso do Marcos César: coordenada em Trindade, bairro "Scala" escrito à mão, cidade em
+   branco — e a regra da taxa trata cidade em branco como Goiânia, calada. R$ 19,90 perdidos,
+   e ninguém viu pergunta nenhuma. Aconteceu 10 vezes; a cidade fica em branco em 25% dos
+   cadastros.
+
+   O engraçado é que o app já sabia: reverseGeoBairro devolve bairro E cidade. Só que ele só
+   era chamado quando o bairro estava vazio — e a vendedora tinha escrito o bairro. Então
+   nunca rodou.
+
+   Duas camadas, nesta ordem:
+   1) o MAPA (reverseGeoBairro) — é o município de verdade, não palpite;
+   2) o HISTÓRICO da própria loja, quando o mapa não responde: o setor que ela já digitou
+      antes, e as entregas mais próximas que têm cidade escrita. Medido em 1.251 entregas:
+      acerta 96,8%, e dizer "é fora" quando era Goiânia deu 1 em 500.
+
+   O que ela escreve NUNCA é sobrescrito, e o que o sistema preenche fica marcado
+   (cidadeAuto) — inclusive pra nunca virar fonte do palpite seguinte. Se ele errar uma, o
+   erro morre ali em vez de ensinar o próximo. */
+const _PREF_SETOR=/\b(res|resid|residencial|jd|jardim|st|str|setor|pq|parque|cj|conj|conjunto|vl|vila|cond|condominio|bairro|chac|chacara|sitio)\b/g;
+function _chaveSetor(s){
+  let t=normTxt(s).replace(/[^a-z0-9 ]/g,' ');
+  t=t.replace(_PREF_SETOR,' ').replace(/\b(\d+)\s*[ao]?\s*etapa\b/g,'et$1');
+  return t.replace(/\s+/g,' ').trim();
+}
+function _kmEntre(a,b){
+  const dy=(a.lat-b.lat)*111, dx=(a.lng-b.lng)*111*Math.cos(a.lat*Math.PI/180);
+  return Math.hypot(dx,dy);
+}
+/* Só entra como referência o que uma PESSOA digitou. Cidade preenchida pelo sistema não
+   ensina nada — senão um erro vira dois, dois viram quatro. */
+function _refCidades(){
+  const out=[];
+  (entregas||[]).forEach(e=>{
+    if(!e || e.cidadeAuto) return;
+    const c=normTxt(e.cidade);
+    if(!c || c.length<4) return;
+    out.push({cidade:String(e.cidade).trim(), norm:c, setor:_chaveSetor(e.bairro), coord:coordOf(e)});
+  });
+  return out;
+}
+/* Palpite pelo que a loja já digitou. Devolve null quando não tem certeza — ficar calado é
+   melhor que chutar. */
+function cidadePeloHistorico(bairro, coord, ignorar){
+  const ref=_refCidades().filter(r=>r.norm!==ignorar);
+  let porSetor=null;
+  const k=_chaveSetor(bairro);
+  if(k){
+    const c={};
+    ref.forEach(r=>{ if(r.setor===k) c[r.cidade]=(c[r.cidade]||0)+1; });
+    const nomes=Object.keys(c);
+    if(nomes.length){
+      const tot=nomes.reduce((s,n)=>s+c[n],0);
+      const melhor=nomes.sort((a,b)=>c[b]-c[a])[0];
+      if(c[melhor]/tot>=0.8) porSetor=melhor;
+    }
+  }
+  let porMapa=null;
+  if(coord){
+    const viz=ref.filter(r=>r.coord).map(r=>({km:_kmEntre(coord,r.coord), cidade:r.cidade}))
+                 .sort((a,b)=>a.km-b.km).slice(0,5).filter(v=>v.km<=5);
+    if(viz.length){
+      const p={};
+      viz.forEach(v=>{ p[v.cidade]=(p[v.cidade]||0)+1/Math.max(v.km,0.15); });
+      const tot=Object.values(p).reduce((s,x)=>s+x,0);
+      const melhor=Object.keys(p).sort((a,b)=>p[b]-p[a])[0];
+      if(p[melhor]/tot>=0.60 && viz[0].cidade===melhor) porMapa=melhor;
+    }
+  }
+  if(porSetor && porMapa && normTxt(porSetor)!==normTxt(porMapa)) return null;   // discordam: calado
+  return porSetor || porMapa || null;
+}
+/* Preenche o campo Cidade quando ele está vazio. Primeiro pergunta ao mapa; se ele não
+   responder, cai no histórico da loja. Nunca por cima do que a pessoa escreveu. */
+function preencherCidadeAuto(coord, bairro){
+  const campo=$('f-cidade');
+  if(!campo || campo.value.trim()) return Promise.resolve(null);
+  const marcar=(nome,via)=>{
+    if(!nome || $('f-cidade').value.trim()) return null;
+    campo.value=nome; campo.dataset.auto=via;
+    const dica=$('f-cidade-dica');
+    if(dica){ dica.textContent='preenchida '+(via==='mapa'?'pelo mapa':'pelo histórico da loja')+' — confira'; dica.style.display=''; }
+    const fora = !/goiania|aparecida/.test(normTxt(nome));
+    if(fora) toast('📍 '+nome+' — fora de Goiânia, entrou a taxa de '+_brl(TAXA_ENTREGA)+'. Confira a cidade.');
+    return nome;
+  };
+  const local=()=>marcar(cidadePeloHistorico(bairro, coord), 'historico');
+  if(!coord) return Promise.resolve(local());
+  return reverseGeoBairro(coord)
+    .then(r=> (r && r.cidade) ? marcar(r.cidade,'mapa') : local())
+    .catch(()=> local());
+}
+function limparCidadeAuto(){
+  const campo=$('f-cidade'); if(campo) delete campo.dataset.auto;
+  const dica=$('f-cidade-dica'); if(dica){ dica.style.display='none'; dica.textContent=''; }
+}
 function buscarBairroAuto(coord, manual){
   if(!coord) return;
   const btn=$('btn-bairro'); if(btn) btn.textContent='📍 buscando...';
@@ -4724,7 +4821,7 @@ function pecasFicouDe(e){
 }
 function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=el.scrollHeight+'px'; }
 function maskCEP(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>5) v=v.replace(/(\d{5})(\d{1,3})/,'$1-$2'); el.value=v; }
-function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value='');
+function clearForm(){ ['paste','f-cliente','f-contato','f-cpf','f-nasc','f-bairro','f-cidade','f-vend','f-end','f-link','f-prod','f-valor','f-linkpag','f-obs','f-hr-hora','f-hr-hora2'].forEach(i=>$(i).value=''); limparCidadeAuto();
   { const p=$('f-pecas'); if(p) p.value=1; _pecasTocado=false; _itensTocado=false; _itensAberto=false; _itensDeTexto=null; _itensBase=null; _formItens=[]; renderFormItens(); } $('f-hr-tipo').value=''; toggleHrEntre(); $('f-tipo').value='entrega'; $('f-pag-prev').value='cobrar'; if($('f-presente'))$('f-presente').checked=false; setTaxaForm(null); fotoLocPendente=null; renderFotoLocPreview(); autoGrow($('paste')); }
 async function saveEntrega(){
   const cliente = $('f-cliente').value.trim();
@@ -4783,13 +4880,24 @@ async function saveEntrega(){
     }catch(e){}
     btn.textContent=old; btn.disabled=false;
   }
+  /* Última parada antes de gravar: cidade em branco tem uma chance de se resolver sozinha.
+     É aqui e não antes porque só agora a coordenada existe (veio do link, do link curto ou
+     da busca pelo endereço). */
+  let cidadeAuto=false;
+  if(!$('f-cidade').value.trim() && (coord || bairro)){
+    const btn=$('btn-salvar'), old=btn.textContent; btn.textContent='Conferindo a cidade...'; btn.disabled=true;
+    try{ await preencherCidadeAuto(coord, bairro); }catch(e){}
+    btn.textContent=old; btn.disabled=false;
+    cidadeAuto = !!$('f-cidade').dataset.auto;
+  }
+  const cidadeFinal=$('f-cidade').value.trim();
   const novoId=uid();
   entregas.push({
     id:novoId, cliente,
     contato,
     cpf:$('f-cpf').value.trim(),
     nascimento:$('f-nasc').value.trim(),
-    bairro, cidade, vendedora,
+    bairro, cidade:cidadeFinal, cidadeAuto:(cidadeAuto||undefined), vendedora,
     endereco:end,
     link, coord,
     dataEntrega,
@@ -6436,7 +6544,7 @@ function relancar(id){
   $('f-contato').value=formatPhone(e.contato||'');
   $('f-bairro').value=e.bairro||'';
   $('f-cpf').value=e.cpf||''; $('f-nasc').value=e.nascimento||'';
-  $('f-cidade').value=e.cidade||'';
+  $('f-cidade').value=e.cidade||''; limparCidadeAuto(); if(e.cidadeAuto) $('f-cidade').dataset.auto='1';
   $('f-vend').value=e.vendedora||'';
   $('f-end').value=e.endereco||'';
   $('f-link').value=e.link||'';
@@ -6464,7 +6572,7 @@ function editar(id){
   const e=entregas.find(x=>x.id===id); if(!e)return;
   $('f-cliente').value=e.cliente; $('f-contato').value=formatPhone(e.contato); $('f-bairro').value=e.bairro;
   $('f-cpf').value=e.cpf||''; $('f-nasc').value=e.nascimento||'';
-  $('f-cidade').value=e.cidade||''; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
+  $('f-cidade').value=e.cidade||''; limparCidadeAuto(); if(e.cidadeAuto) $('f-cidade').dataset.auto='1'; $('f-vend').value=e.vendedora; $('f-end').value=e.endereco; $('f-link').value=e.link;
   $('f-prod').value=e.produto; $('f-valor').value=e.valor;
   { const p=$('f-pecas'); if(p){ p.value=pecasDe(e); _pecasTocado=true; }
     _itensTocado=true; _itensDeTexto=e.produto||'';
@@ -6494,6 +6602,12 @@ async function salvarEdicao(){
   e.cidade=$('f-cidade').value.trim(); e.vendedora=$('f-vend').value.trim(); e.endereco=$('f-end').value.trim(); e.link=$('f-link').value.trim();
   e.coord=coordFrom(e.link);
   if(!e.coord && ehLinkCurto(e.link)){ const rc=await resolverLinkCurto(e.link); if(rc && isFinite(rc.lat)&&isFinite(rc.lng)) e.coord={lat:rc.lat,lng:rc.lng}; else if(rc && rc.endereco && !e.endereco){ e.endereco=rc.endereco; } }
+  // mesma rede de segurança da criação: cidade em branco tenta se resolver antes de gravar
+  if(!e.cidade && (e.coord || e.bairro)){
+    try{ await preencherCidadeAuto(e.coord, e.bairro); }catch(_){}
+    e.cidade=$('f-cidade').value.trim();
+    e.cidadeAuto = $('f-cidade').dataset.auto ? true : undefined;
+  } else if(e.cidade) { e.cidadeAuto = $('f-cidade').dataset.auto ? true : undefined; }
   e.horarioTipo=$('f-hr-tipo').value; e.horarioHora=$('f-hr-hora').value; e.horarioHora2=$('f-hr-hora2').value;
   e.produto=$('f-prod').value.trim(); e.valor=$('f-valor').value.trim(); e.observacao=$('f-obs').value.trim(); e.linkPagamento=limparLinkPag($('f-linkpag').value);
   e.tipo=$('f-tipo').value||'entrega'; e.pagPrevisto=$('f-pag-prev').value||'cobrar';
