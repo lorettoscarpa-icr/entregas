@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v205">
+<meta name="app-ver" content="v206">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -833,6 +833,30 @@
   .frow{display:flex;gap:8px;font-size:13.5px;color:var(--text-soft);margin-bottom:4px;line-height:1.45}
   .frow-volta b{color:var(--gold-lt)}
   .frow .ico{flex-shrink:0}
+  /* a sacola marcada — eco visual do que o entregador viu quando fechou (.pay-item) */
+  .sacola{margin:2px 0 6px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--surface-2)}
+  .sac-cab{padding:8px 11px;font-size:12.5px;color:var(--text-soft);border-bottom:1px solid var(--line)}
+  .sac-cab b{color:var(--text)}
+  .sac-cab .sac-n{color:var(--calm)}
+  .sac-cab .sac-v-n{color:var(--gold-lt)}
+  .sac-nota{padding:7px 11px;font-size:12px;color:var(--text-mute);border-bottom:1px solid var(--line);
+    background:rgba(0,0,0,.12)}
+  .sac-it{display:flex;align-items:center;gap:9px;padding:7px 11px;font-size:13px;line-height:1.35;
+    border-bottom:1px solid var(--line)}
+  .sac-it:last-child{border-bottom:0}
+  .sac-it.ficou{background:rgba(127,174,107,.1)}
+  .sac-ck{flex:none;width:19px;height:19px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+    font-size:11.5px;font-weight:700;border:1px solid var(--line-strong);color:var(--text-mute)}
+  .sac-it.ficou .sac-ck{border-color:var(--calm);background:var(--calm);color:#12240f}
+  .sac-it.voltou .sac-ck{color:var(--gold-lt);border-color:rgba(196,164,90,.45)}
+  .sac-tx{flex:1;min-width:0;color:var(--text-soft)}
+  .sac-it.ficou .sac-tx{color:var(--text)}
+  .sac-tx b{color:var(--gold-lt);font-weight:600}
+  .sac-v{flex:none;font-size:11.5px;color:var(--text-mute)}
+  .sacola.compacta{margin:4px 0}
+  .sacola.compacta .sac-cab{padding:6px 9px;font-size:11.5px}
+  .sacola.compacta .sac-it{padding:5px 9px;font-size:12.5px}
+  .sacola.compacta .sac-nota{padding:6px 9px;font-size:11px}
   .fcard-foto{width:92px;height:92px;object-fit:cover;border-radius:12px;border:1px solid var(--line-strong);cursor:pointer;flex-shrink:0;transition:transform .15s}
   .fcard-foto:hover{transform:scale(1.04)}
   .fcard-nofoto{width:92px;height:92px;border-radius:12px;border:1px dashed var(--line-strong);flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--text-mute);text-align:center}
@@ -6085,8 +6109,9 @@ function cardEntregue(e){
       ${e.pagamento?`<span class="badge-pag">${esc(pagamentoLabel(e))}</span>`:''}
     </div>
     <div class="meta" style="padding-left:0;font-size:12px">
-      ${(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
+      ${(detalhaVolta(e)&&itensDe(e)) || !(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto) ? ''
+        : `<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`}
+      ${sacolaHTML(e,true) || ((e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:'')}
       ${e.pagamentoObs?`<div class="row"><span class="ico">📝</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
       <div class="row"><span class="ico">🛵</span><span>${ent.nome}${e.entregueEm?` · finalizada às <b>${fmtClock(e.entregueEm)}</b>`:''}${dur?` · em ${dur}`:''}</span></div>
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
@@ -9016,6 +9041,45 @@ function voltouHTML(e){
     volta.map(x=>esc(_itNomeCurto(x.nome))+(x.num?` nº ${esc(x.num)}`:'')).join(' · ')
   }${val>0?` <span style="color:var(--text-mute)">(${_brl(val)})</span>`:''}</span></div>`;
 }
+/* ===== a sacola marcada, no card da entrega finalizada =====
+   A vendedora abre o card pra tirar uma dúvida: "com qual par ele ficou?". Ela via o texto
+   que ela mesma escreveu de um lado e "Ficou com: Nº 39 · Nº 38" do outro — dois números
+   soltos, sem nome de modelo — e tinha que cruzar de cabeça. (Aconteceu em 79 das 726
+   entregas fechadas desde julho.) Agora a sacola aparece marcada do jeito que o entregador
+   marcou: ✓ ficou, ↩ voltou, uma linha por peça.
+   Quando ele fechou pela foto, o sistema sabe QUANTAS ficaram e não QUAIS — e nesse caso a
+   tela diz isso com todas as letras em vez de chutar. */
+function sacolaHTML(e, compacto){
+  const li = itensDe(e);
+  /* Uma peça só já está dita nas linhas de cima — caixa em volta seria enfeite. */
+  if(!li || li.length < 2) return '';
+  const tot = li.length, ficou = pecasFicouDe(e), volta = Math.max(0, tot - ficou);
+  /* Marcou peça a peça: sabemos QUAIS. Fechou pela foto: sabemos QUANTAS — mas quando
+     ficaram todas (ou nenhuma), "quantas" já responde "quais", e aí não há dúvida. */
+  const porPeca = detalhaVolta(e);
+  const todas = !porPeca && (ficou===tot || ficou===0);
+  const certo = porPeca || todas;
+  const ficouI = i => porPeca ? !!li[i].ficou : (ficou===tot);
+  const linha = (x,i) => {
+    const nome = esc(_itNomeCurto(x.nome) || 'peça');
+    const cor  = x.cor ? ` · ${esc(x.cor)}` : '';
+    const num  = x.num ? ` <b>nº ${esc(x.num)}</b>` : '';
+    const val  = x.valor != null ? `<span class="sac-v">${_brl(x.valor)}</span>` : '';
+    const st   = !certo ? 'incerto' : (ficouI(i) ? 'ficou' : 'voltou');
+    const ck   = !certo ? '·' : (ficouI(i) ? '✓' : '↩');
+    return `<div class="sac-it ${st}"><span class="sac-ck">${ck}</span>`+
+           `<span class="sac-tx">${nome}${cor}${num}</span>${val}</div>`;
+  };
+  const voltaTxt = volta
+    ? ` · <b class="sac-v-n">${volta}</b> ${volta>1?'voltaram':'voltou'}`
+    : (certo ? ' · nada voltou' : '');
+  const cab = `<b>${tot}</b> peças na sacola · cliente ficou com <b class="sac-n">${ficou}</b>${voltaTxt}`;
+  const nota = certo ? '' :
+    `<div class="sac-nota">O entregador fechou pela foto: não marcou peça a peça, então não dá pra dizer ${
+      volta>1 ? `quais das ${tot} voltaram` : `qual das ${tot} voltou`}.</div>`;
+  return `<div class="sacola${compacto?' compacta':''}">`+
+    `<div class="sac-cab">🛍️ ${cab}</div>${nota}${li.map(linha).join('')}</div>`;
+}
 function renderFinalizadas(){
   if(session.role!=='vendedora') return;
   const dia=diaAtivo, ehGeral=!!session.geral;
@@ -9098,6 +9162,11 @@ function fcard(e){
   const totalLine = totalReceb>0 ? `<div class="frow"><span class="ico">💰</span><span>Total recebido: <b>${_brl(totalReceb)}</b></span></div>` : '';
   const horarioTxt = hrTxt(e);
   const tipoTxt = (e.tipo==='troca') ? '🔁 Troca — traz o par antigo' : (e.tipo==='coleta') ? '↩️ Coleta de devolução' : '';
+  /* Com a sacola marcada na tela, a linha "Ficou com" e o texto cru do produto viram
+     repetição — e a repetição é o que fazia ela ler duas vezes pra achar a resposta.
+     Só o "Ficou com" do fechamento por foto continua: é lá que mora o botão da foto. */
+  const sac = sacolaHTML(e);
+  const porPeca = sac && detalhaVolta(e);
   return `<div class="fcard" data-eid="${e.id}">
     <div class="fcard-top">
       <span class="vbadge ok">✓ Entregue${hora?' · '+hora:''}</span>
@@ -9124,9 +9193,10 @@ function fcard(e){
       ${tipoTxt?`<div class="frow"><span class="ico">🏷️</span><span>${tipoTxt}</span></div>`:''}
       ${e.entreguePresente
         ? `<div class="frow"><span class="ico">🎁</span><span><b>Presente</b>${e.produtoEntregue?` — ${esc(e.produtoEntregue)}`:''}</span></div>`
-        : (e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)?`<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`:''}
-      ${(e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:''}
-      ${voltouHTML(e)}
+        : (porPeca || !(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto)) ? ''
+        : `<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`}
+      ${sac || ((e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:'')}
+      ${sac ? '' : voltouHTML(e)}
       ${e.obsProduto?`<div class="frow"><span class="ico">📝</span><span><b>Obs. do entregador:</b> ${esc(e.obsProduto)}</span></div>`:''}
     </div></div>
 
