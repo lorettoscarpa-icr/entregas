@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v209">
+<meta name="app-ver" content="v210">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -4317,6 +4317,21 @@ function lerItens(texto){
       if(mq){ const q=parseInt(mq[1],10); if(q>=2 && q<=10) qtd=q; }
       if(!nome && val!==null && itens.length){                 // trecho só com preço = valor do item anterior
         if(itens[itens.length-1].valor==null) itens[itens.length-1].valor=val;
+        continue;
+      }
+      /* Linha só com número é a NUMERAÇÃO do item de cima, não um produto novo.
+         A vendedora escreve assim:   Slipper liso preto
+                                       41
+         e o entregador via 2 peças na sacola: "Slipper liso preto" e "41".
+         Regra: cada número achado completa o item anterior; se ele já tem numeração, vira
+         outra peça do MESMO modelo — que é justamente o caso de "Slipper liso preto 41 42",
+         dois pares do mesmo sapato. */
+      if(nums.length && !/[a-zà-ú]/i.test(nome) && itens.length){
+        const ant=itens[itens.length-1];
+        nums.forEach(n=>{
+          if(!ant.num){ ant.num=n; if(ant.valor==null && val!==null) ant.valor=val; return; }
+          itens.push({nome:ant.nome, num:n, valor:(val!==null?val:ant.valor)});
+        });
         continue;
       }
       if(!nome && !nums.length) continue;
