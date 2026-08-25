@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v212">
+<meta name="app-ver" content="v213">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -4325,8 +4325,8 @@ function _catCoresTodas(){
   _catCoresCache={n:catalogo.length, v:v};
   return v;
 }
-function _coresNaLinha(txt, mod){
-  let resto=_catExp(txt);
+function _coresNaLinha(txt, mod, jaNorm){
+  let resto = jaNorm ? txt : _catExp(txt);
   const achados=[];
   const cores=((mod&&mod.cores)||[]).filter(c=>!c.off)
     .map(c=>({n:_itNorm(c.nome),c})).sort((a,b)=>b.n.length-a.n.length);
@@ -4358,13 +4358,50 @@ function _coresNaLinha(txt, mod){
   achados.sort((a,b)=>a.pos-b.pos);
   return achados;
 }
-/* as cores desta linha, só quando dá pra parear uma a uma com as numerações */
-function _paresCor(nome, qtd){
-  if(qtd<2 || !catalogo.length) return null;
+/* onde estão as cores E as numerações no mesmo texto — é a posição que diz se ela quis
+   cruzar ou parear */
+function _corNum(txt, mod){
+  let s=_catExp(txt);
+  const branco=m=>' '.repeat(m.length);
+  s=s.replace(new RegExp(_RXVAL.source,'gi'), branco).replace(/\br\$\s*\d+/gi, branco);
+  const cores=_coresNaLinha(s, mod, true);
+  const nums=[], visto={}; const rx=new RegExp(_RXNUM.source,'g'); let m;
+  while((m=rx.exec(s))){ if(!visto[m[1]]){ visto[m[1]]=1; nums.push({pos:m.index, n:m[1]}); } }
+  return {cores, nums};
+}
+/* "Slipper liso preto e mouro 41 42" são QUATRO peças: preto 41, preto 42, mouro 41, mouro 42.
+   A vendedora manda as duas cores nas duas numerações pro cliente escolher — é assim que a
+   sacola sai da loja. Antes viravam 2, e o entregador saía com 4 pares na mão e 2 na tela.
+
+   Duas formas de escrever, e elas querem dizer coisas diferentes:
+     "preto e mouro 41 42"   cores juntas, numerações juntas  → CRUZA  (4 peças)
+     "preto 40 e azul 39"    cada cor colada na sua numeração → PAREIA (2 peças)
+   O que separa uma da outra é a posição: agrupado cruza, intercalado pareia. */
+function _expandirCores(nome, nums, forcarCruzar){
+  if(!catalogo.length || !nums || !nums.length) return null;
   const mm=catCasar(nome); if(!mm.mod) return null;
-  const ac=_coresNaLinha(nome, mm.mod);
-  if(ac.length!==qtd) return null;
-  return ac.map(a=>({nome: mm.mod.nome+' '+a.nome, cor: a.cor?a.cor.nome:null}));
+  const cn=_corNum(nome, mm.mod);
+  const cs=cn.cores;
+  if(cs.length<2) return null;                       // uma cor só: nada muda
+  const ns = forcarCruzar
+    ? nums.map((n,i)=>({pos:i, n:n}))
+    : cn.nums.filter(x=>nums.indexOf(x.n)>=0);
+  /* Sem numeração nenhuma não dá pra saber se são duas peças ou uma só: "Cinto Dupla Face
+     Mouro\Preto" é UM cinto de dois lados. Fica como está. */
+  if(!ns.length) return null;
+  const out=[], pref=mm.mod.nome+' ';
+  if(!forcarCruzar){
+    const seq=cs.map(c=>({p:c.pos,t:'C'})).concat(ns.map(n=>({p:n.pos,t:'N'})))
+                .sort((a,b)=>a.p-b.p).map(x=>x.t).join('');
+    const blocos=seq.replace(/(.)\1*/g,'$1').length;   // CCNN = 2 blocos, CNCN = 4
+    if(blocos>2){
+      if(cs.length!==ns.length) return null;           // intercalado e desigual: não dá pra saber
+      cs.forEach((c,i)=>out.push({nome:pref+c.nome, cor:c.cor?c.cor.nome:null, num:ns[i].n}));
+      return out;
+    }
+  }
+  cs.forEach(c=>ns.forEach(n=>out.push({nome:pref+c.nome, cor:c.cor?c.cor.nome:null, num:n.n})));
+  return out;
 }
 function lerItens(texto){
   const itens=[];
@@ -4401,19 +4438,24 @@ function lerItens(texto){
       if(nums.length && !/[a-zà-ú]/i.test(nome) && itens.length){
         const ant=itens[itens.length-1];
         // "Slipper liso preto e mouro" numa linha e "41 42" na de baixo: as cores são de cima
-        const pc = ant.num ? null : _paresCor(ant.nome, nums.length);
-        nums.forEach((n,i)=>{
-          const p = pc ? pc[i] : null;
-          if(!ant.num){ ant.num=n; if(p){ ant.nome=p.nome; ant.cor=p.cor; }
-                        if(ant.valor==null && val!==null) ant.valor=val; return; }
-          itens.push({nome:(p?p.nome:ant.nome), num:n, valor:(val!==null?val:ant.valor), cor:(p?p.cor:null)});
+        const ex = ant.num ? null : _expandirCores(ant.nome, nums, true);
+        if(ex){
+          const v = (ant.valor!=null) ? ant.valor : val;
+          itens.pop();                                  // o item de cima vira as peças expandidas
+          ex.forEach(x=>itens.push({nome:x.nome, num:x.num, valor:v, cor:x.cor}));
+          continue;
+        }
+        nums.forEach(n=>{
+          if(!ant.num){ ant.num=n; if(ant.valor==null && val!==null) ant.valor=val; return; }
+          itens.push({nome:ant.nome, num:n, valor:(val!==null?val:ant.valor)});
         });
         continue;
       }
       if(!nome && !nums.length) continue;
       if(nums.length){
-        const pc=_paresCor(nome, nums.length);
-        nums.forEach((n,i)=>itens.push({nome:(pc?pc[i].nome:nome), num:n, valor:val, cor:(pc?pc[i].cor:null)}));
+        const ex=_expandirCores(nome, nums);
+        if(ex) ex.forEach(x=>itens.push({nome:x.nome, num:x.num, valor:val, cor:x.cor}));
+        else nums.forEach(n=>itens.push({nome, num:n, valor:val}));
       }
       else for(let k=0;k<qtd;k++) itens.push({nome, num:'', valor:val});
     }
