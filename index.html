@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v211">
+<meta name="app-ver" content="v212">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -4307,6 +4307,65 @@ function _itNums(txt){
   return out;
 }
 function _itFechou(t){ return _itNums(t).length>0 || _itValor(t)!==null; }
+/* "Slipper liso preto e mouro 41 42" são DUAS peças de cores diferentes, não duas iguais.
+   Antes as duas linhas ficavam com o texto inteiro e o casamento pegava a primeira cor pras
+   duas — o Yuri imprimia duas etiquetas de preto e nenhuma de mouro, calado. Aqui as cores
+   escritas são achadas na ordem e, quando são exatamente tantas quantas as numerações,
+   cada peça leva a sua. Qualquer outra contagem: não mexe em nada (chute custa etiqueta). */
+const _CORNAO=['camurca','nobuck','nobuk','cor','sem','all','off','colors','couro'];
+/* todos os nomes de cor do catálogo, os mais longos primeiro — é o que impede "azul marinho"
+   de virar duas cores quando o modelo daquela linha não tem essa cor. */
+let _catCoresCache=null;
+function _catCoresTodas(){
+  if(_catCoresCache && _catCoresCache.n===catalogo.length) return _catCoresCache.v;
+  const s={};
+  catalogo.forEach(m=>(m.cores||[]).forEach(c=>{ const n=_itNorm(c.nome); if(n) s[n]=1; }));
+  Object.values(CAT_CORAB).forEach(v=>{ const n=_itNorm(v); if(n) s[n]=1; });
+  const v=Object.keys(s).sort((a,b)=>b.length-a.length);
+  _catCoresCache={n:catalogo.length, v:v};
+  return v;
+}
+function _coresNaLinha(txt, mod){
+  let resto=_catExp(txt);
+  const achados=[];
+  const cores=((mod&&mod.cores)||[]).filter(c=>!c.off)
+    .map(c=>({n:_itNorm(c.nome),c})).sort((a,b)=>b.n.length-a.n.length);
+  // 1) cores DESTE modelo, nome inteiro e mais longas primeiro ("azul marinho" antes de "azul")
+  cores.forEach(o=>{
+    if(!o.n) return;
+    const i=resto.indexOf(o.n); if(i<0) return;
+    achados.push({pos:i, nome:o.c.nome, cor:o.c});
+    resto=resto.slice(0,i)+' '.repeat(o.n.length)+resto.slice(i+o.n.length);   // consome
+  });
+  /* 2) cor composta que existe no catálogo mas não neste modelo. Tem que ser consumida
+     INTEIRA: "Derby Málaga Azul marinho 40/41" é um par em duas numerações, e partir em
+     "azul 40" + "marinho 41" inventaria dois sapatos que não existem. */
+  _catCoresTodas().forEach(n=>{
+    if(n.indexOf(' ')<0) return;                          // aqui só as de mais de uma palavra
+    const i=resto.indexOf(n); if(i<0) return;
+    achados.push({pos:i, nome:n, cor:null});
+    resto=resto.slice(0,i)+' '.repeat(n.length)+resto.slice(i+n.length);
+  });
+  // 3) palavra de cor solta que o catálogo conhece: conta como cor escrita, sem inventar
+  //    qual é — o Yuri resolve com o sapato na mão
+  const V=_catV(), rx=/[a-zà-ú]+/g; let m;
+  while((m=rx.exec(resto))){
+    const w=m[0];
+    if(w.length<3 || !V.cores[w] || _CORNAO.indexOf(w)>=0) continue;
+    if(achados.some(a=>a.nome && _itNorm(a.nome).indexOf(w)>=0)) continue;      // já contada
+    achados.push({pos:m.index, nome:w, cor:null});
+  }
+  achados.sort((a,b)=>a.pos-b.pos);
+  return achados;
+}
+/* as cores desta linha, só quando dá pra parear uma a uma com as numerações */
+function _paresCor(nome, qtd){
+  if(qtd<2 || !catalogo.length) return null;
+  const mm=catCasar(nome); if(!mm.mod) return null;
+  const ac=_coresNaLinha(nome, mm.mod);
+  if(ac.length!==qtd) return null;
+  return ac.map(a=>({nome: mm.mod.nome+' '+a.nome, cor: a.cor?a.cor.nome:null}));
+}
 function lerItens(texto){
   const itens=[];
   String(texto||'').split('\n').forEach(linha=>{
@@ -4341,14 +4400,21 @@ function lerItens(texto){
          dois pares do mesmo sapato. */
       if(nums.length && !/[a-zà-ú]/i.test(nome) && itens.length){
         const ant=itens[itens.length-1];
-        nums.forEach(n=>{
-          if(!ant.num){ ant.num=n; if(ant.valor==null && val!==null) ant.valor=val; return; }
-          itens.push({nome:ant.nome, num:n, valor:(val!==null?val:ant.valor)});
+        // "Slipper liso preto e mouro" numa linha e "41 42" na de baixo: as cores são de cima
+        const pc = ant.num ? null : _paresCor(ant.nome, nums.length);
+        nums.forEach((n,i)=>{
+          const p = pc ? pc[i] : null;
+          if(!ant.num){ ant.num=n; if(p){ ant.nome=p.nome; ant.cor=p.cor; }
+                        if(ant.valor==null && val!==null) ant.valor=val; return; }
+          itens.push({nome:(p?p.nome:ant.nome), num:n, valor:(val!==null?val:ant.valor), cor:(p?p.cor:null)});
         });
         continue;
       }
       if(!nome && !nums.length) continue;
-      if(nums.length) nums.forEach(n=>itens.push({nome, num:n, valor:val}));
+      if(nums.length){
+        const pc=_paresCor(nome, nums.length);
+        nums.forEach((n,i)=>itens.push({nome:(pc?pc[i].nome:nome), num:n, valor:val, cor:(pc?pc[i].cor:null)}));
+      }
       else for(let k=0;k<qtd;k++) itens.push({nome, num:'', valor:val});
     }
   });
@@ -4752,7 +4818,8 @@ function _itensDoTexto(e){
        texto repetido dentro de uma caixinha — atrito puro pra quem já sabe o que levou. */
     const vale = li.length>=2 || li.some(it=>String(it.num||'').trim());
     if(li.length===pecas && vale && li.every(it=>String(it.num||'').trim()||_ehCalcado(it.nome)))
-      r=li.map(it=>({nome:it.nome, num:it.num, valor:it.valor, cor:null, ficou:false}));
+      // a cor lida da linha vale: o Yuri a recebe como "cor da vendedora" na conferência
+      r=li.map(it=>({nome:it.nome, num:it.num, valor:it.valor, cor:it.cor||null, ficou:false}));
   }
   _itDeriv[id]=r;
   return r;
