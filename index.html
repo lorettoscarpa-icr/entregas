@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v210">
+<meta name="app-ver" content="v211">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -710,6 +710,9 @@
   .fin-bloco{border:1px solid var(--line);border-radius:14px;padding:13px 13px 15px;margin-top:14px}
   .fin-bloco-h{font-family:var(--ff-display);font-size:19px;font-weight:600;color:var(--gold);margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid var(--line)}
   .fin-bloco-sub{font-size:13px;color:var(--text-soft);margin:0 0 10px}
+  /* o que volta na troca: cor diferente do "que ficou" pra ele não confundir os dois blocos */
+  .fin-bloco-dev{border-color:rgba(212,175,55,.42);background:rgba(212,175,55,.05)}
+  .fin-bloco-dev .fin-bloco-h{color:var(--gold-lt)}
   .pay-cam-btn{width:100%;background:var(--surface-3);color:var(--text);border:1px solid var(--line-strong);font-weight:600;justify-content:center}
   .pay-foto-btns{display:flex;gap:8px;flex-wrap:wrap}
   .pay-foto-btns .pay-cam-btn{width:auto;flex:1}
@@ -2343,6 +2346,16 @@
       </div>
       <label style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);display:block;margin:16px 0 6px">Observação do produto (opcional)</label>
       <input id="prod-note" placeholder="Ex: levou também a meia / pequeno detalhe na caixa">
+    </div>
+    <!-- só na troca/coleta: o que VOLTA na mão do entregador. Sem foto e numeração o Yuri
+         recebe o par sem saber que par é, e a etiqueta sai errada ou não sai. -->
+    <div class="fin-bloco fin-bloco-dev" id="dev-bloco" style="display:none">
+      <div class="fin-bloco-h">↩️ Produto que o cliente devolveu *</div>
+      <p class="fin-bloco-sub" id="dev-sub">Foto e numeração do que voltou com você — é com isso que o Yuri imprime a etiqueta certa.</p>
+      <input type="file" id="dev-cam-input" accept="image/*" capture="environment" onchange="carregarDevFoto(this)" style="display:none">
+      <input type="file" id="dev-arq-input" accept="image/*" onchange="carregarDevFoto(this)" style="display:none">
+      <div id="dev-itens"></div>
+      <button type="button" class="btn pay-cam-btn" id="dev-add-btn" onclick="addDevItem()" style="width:100%;margin-top:10px">➕ Adicionar outro devolvido</button>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closePay()">Cancelar</button>
@@ -4772,16 +4785,28 @@ function renderPaySacola(){
        toque em "Ficou com tudo", e ele não consegue confirmar sem ter decidido (a trava
        está em confirmarPagamento). Marcar aqui já vale como o registro do produto. */
     if(_payItens==null){
-      _payItens = (e.status==='entregue') ? lista.map(it=>!!it.ficou) : lista.map(()=>false);
-      _payItensTocado = (e.status==='entregue');       // já foi decidido antes: isto é uma correção
+      if(e.status==='entregue'){
+        _payItens = lista.map(it=>!!it.ficou);
+        _payItensTocado = true;                        // já foi decidido antes: isto é uma correção
+      } else if(lista.length===1){
+        /* Uma peça só na sacola já vem MARCADA. Aqui não há o que escolher: nas 19 entregas de
+           uma peça que fecharam pela lista, nas 19 o cliente ficou com ela. O risco de registrar
+           venda que não houve, que é o motivo de tudo começar desmarcado, some quando a decisão
+           é uma só e está à vista — se o cliente devolveu, ele toca na peça e desmarca. */
+        _payItens = [true]; _payItensTocado = true;
+      } else {
+        _payItens = lista.map(()=>false); _payItensTocado = false;
+      }
     }
     const ficou=_payItens.filter(Boolean).length, volta=tot-ficou;
-    $('pay-sacola-q').textContent = 'Marque o que o cliente ficou:';
+    const uma = lista.length===1;
+    $('pay-sacola-q').textContent = uma ? 'Peça desta entrega:' : 'Marque o que o cliente ficou:';
     $('pay-sacola-ops').innerHTML =
+      (uma ? '' :
       `<div class="pay-atalhos">
          <button type="button" class="pay-atalho${(_payItensTocado&&ficou===tot)?' on':''}" onclick="payTodas(true)">✓ Ficou com tudo</button>
          <button type="button" class="pay-atalho${(_payItensTocado&&ficou===0)?' on':''}" onclick="payTodas(false)">↩️ Não ficou com nada</button>
-       </div>` +
+       </div>`) +
       lista.map((it,i)=>{
         /* A foto entra só quando existe. Sem ela a linha fica exatamente como era —
            nada de quadrado cinza ocupando espaço na tela pequena dele. */
@@ -4796,7 +4821,9 @@ function renderPaySacola(){
          <span class="pay-item-tx">${esc(_itNomeCurto(it.nome))}${it.num?` <b>nº ${esc(it.num)}</b>`:''}</span>
          ${it.valor!=null?`<span class="pay-item-v">${_brl(it.valor)}</span>`:''}
        </button>`;}).join('');
-    $('pay-sacola-volta').innerHTML = !_payItensTocado
+    $('pay-sacola-volta').innerHTML = (uma && ficou===1)
+      ? `✓ <b style="color:var(--calm)">Já marcado</b> — o cliente ficou com esta peça. Se ele devolveu, toque nela pra desmarcar.`
+      : !_payItensTocado
       ? `<span style="color:var(--warn)">Marque acima o que ficou com o cliente — o resto volta pra loja.</span>`
       : volta>0
       ? `↩️ <b style="color:var(--gold-lt)">${volta} peça${volta>1?'s':''}</b> ${volta>1?'voltam':'volta'} pra loja.`
@@ -5003,6 +5030,8 @@ function detalhesHTML(e){
   if(_sac) html+=`<div style="padding:6px 0;border-bottom:1px solid var(--line)">${_sac}</div>`;
   else html+=_detRow('🧾','Produto (pedido)',prodValorHtml(e));
   if(!_sac || !detalhaVolta(e)) html+=_detRow('👟','Ficou com',esc(ficou));
+  { const _dev=resumoDevolucao(e);
+    if(_dev) html+=_detRow('↩️','Cliente devolveu', esc(_dev)+(e.temFotoDevolucao?` <button class="btn btn-ghost btn-mini" onclick="verFotoDevolucao('${e.id}')">📷 ver foto</button>`:'')); }
   html+=_detRow('💳','Pagamento',e.pagamento?esc(pagamentoLabel(e)):'');
   if(e.linkPagamento){ const _lp=limparLinkPag(e.linkPagamento); if(_lp) html+=_detRow('🔗','Link de pagamento',`<a href="${esc(_lp)}" target="_blank" style="color:var(--gold)">abrir link da Stone</a>`); }
   if(e.troco!=null) html+=_detRow('💰','Troco devolvido', e.troco>0?_brl(e.troco):'sem troco');
@@ -5097,6 +5126,72 @@ function verFotoProduto(id){
   const local=fotoProdLocalGetArr(id).map(it=>it.foto).filter(Boolean);
   if(local.length){ mostrarImagens('Fotos do produto', local); return; }
   fotoProdCloudGet(id).then(arr=>{ const fotos=(arr||[]).map(it=>it.foto).filter(Boolean); if(fotos.length){ mostrarImagens('Fotos do produto', fotos); } else toast('Fotos do produto não encontradas'); });
+}
+/* ===== fotos do que o cliente DEVOLVEU na troca =====
+   Mesma coleção das fotos de produto, em outro documento ('troca_<id>'), pra não precisar de
+   regra nova no Firestore e pra o Yuri ler as duas coisas pelo mesmo caminho. */
+const FOTO_DEV_KEY = id => 'loretto_fotodev_'+id;
+function devLocalGetArr(id){ try{ const v=localStorage.getItem(FOTO_DEV_KEY(id)); if(!v) return []; const a=JSON.parse(v)||[]; return Array.isArray(a)?a:[]; }catch(_){ return []; } }
+function devLocalSetArr(id,arr){ try{ localStorage.setItem(FOTO_DEV_KEY(id), JSON.stringify(arr)); return true; }catch(_){ return false; } }
+function devLocalDel(id){ try{ localStorage.removeItem(FOTO_DEV_KEY(id)); }catch(_){} }
+function devCloudSet(id,arr){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('fotos_produto').doc('troca_'+String(id)).set({itens:arr,tipo:'devolucao',entrega:String(id),ts:Date.now()}).catch(()=>{}); }catch(_){} } }
+function devCloudDel(id){ if(FIREBASE_ON&&fdb){ try{ fdb.collection('fotos_produto').doc('troca_'+String(id)).delete().catch(()=>{}); }catch(_){} } }
+function devCloudGet(id){ if(!(FIREBASE_ON&&fdb)) return Promise.resolve([]); try{ return fdb.collection('fotos_produto').doc('troca_'+String(id)).get().then(d=>{ if(!d.exists) return []; const dt=d.data()||{}; return Array.isArray(dt.itens)?dt.itens:[]; }).catch(()=>[]); }catch(_){ return Promise.resolve([]); } }
+function salvarFotoDevolucao(id,arr){ const ok=devLocalSetArr(id,arr); devCloudSet(id,arr); return ok; }
+function removerFotoDevolucao(id){ devLocalDel(id); devCloudDel(id); }
+function verFotoDevolucao(id){
+  const local=devLocalGetArr(id).map(it=>it.foto).filter(Boolean);
+  if(local.length){ mostrarImagens('Devolvido na troca', local); return; }
+  devCloudGet(id).then(arr=>{ const fotos=(arr||[]).map(it=>it.foto).filter(Boolean); if(fotos.length) mostrarImagens('Devolvido na troca', fotos); else toast('Foto da devolução não encontrada'); });
+}
+// resumo curto do que voltou, pro card e pro detalhe
+function resumoDevolucao(e){
+  const d = e && Array.isArray(e.devolucao) ? e.devolucao : [];
+  if(!d.length) return '';
+  return d.map(it=>{
+    const nome=(it.legenda||'').trim();
+    const num = it.num==='S/N' ? 'sem nº' : (it.num?('Nº '+it.num):'');
+    return [nome||'peça devolvida', num].filter(Boolean).join(' ');
+  }).join(' · ');
+}
+/* linha do que voltou na troca — no card da vendedora e no detalhe do entregador */
+function devolucaoHTML(e, compacto){
+  const txt=resumoDevolucao(e); if(!txt) return '';
+  const cls = compacto ? 'row' : 'frow';
+  return `<div class="${cls}"><span class="ico">↩️</span><span>Cliente devolveu: <b>${esc(txt)}</b>${e.temFotoDevolucao?` <button class="btn btn-ghost btn-mini" onclick="verFotoDevolucao('${e.id}')">📷 ver foto</button>`:''}</span></div>`;
+}
+/* estado do bloco "produto devolvido": mesma forma dos itens de produto */
+let devItens=[{foto:'',legenda:'',num:''}], devFotoAlvo=0;
+function renderDevItens(){
+  const wrap=$('dev-itens'); if(!wrap) return;
+  wrap.innerHTML = devItens.map((it,i)=>{
+    let g=''; for(let n=37;n<=46;n++) g+=`<button type="button" class="num-btn ${String(it.num)===String(n)?'on':''}" onclick="selDevNum(${i},${n})">${n}</button>`;
+    g+=`<button type="button" class="num-btn num-btn-sn ${it.num==='S/N'?'on':''}" style="grid-column:1/-1" onclick="selDevNum(${i},'S/N')">S/ NUMERAÇÃO</button>`;
+    const fotoArea = it.foto
+      ? `<div class="prod-foto-thumb"><img src="${it.foto}" onclick="verDevImg(${i})"><button type="button" class="pay-foto-x" onclick="removerDevFoto(${i})">✕</button></div>`
+      : `<div class="pay-foto-btns"><button type="button" class="btn pay-cam-btn" onclick="devFotoAlvo=${i};document.getElementById('dev-cam-input').click()">📷 Foto</button><button type="button" class="btn pay-cam-btn" onclick="devFotoAlvo=${i};document.getElementById('dev-arq-input').click()">🖼️ Galeria</button></div>`;
+    return `<div class="prod-item">
+      <div class="prod-item-top2">
+        <span class="prod-item-lbl">Devolvido ${i+1}</span>
+        ${devItens.length>1?`<button type="button" class="prod-item-x" onclick="removerDevItem(${i})" title="Remover">✕</button>`:''}
+      </div>
+      ${fotoArea}
+      <input class="prod-legenda" placeholder="Modelo e cor, se souber (ex: Loafer Grécia castor)" value="${esc(it.legenda||'')}" oninput="setDevLegenda(${i},this.value)">
+      <label class="prod-num-lbl">Numeração *</label>
+      <div class="num-grid">${g}</div>
+    </div>`;
+  }).join('');
+}
+function addDevItem(){ devItens.push({foto:'',legenda:'',num:''}); renderDevItens(); }
+function removerDevItem(i){ devItens.splice(i,1); if(!devItens.length) devItens.push({foto:'',legenda:'',num:''}); renderDevItens(); }
+function setDevLegenda(i,v){ if(devItens[i]) devItens[i].legenda=v; }   // não re-renderiza (mantém o foco)
+function selDevNum(i,n){ if(devItens[i]){ devItens[i].num=String(n); renderDevItens(); } }
+function removerDevFoto(i){ if(devItens[i]){ devItens[i].foto=''; renderDevItens(); } }
+function verDevImg(i){ if(devItens[i]&&devItens[i].foto) mostrarImagens('Devolvido na troca',[devItens[i].foto]); }
+function carregarDevFoto(input){
+  const f=input.files && input.files[0]; if(!f) return;
+  comprimirImagem(f, 1000, 0.6).then(b64=>{ if(devItens[devFotoAlvo]){ devItens[devFotoAlvo].foto=b64; renderDevItens(); } }).catch(()=>toast('Não consegui ler a imagem'));
+  input.value='';
 }
 // formata a numeração pra exibição (trata o "S/N" como "sem numeração")
 function fmtNumEnt(n){
@@ -5452,6 +5547,13 @@ function abrirPagamento(id){
   payTroca = !!(e && (e.tipo==='troca' || e.tipo==='coleta'));   // troca/coleta: produto e comprovante ficam opcionais
   // bloco "produto que ficou": começa vazio (o entregador escreve; não puxa da vendedora)
   prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0;
+  devItens=[{foto:'',legenda:'',num:''}]; devFotoAlvo=0;
+  if(e && Array.isArray(e.devolucao) && e.devolucao.length){
+    devItens = e.devolucao.map(it=>({foto:'',legenda:it.legenda||'',num:it.num||''}));
+    const dl=devLocalGetArr(e.id);
+    if(dl.length) devItens = dl.map(it=>({foto:it.foto||'',legenda:it.legenda||'',num:it.num||''}));
+    else devCloudGet(e.id).then(arr=>{ if(payId===id && arr && arr.length){ devItens=arr.map(it=>({foto:it.foto||'',legenda:it.legenda||'',num:it.num||''})); renderDevItens(); } });
+  }
   _payFicou=null; _payItens=null; _payItensTocado=false;
   prodCadastro = (e && e.produto) || '';
   prodModo = jaFin ? (e.entregueModo || (e.entreguePresente ? 'presente' : 'manual')) : ((e && e.presente) ? 'presente' : 'manual');
@@ -5464,6 +5566,7 @@ function abrirPagamento(id){
     else { fotoProdCloudGet(e.id).then(arr=>{ if(payId===id && arr && arr.length){ prodItens=arr.map(it=>({foto:it.foto||'',legenda:it.legenda||'',num:it.num||''})); renderProdItens(); } }); }
   }
   renderProdItens();
+  renderDevItens();
   renderProdModo();
   renderPayTroca();
   $('pay-note').value = (e && e.pagamentoObs) || '';
@@ -5514,6 +5617,20 @@ function renderPayTroca(){
   w.classList.toggle('on', !!payTroca);
   if(b) b.textContent = payTroca ? '✓' : '';
   const lbl=$('pay-foto-lbl'); if(lbl) lbl.textContent = payTroca ? 'Foto do pagamento (opcional na troca)' : 'Foto do pagamento';
+  const db=$('dev-bloco'); if(db) db.style.display = payTroca ? '' : 'none';
+  const ds=$('dev-sub');
+  if(ds) ds.innerHTML = devObrigatoria()
+    ? 'Foto e numeração do que voltou com você — é com isso que o Yuri imprime a etiqueta certa.'
+    : 'Esta troca foi fechada antes desta tela existir. Se souber o que voltou, registre; não trava a correção.';
+}
+/* Obrigatório na hora de fechar. Numa troca ANTIGA sendo corrigida (já entregue e sem
+   devolução gravada) não dá pra exigir: o entregador não está mais com o par na mão, e
+   travar aí impediria de corrigir o pagamento. */
+function devObrigatoria(){
+  if(!payTroca) return false;
+  const e=entregas.find(x=>x.id===payId);
+  if(e && e.status==='entregue' && !(Array.isArray(e.devolucao)&&e.devolucao.length)) return false;
+  return true;
 }
 function togglePayTroca(){ payTroca=!payTroca; renderPayTroca(); }
 /* Sem teto: o cliente pode dividir a conta em quantas formas quiser — crédito, débito, pix
@@ -5667,7 +5784,7 @@ function renderPayFotos(){
   else { if(cb){ cb.textContent='📷 Tirar foto'; cb.classList.remove('done'); } if(ab) ab.textContent='📎 Anexar'; atualizarFotoReq(); }
 }
 function removerPayFoto(i){ payFotos.splice(i,1); renderPayFotos(); }
-function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; payTrocoTeve=null; payTrocoVal=''; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; prodModo='manual'; prodCadastro=''; _payItens=null; _payItensTocado=false; const pn=$('prod-note'); if(pn) pn.value=''; }
+function closePay(){ $('pay-modal').classList.remove('open'); payId=null; paySel=[]; payFotos=[]; payVal={}; payCartaoTipo=null; payTaxa=false; payTaxaVal=0; payTrocoTeve=null; payTrocoVal=''; prodItens=[{foto:'',legenda:'',num:''}]; prodFotoAlvo=0; prodModo='manual'; prodCadastro=''; devItens=[{foto:'',legenda:'',num:''}]; devFotoAlvo=0; _payItens=null; _payItensTocado=false; const pn=$('prod-note'); if(pn) pn.value=''; }
 function mostrarFaltando(pag, prod){
   pag = pag||[]; prod = prod||[];
   const grupo = (titulo, itens) => itens.length
@@ -5697,6 +5814,15 @@ function confirmarPagamento(){
     else prodItens.forEach((it,i)=>{
       if(!it.num) faltaProd.push(`Produto ${i+1}: numeração`);
       if(!it.foto && !(it.legenda||'').trim()) faltaProd.push(`Produto ${i+1}: descrição ou foto`);
+    });
+  }
+  // troca/coleta: o que o cliente devolveu é obrigatório — foto E numeração de cada peça
+  if(devObrigatoria()){
+    const usados = devItens.filter(it=>it.foto||it.num||(it.legenda||'').trim());
+    if(!usados.length) faltaProd.push('O que o cliente devolveu: foto e numeração');
+    else usados.forEach((it,i)=>{
+      if(!it.foto) faltaProd.push(`Devolvido ${i+1}: foto`);
+      if(!it.num)  faltaProd.push(`Devolvido ${i+1}: numeração`);
     });
   }
   // "Produto único" / "Presente" NÃO travam mais sem produto cadastrado:
@@ -5763,6 +5889,19 @@ function confirmarPagamento(){
     e.qtdFotosProduto = 0;
     e.temFotoProduto = false;
     salvarFotoProduto(e.id, []);                    // limpa fotos de produto antigas
+  }
+  /* O que voltou na troca. No documento da entrega ficam só o texto e a numeração (leve, é o
+     que o Yuri lê na conferência); a foto vai pro storage paralelo, como a do produto. */
+  if(payTroca){
+    const devSalvar = devItens.filter(it=>it.foto||it.num||(it.legenda||'').trim())
+      .map(it=>({foto:it.foto||'', legenda:(it.legenda||'').trim(), num:it.num||''}));
+    if(devSalvar.length){
+      e.devolucao = devSalvar.map(it=>({legenda:it.legenda, num:it.num, temFoto:!!it.foto}));
+      e.temFotoDevolucao = devSalvar.some(it=>it.foto);
+      salvarFotoDevolucao(e.id, devSalvar);
+    } else if(e.devolucao){ e.devolucao=null; e.temFotoDevolucao=false; removerFotoDevolucao(e.id); }
+  } else if(e.devolucao){          // desmarcou a troca na correção: o que voltou deixa de valer
+    e.devolucao=null; e.temFotoDevolucao=false; removerFotoDevolucao(e.id);
   }
   delete e.comprovante;                         // a foto NUNCA fica dentro do array (pesa demais)
   if(payFotos.length){ const ok=salvarComprovante(e.id, payFotos); e.temComprovante=true; if(!ok && !(FIREBASE_ON&&fdb)) toast('Sem espaço local p/ a(s) foto(s) — entrega salva mesmo assim'); }
@@ -6330,6 +6469,7 @@ function cardEntregue(e){
       ${(detalhaVolta(e)&&itensDe(e)) || !(e.produtoEntregue||e.numeracaoEntregue||e.temFotoProduto) ? ''
         : `<div class="row"><span class="ico">👟</span><span>Ficou com: ${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`}
       ${sacolaHTML(e,true) || ((e.produto||e.valor)?`<div class="row"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:'')}
+      ${devolucaoHTML(e,true)}
       ${e.pagamentoObs?`<div class="row"><span class="ico">📝</span><span>${esc(e.pagamentoObs)}</span></div>`:''}
       <div class="row"><span class="ico">🛵</span><span>${ent.nome}${e.entregueEm?` · finalizada às <b>${fmtClock(e.entregueEm)}</b>`:''}${dur?` · em ${dur}`:''}</span></div>
       ${e.vendedora?`<div class="row"><span class="ico">👤</span><span class="vend">${esc(e.vendedora)}</span></div>`:''}
@@ -9424,6 +9564,7 @@ function fcard(e){
         : `<div class="frow"><span class="ico">👟</span><span>Ficou com: <b>${esc([e.produtoEntregue,fmtNumEnt(e.numeracaoEntregue)].filter(Boolean).join(' · '))}</b>${e.temFotoProduto?` <button class="btn btn-ghost btn-mini" onclick="verFotoProduto('${e.id}')">📷 ver foto${(e.qtdFotosProduto||1)>1?'s':''}</button>`:''}</span></div>`}
       ${sac || ((e.produto||e.valor)?`<div class="frow"><span class="ico">🧾</span><span>${prodValorHtml(e)}</span></div>`:'')}
       ${sac ? '' : voltouHTML(e)}
+      ${devolucaoHTML(e)}
       ${e.obsProduto?`<div class="frow"><span class="ico">📝</span><span><b>Obs. do entregador:</b> ${esc(e.obsProduto)}</span></div>`:''}
     </div></div>
 
