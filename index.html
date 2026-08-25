@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v213">
+<meta name="app-ver" content="v214">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -4481,7 +4481,10 @@ function assinarCatalogo(){
 }
 const CAT_ABREV={slp:'slipper',slphw:'slipper hawai',snk:'sneaker',sneker:'sneaker',lfr:'loafer',
   drb:'derby',brk:'birken',hw:'hawai',hk:'hong kong',ny:'nova york',bs:'bota social',
-  wc:'social wholecut',wholecut:'social wholecut',holly:'hollywood',tok:'tokyo'};
+  wc:'social wholecut',wholecut:'social wholecut',holly:'hollywood',tok:'tokyo',
+  /* "Chinela de Couro Preto 38" é o Slipper Couro — é assim que a cliente fala e assim que a
+     vendedora escreve. Sem isto a linha ficava sem modelo. */
+  chinela:'slipper',chinelo:'slipper',chinelas:'slipper',chinelos:'slipper'};
 const CAT_CORAB={vd:'verde',pr:'preto',ab:'all black',off:'off white',pt:'preto',preta:'preto',
   mar:'marfim',am:'azul marinho',caf:'cafe',gt:'grafite',car:'caramelo',bra:'branco',branca:'branco'};
 /* mesma cor, nomes diferentes: "branco" e "All White" são a mesma coisa. Só vale quando o
@@ -4504,6 +4507,10 @@ function _catV(){
     _itNorm(m.nome).split(' ').forEach(w=>{ if(w.length>3){ (modpal[w]=modpal[w]||{})[m.id]=1; } });
   });
   Object.values(CAT_CORAB).forEach(v=>_itNorm(v).split(' ').forEach(w=>cores[w]=1));
+  /* "preta" e "branca" também são cor. Só o valor do apelido entrava ("preto"), então
+     "Bota Urbana Café e Preta 39" enxergava uma cor só e não virava dois pares. As curtas
+     (pr, pt, ab, am…) ficam de fora: com 3 letras viram ruído. */
+  Object.keys(CAT_CORAB).forEach(k=>{ if(k.length>3) cores[k]=1; });
   _catVoc={cores,modpal}; return _catVoc;
 }
 function _catExp(t){
@@ -4518,6 +4525,33 @@ function _catSim(a,b){
     if(!us[j] && a[i]===b[j] && Math.abs(i-j)<=2){ us[j]=1; m++; break; }
   return (2*m)/(a.length+b.length);
 }
+/* Distância de edição (com troca de letras vizinhas), UM erro no máximo. Parecença por
+   sobreposição não servia aqui: "antes"~"atenas" dá 0,91, o mesmo de "hawaii"~"hawai" — e
+   "antes as 13:00", que é horário, virava um par Sneaker Atenas na sacola. Por distância,
+   hawaii→hawai é 1 e antes→atenas é 3. Palavra curta só casa exata: com 4 letras quase tudo
+   está a um erro de tudo ("cada"→"cara", "couro"→"ouro"). */
+function _dist1(a,b){
+  const la=a.length, lb=b.length;
+  if(Math.abs(la-lb)>1) return 9;
+  let p2=null, p=[], c;
+  for(let j=0;j<=lb;j++) p[j]=j;
+  for(let i=1;i<=la;i++){
+    c=[i]; let melhor=i;
+    for(let j=1;j<=lb;j++){
+      const k = a[i-1]===b[j-1] ? 0 : 1;
+      let v = Math.min(c[j-1]+1, p[j]+1, p[j-1]+k);
+      if(i>1 && j>1 && a[i-1]===b[j-2] && a[i-2]===b[j-1]) v=Math.min(v, p2[j-2]+1);
+      c[j]=v; if(v<melhor) melhor=v;
+    }
+    if(melhor>1) return 9;
+    p2=p; p=c;
+  }
+  return p[lb];
+}
+function _quaseIgual(a,b){ return a===b || (a.length>=5 && b.length>=5 && _dist1(a,b)<=1); }
+/* Palavras que são português comum antes de serem nome de modelo. Podem restringir a busca,
+   nunca identificar um modelo sozinhas. */
+const _GENERICA={sapato:1,sapatos:1,calcado:1,calcados:1,couro:1,sola:1,solado:1,borracha:1};
 /* mesma lógica da Central de Estoque: acha o modelo e, se der, a cor */
 function catCasar(nome){
   if(!catalogo.length) return {};
@@ -4530,6 +4564,35 @@ function catCasar(nome){
     for(const o of mods){ const ws=o.n.split(' ');
       if(ws.every(w=>pal.indexOf(w)>=0) && ws.length>maisN){ maisN=ws.length; mod=o.m; } } }
   if(!mod) for(const o of mods) if(t.indexOf(o.n)>=0){ mod=o.m; break; }
+  /* "Berlim 41 azul e verde", "Hawaii marfim 40": ela escreve como fala — sem a categoria na
+     frente e às vezes com um i a mais. Uma palavra que só existe em UM modelo do catálogo já
+     identifica ele sozinha, e um errinho de digitação não pode custar o casamento.
+     Só vale quando sobra UM: "Katar" está em três modelos (Derby, Loafer e Loafer Gravata) e
+     continua ambíguo, que é o certo — aí quem decide é o Yuri, com o sapato na mão. */
+  if(!mod){
+    const chaves=Object.keys(V.modpal);
+    /* O perdão ao erro de digitação só vale em linha que PARECE produto — com numeração, ou
+       já trazendo uma palavra exata do catálogo. Sem isso "vinho de brinde" virava Slipper
+       Linho e "Porta Cartão Wisk" virava Dockside Porto: recado virando par na sacola. */
+    const exatas=pal.filter(w => w.length>3 && V.modpal[w] && !V.cores[w]);
+    _RXNUM.lastIndex=0;                                  // a regex é global: rebobinar ANTES
+    const pareceProduto = exatas.length>0 || _RXNUM.test(t);
+    _RXNUM.lastIndex=0;
+    const escritas=pal.filter(w=>{
+      if(w.length<=3 || V.cores[w]) return false;
+      if(V.modpal[w]) return true;
+      return pareceProduto && chaves.some(k=>_quaseIgual(w,k));
+    });
+    /* "sapato" só existe em "Protetor de Sapato" e "couro" só em "Slipper Couro" — mas as
+       duas são palavra de português antes de serem nome de modelo. Sozinhas fariam "Sapato
+       Grafite 40" virar protetor e os 14 "Cinto Couro Preto" da base virarem slipper. Elas
+       continuam RESTRINGINDO ("Slipper Couro Preto" casa certo); só não identificam sozinhas. */
+    if(escritas.length && escritas.some(w=>!_GENERICA[w])){
+      const cabem=mods.filter(o=>{ const ws=o.n.split(' ');
+        return escritas.every(w=>ws.some(x=>_quaseIgual(w,x))); });
+      if(cabem.length===1) mod=cabem[0].m;
+    }
+  }
   if(!mod){
     const livres=pal.filter(w=>w.length>2 && !V.cores[w]);
     const pont=[];
