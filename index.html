@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v208">
+<meta name="app-ver" content="v209">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -5866,8 +5866,15 @@ function renderPendentes(){
   if(naoLanc.length){
     html += `<div class="pend-part${_pendOpen.nl?'':' collapsed'}" id="pend-head-nl" onclick="togglePend('nl')"><div class="n">1</div><div class="t">Não lançadas no sistema<small>Entregas concluídas que ainda faltam lançar no Kigi</small></div><div class="c">${naoLanc.length} a lançar</div><span class="pend-chev">▾</span></div>`;
     html += `<div id="pend-body-nl"${_pendOpen.nl?'':' style="display:none"'}>` + naoLanc.map(e=>{
-      const dias=_diasAtras(dataDe(e));
-      const quando = dias<=0 ? 'hoje' : `há ${dias} dia${dias>1?'s':''}`;
+      /* A Ale pediu pra ver a DATA, não só "há quantos dias" — quando ela vai lançar no Kigi
+         ela precisa saber o dia certo, e "há 3 dias" obriga a contar de cabeça.
+         De quebra: _diasAtras nunca devolve 0 (tem um Math.max(1,…)), então a entrega de
+         hoje aparecia como "há 1 dia". Agora compara o dia direto. */
+      const _dk=dataDe(e);
+      const dias=_diasAtras(_dk);
+      const quando = (_dk===todayKey()) ? 'hoje' : `há ${dias} dia${dias>1?'s':''}`;
+      const _p=String(_dk||'').split('-');
+      const dataTxt = _p.length===3 ? ` · ${_p[2]}/${_p[1]}` : '';
       const vN=_vNum(e.valor);
       const valTag = vN>0 ? ` <span class="pend-val">${fmtBRL(vN)}</span>` : '';
       const vnd = (session.geral && e.vendedora) ? ` · 👤 ${esc(e.vendedora)}` : '';
@@ -5875,7 +5882,10 @@ function renderPendentes(){
       const acao = bloqDinheiro(e)
         ? `<span class="pend-b sis" style="opacity:.55;cursor:default" title="Libera quando o entregador entregar o dinheiro na loja">🔒 Aguardando o dinheiro na loja</span>`
         : `<button class="pend-b sis" onclick="toggleLancado('${e.id}')">☐ Marcar: lançado no sistema</button>`;
-      return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b>${valTag}<small>${quando}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}</small></div><div class="pend-acts">${acao}</div></div>`;
+      /* Falar com o cliente aqui também: ela está com a lista na mão, e quase sempre o que
+         trava o lançamento é uma dúvida com ele. O botão já existia — só não tinha sido
+         posto nesta parte. */
+      return `<div class="pend-row"><div class="pend-info"><b>${esc(e.cliente)}</b>${valTag}<small>${quando}${dataTxt}${e.bairro?` · ${esc(e.bairro)}`:''}${vnd}</small></div><div class="pend-acts">${pendWaBtns(e)}${acao}</div></div>`;
     }).join('') + `</div>`;
   }
 
