@@ -33,7 +33,7 @@
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v214">
+<meta name="app-ver" content="v215">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -364,6 +364,10 @@
   /* ---- rolebar ---- */
   .rolebar{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text-soft);background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:7px 7px 7px 13px}
   .rolebar b{color:var(--text)}
+  /* o gestor por outra porta: fica marcado, pra ele nunca esquecer em nome de quem está agindo */
+  .rb-gestor{font-family:var(--ff-eyebrow);font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+    color:#111;background:var(--gold);border-radius:5px;padding:2px 6px;margin-right:2px}
+  body.como-gestor .rolebar{border-color:rgba(212,180,90,.55);background:rgba(212,180,90,.07)}
 
   /* ---- login / tela de entrada (estética da Central de Metas) ---- */
   .login{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:calc(48px + env(safe-area-inset-top,0px)) 22px calc(40px + env(safe-area-inset-bottom,0px));overflow-y:auto;
@@ -1605,6 +1609,7 @@
       </div>
       <div id="rolebar" class="rolebar" style="display:none">
         <span id="role-label"></span>
+        <button class="btn btn-ghost btn-mini" id="btn-visao" onclick="trocarVisaoGestor()" style="display:none" title="Entrar como gestor, operação ou entregador">🔀 Trocar visão</button>
         <button class="btn btn-ghost btn-mini" onclick="abrirTutorial()" title="Como usar">❓ Como usar</button>
         <button class="btn btn-ghost btn-mini" onclick="logout()">Trocar</button>
       </div>
@@ -1943,7 +1948,7 @@
     <div class="login-brand">
       <div class="sel-eyebrow">Central de Entregas</div>
       <h1>Quem está <em>acessando</em>?</h1>
-      <p class="sel-sub">Selecione seu perfil para entrar</p>
+      <p class="sel-sub" id="login-sub">Selecione seu perfil para entrar</p>
     </div>
     <div id="login-step1">
       <div class="sel-grid sel-roles">
@@ -1963,6 +1968,26 @@
     </div>
     <div id="login-step-vend" style="display:none">
       <div class="sel-grid" id="login-vends"></div>
+      <button class="login-back" onclick="loginBack()">‹ Voltar</button>
+    </div>
+    <!-- só o gestor chega aqui, e só depois da senha: por qual porta ele quer entrar -->
+    <div id="login-step-gestor" style="display:none">
+      <div class="login-q">Entrar como</div>
+      <div class="sel-grid sel-roles">
+        <div class="sel-card" onclick="gestorEntraComo('gestor')">
+          <div class="av-wrap"><div class="sel-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><rect x="6" y="11" width="3" height="6.5" rx="0.6"/><rect x="10.5" y="7" width="3" height="10.5" rx="0.6"/><rect x="15" y="13" width="3" height="4.5" rx="0.6"/></svg></div></div>
+          <div class="sel-nome">Gestor</div><span class="sel-tag">relatórios e custos</span>
+        </div>
+        <div class="sel-card" onclick="gestorEntraComo('operacao')">
+          <div class="av-wrap"><div class="sel-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 8h13l-1 11.5H6.5L5.5 8z"/><path d="M9 8.5V6.2a3 3 0 0 1 6 0v2.3"/></svg></div></div>
+          <div class="sel-nome">Operação</div><span class="sel-tag">quadro, rotas e cadastro</span>
+        </div>
+        <div class="sel-card" onclick="gestorEntraComo('entregador')">
+          <div class="av-wrap"><div class="sel-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></div></div>
+          <div class="sel-nome">Entregador</div><span class="sel-tag">a tela da rota</span>
+        </div>
+      </div>
+      <div id="login-gestor-ents" class="sel-grid" style="display:none;margin-top:18px"></div>
       <button class="login-back" onclick="loginBack()">‹ Voltar</button>
     </div>
     <div id="login-step2" style="display:none">
@@ -9154,7 +9179,15 @@ function confirmarLoginSenha(){
   if(!pwd){ $('lm-erro').style.color='#e07070'; $('lm-erro').textContent='Digite a senha'; return; }
   // pede a permissão de notificação AGORA (dentro do toque), pros perfis que recebem avisos
   try{ if(_loginPend.session.role==='vendedora' && 'Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(_){}
-  const entrar=(nome)=>{ session=Object.assign({}, _loginPend.session); if(nome) session.vendedora=nome; _loginPend=null; $('login-modal-ov').classList.remove('open'); applyRole(); };
+  const entrar=(nome)=>{
+    const s=Object.assign({}, _loginPend.session); if(nome) s.vendedora=nome;
+    const escolher=_loginPend.escolherPorta;
+    _loginPend=null; $('login-modal-ov').classList.remove('open');
+    /* O gestor não entra direto: a senha só abre a porta, e aí ele escolhe por qual das três
+       quer passar. Guarda a chave pra ele trocar de visão depois sem digitar de novo. */
+    if(escolher){ _gestorLiberado=true; loginStepEscolhaGestor(); return; }
+    session=s; applyRole();
+  };
   if(!FIREBASE_ON || typeof firebase==='undefined'){ entrar(); return; } // offline → entra direto
   $('lm-btn').disabled=true; $('lm-erro').style.color='var(--text-mute)'; $('lm-erro').textContent='Entrando...';
   // pode haver mais de um e-mail (login compartilhado): tenta a senha em cada um
@@ -9174,7 +9207,60 @@ function confirmarLoginSenha(){
   };
   tentar();
 }
-function loginGestor(){ pedirSenha({titulo:'Gestor', foto:null, email:emailDe('__gestor__'), session:{role:'gestor',entregador:null,vendedora:null}}); }
+/* ===== o gestor escolhe por qual porta entra =====
+   Ele é o dono do painel: precisa ver o quadro como a operação vê e a rota como o entregador
+   vê, sem pedir o celular de ninguém. A senha é uma só — depois dela a troca é num toque, e
+   a barra do topo diz sempre em nome de quem ele está agindo. */
+let _gestorLiberado=false;      // digitou a senha nesta sessão do aparelho
+const GESTOR_NOME='Gregory';    // é ele que assina o que fizer entrando como operação
+function loginGestor(){
+  pedirSenha({titulo:'Gestor', foto:FOTOS[GESTOR_NOME]||null, email:emailDe('__gestor__'),
+              escolherPorta:true, session:{role:'gestor',entregador:null,vendedora:null}});
+}
+function loginStepEscolhaGestor(){
+  ['login-step1','login-step2','login-step-vend'].forEach(id=>{ const el=$(id); if(el) el.style.display='none'; });
+  $('login').style.display='flex';
+  const g=$('login-gestor-ents'); if(g){ g.style.display='none'; g.innerHTML=''; }
+  { const s=$('login-sub'); if(s) s.textContent='Você é o gestor — pode entrar por qualquer uma das três portas'; }
+  $('login-step-gestor').style.display='';
+}
+function gestorEntraComo(porta, entId){
+  if(porta==='entregador' && !entId){          // falta dizer qual entregador
+    const g=$('login-gestor-ents'); if(!g) return;
+    g.style.display='';
+    g.innerHTML = ENTREGADORES.map(e=>_selCard(e.nome, `gestorEntraComo('entregador','${e.id}')`)).join('');
+    return;
+  }
+  if(porta==='operacao') session={role:'vendedora', entregador:null, vendedora:GESTOR_NOME, geral:true, comoGestor:true};
+  else if(porta==='entregador') session={role:'entregador', entregador:entId, vendedora:null, comoGestor:true};
+  else session={role:'gestor', entregador:null, vendedora:null, comoGestor:true};
+  $('login-step-gestor').style.display='none';
+  const g=$('login-gestor-ents'); if(g){ g.style.display='none'; g.innerHTML=''; }
+  /* NÃO faz login anônimo aqui. O gestor acabou de entrar com a conta dele, que já abre as
+     entregas — trocar por anônimo só rebaixaria o acesso, e dentro da Central (mesma origem,
+     mesma sessão do Firebase) expulsaria quem estivesse logado do outro lado. Só entra como
+     anônimo se não houver ninguém autenticado. */
+  if(porta==='entregador' && FIREBASE_ON && typeof firebase!=='undefined'){
+    try{
+      if(!firebase.auth().currentUser && window.self===window.top){
+        firebase.auth().signInAnonymously().then(applyRole).catch(applyRole);
+        return;
+      }
+    }catch(_){}
+  }
+  applyRole();
+}
+/* Trocar de visão sem sair: só pra quem já provou a senha do gestor nesta sessão. */
+function trocarVisaoGestor(){
+  if(!(session && session.comoGestor)) return;
+  _gestorLiberado=true;
+  entSel.clear(); selVend.clear(); pegarSel.clear(); entTab='rota';
+  entCoord=null; filtroVend='todas'; tabAtiva='painel';
+  $('rolebar').style.display='none';
+  ['area-operacao','area-entregador','area-gestor'].forEach(id=>{ const el=$(id); if(el) el.style.display='none'; });
+  document.body.classList.remove('role-entregador','role-operacao');
+  loginStepEscolhaGestor();
+}
 function _selCard(nome, onclick, tag){
   const tem=FOTOS[nome];
   const av=`<div class="av-wrap"><div class="sel-avatar${tem?' has-foto':''}"${tem?` style="--foto:url('${tem}')"`:''}>${tem?'':esc((nome||'?')[0])}</div></div>`;
@@ -9193,7 +9279,7 @@ function loginStepEntregador(){
   $('login-step1').style.display='none'; $('login-step2').style.display='';
   $('login-ents').innerHTML = ENTREGADORES.map(e=>_selCard(e.nome, `loginEntregador('${e.id}')`)).join('');
 }
-function loginBack(){ _loginPend=null; $('login-modal-ov').classList.remove('open'); ['login-step2','login-step-vend'].forEach(id=>$(id).style.display='none'); $('login-step1').style.display=''; }
+function loginBack(){ _loginPend=null; $('login-modal-ov').classList.remove('open'); ['login-step2','login-step-vend','login-step-gestor'].forEach(id=>{ const el=$(id); if(el) el.style.display='none'; }); const s=$('login-sub'); if(s) s.textContent='Selecione seu perfil para entrar'; $('login-step1').style.display=''; }
 function loginEntregador(id){
   // entregador entra SEM senha (login anônimo, só pra liberar as entregas no Firebase)
   const entra=()=>{ session={role:'entregador',entregador:id,vendedora:null}; applyRole(); };
@@ -9207,6 +9293,7 @@ function restaurarSessao(){
   if(s.role==='entregador' && !ENT[s.entregador]) return false;
   if(_envioMode && s.role!=='vendedora') return false;   // painel de Envios: só vendedoras/operação
   session = Object.assign({role:null,entregador:null,vendedora:null,geral:false}, s);
+  if(session.comoGestor) _gestorLiberado=true;   // reabriu o painel: continua podendo trocar de visão
   applyRole();
   // garante autenticação no Firebase (anônima basta pras coleções de entregas) caso a persistência tenha caído
   if(typeof firebase!=='undefined' && FIREBASE_ON){ setTimeout(()=>{ try{ if(window.self===window.top && !firebase.auth().currentUser) firebase.auth().signInAnonymously().catch(()=>{}); }catch(_){} }, 1500); }
@@ -9215,7 +9302,9 @@ function restaurarSessao(){
 function applyRole(){
   salvarSessao();   // mantém conectado: guarda o perfil no aparelho
   $('login').style.display='none'; $('rolebar').style.display='flex';
-  document.body.classList.remove('role-entregador','role-operacao');
+  { const bv=$('btn-visao'); if(bv) bv.style.display = (session && session.comoGestor) ? '' : 'none'; }
+  document.body.classList.remove('role-entregador','role-operacao','como-gestor');
+  if(session && session.comoGestor) document.body.classList.add('como-gestor');
   $('area-operacao').style.display='none'; $('area-entregador').style.display='none'; $('area-gestor').style.display='none';
   $('tab-fin').style.display='none';
   const _rb=$('routebar'); if(_rb){ _rb.classList.remove('show'); _rb.style.display='none'; }   // barra Montar rota: só operação
@@ -9267,6 +9356,13 @@ function applyRole(){
     renderEntregador();
     usarMinhaLocalizacao(true);     // tenta ordenar já a partir de onde ele está
   }
+  /* Entrando por outra porta, o gestor age em nome de outra pessoa: o que ele cadastrar sai
+     assinado por ele, e o que finalizar sai no nome do entregador. Isso tem que estar escrito
+     na tela o tempo todo, senão vira lançamento fantasma que ninguém sabe de onde veio. */
+  if(session && session.comoGestor && session.role!=='gestor'){
+    const rl=$('role-label');
+    if(rl) rl.innerHTML = `<span class="rb-gestor">Gestor</span> vendo como ` + rl.innerHTML;
+  }
   talvezMostrarTutorial();          // mostra o guia no primeiro acesso de cada perfil
 }
 function logout(){
@@ -9282,9 +9378,10 @@ function logout(){
   const vchips=$('vend-chips'); if(vchips) vchips.style.display='';
   $('rolebar').style.display='none'; $('area-operacao').style.display='none'; $('area-entregador').style.display='none'; $('area-gestor').style.display='none';
   if(FIREBASE_ON && typeof firebase!=='undefined'){ try{ firebase.auth().signOut(); }catch(e){} }
-  _loginPend=null;
+  _loginPend=null; _gestorLiberado=false;        // sair de verdade pede a senha do gestor de novo
   $('login-modal-ov').classList.remove('open');
-  $('login-step2').style.display='none'; $('login-step-vend').style.display='none'; $('login-step1').style.display=''; $('login').style.display='flex';
+  ['login-step2','login-step-vend','login-step-gestor'].forEach(id=>{ const el=$(id); if(el) el.style.display='none'; });
+  $('login-step1').style.display=''; $('login').style.display='flex';
 }
 function minhasEntregas(){ return entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e)===diaEnt); }
 function rotaEntHoje(){ return entregas.filter(e=>e.status==='em_rota' && e.entregador===session.entregador && dataDe(e)===todayKey()); }
