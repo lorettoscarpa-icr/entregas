@@ -285,6 +285,15 @@
   .falar-opt.wa{background:rgba(127,174,107,.16);color:var(--calm);border-color:rgba(127,174,107,.45)}
   .falar-opt.tel{background:rgba(111,176,166,.16);color:var(--teal);border-color:rgba(111,176,166,.45)}
   .falar-cancel{margin-top:2px;background:none;border:none;color:var(--text-mute);font-size:14px;cursor:pointer;padding:8px}
+  /* convite de mandar o rastreio, logo depois de cadastrar */
+  .rast-modal .falar-opt:not(.wa){background:rgba(212,180,90,.10);color:var(--gold-lt);border-color:rgba(212,180,90,.42)}
+  .rast-ok{font-family:var(--ff-eyebrow);font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--calm);margin-bottom:12px}
+  .rast-semtel{font-size:13px;color:var(--warn);background:rgba(224,179,65,.10);border:1px solid rgba(224,179,65,.34);
+    border-radius:11px;padding:10px 12px;margin-bottom:11px;line-height:1.4}
+  .badge-rast{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;letter-spacing:.04em;
+    background:rgba(127,174,107,.14);color:var(--calm);border:1px solid rgba(127,174,107,.36);
+    border-radius:999px;padding:2px 8px;white-space:nowrap}
   .foto-loc-preview{margin-top:10px;display:flex;align-items:center;gap:12px}
   .foto-loc-preview img{width:92px;height:92px;object-fit:cover;border-radius:12px;border:1px solid var(--line-strong);cursor:pointer}
   .foto-loc-x{background:none;border:none;color:var(--urgent);font-size:13px;cursor:pointer;padding:6px}
@@ -5193,7 +5202,8 @@ async function saveEntrega(){
   if(fotoLocPendente){ salvarFotoLocal(novoId, fotoLocPendente); }
   if(dataEntrega!==diaAtivo) diaAtivo=dataEntrega; // mostra o dia onde a entrega entrou
   persist(); refreshVendChips(); clearForm(); togglePanel(false); animateNext(); render();
-  toast(coord?'Entrega cadastrada ✓':'Entrega cadastrada (sem localização no mapa)');
+  if(!coord) toast('Entrega cadastrada (sem localização no mapa)');
+  abrirRastreioPopup(novoId);   // o convite de mandar o rastreio entra no lugar do "cadastrada ✓"
 }
 /* ===== comprovantes guardados FORA do array de entregas =====
    A foto (base64) é pesada. Mantê-la dentro do array fazia o persist() reserializar
@@ -6597,7 +6607,7 @@ function cardAguardando(e){
           ${timerHTML}
         </div>
         ${hrBadge(e)?`<div class="card-hr">${hrBadge(e)}</div>`:''}
-        <div class="card-badges">${atrasoTag(e)}${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
+        <div class="card-badges">${atrasoTag(e)}${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${rastBadge(e)}</div>
       </div>
       <button class="vtoggle" onclick="event.stopPropagation();toggleVcard('${e.id}')" aria-label="${aberto?'Minimizar':'Ver mais informações'}">${aberto?'–':'+'}</button>
     </div>
@@ -6614,7 +6624,7 @@ function cardAguardando(e){
         ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
         ${podeMexer(e)?`
         ${waNumero(e.contato)?`<a class="lnk wa" href="https://wa.me/${waNumero(e.contato)}" target="_blank">${WA_ICON} WhatsApp</a>`:'<span class="lnk disabled">sem telefone</span>'}
-        ${waNumero(e.contato)?`<a class="lnk" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank" title="Mandar o link de acompanhamento">📍 Rastreio</a>`:''}
+        ${waNumero(e.contato)?`<a class="lnk" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank" title="Mandar o link de acompanhamento" onclick="marcarRastreioEnviado('${e.id}','wa')">📍 Rastreio${e.rastreioEnviado?' ✓':''}</a>`:''}
         <button class="iconbtn" onclick="abrirReag('${e.id}')" title="Reagendar">📅</button>
         <button class="iconbtn" onclick="abrirDesfecho('${e.id}','cancelado')" title="Não comprou">✕</button>
         <button class="iconbtn" onclick="editar('${e.id}')" title="Editar">✎</button>
@@ -6638,7 +6648,7 @@ function cardRota(e){
           <span class="timer ${urgClass(min)}" data-ts="${e.criadoEm}">${fmtDur(min)}</span>
         </div>
         ${hrBadge(e)?`<div class="card-hr">${hrBadge(e)}</div>`:''}
-        <div class="card-badges">${atrasoTag(e)}${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}</div>
+        <div class="card-badges">${atrasoTag(e)}${tipoBadge(e)}${pagBadge(e)}${taxaBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${rastBadge(e)}</div>
       </div>
       <button class="vtoggle" onclick="event.stopPropagation();toggleVcard('${e.id}')" aria-label="${aberto?'Minimizar':'Ver mais informações'}">${aberto?'–':'+'}</button>
     </div>
@@ -6651,7 +6661,7 @@ function cardRota(e){
       </div>
       <div class="card-actions norail">
         ${e.link?`<a class="lnk" href="${esc(e.link)}" target="_blank">🔗 Mapa</a>`:''}
-        ${waNumero(e.contato)?`<a class="lnk" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank" title="Mandar o link de acompanhamento">📍 Rastreio</a>`:''}
+        ${waNumero(e.contato)?`<a class="lnk" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank" title="Mandar o link de acompanhamento" onclick="marcarRastreioEnviado('${e.id}','wa')">📍 Rastreio${e.rastreioEnviado?' ✓':''}</a>`:''}
         ${podeMexer(e)?`
         <button class="btn btn-ghost btn-mini" onclick="marcarEntregue('${e.id}')">✓ Entregue</button>
         <button class="iconbtn" onclick="editar('${e.id}')" title="Editar / acrescentar item">✎</button>
@@ -9526,7 +9536,56 @@ function idDeToken(tok){ const m=/^LSR1\|(.+)\|(\d+)$/.exec(_ub64u(tok)); if(!m)
 function linkRastreio(e){ const base=(TRACK_BASE||location.href.split('?')[0].split('#')[0]).replace(/#.*$/,''); return base + '#acompanhar/' + tokenRastreio(e.id); }
 function msgRastreio(e){
   const nome=(e.cliente||'').trim().split(/\s+/)[0];
+  /* Antes de sair pra rota a mensagem não pode dizer que já saiu: o cliente abriria o link e
+     leria "Preparando seu pedido", que é o contrário do que acabou de receber. */
+  if(e && e.status==='aguardando'){
+    return `${nome?nome+', o':'O'} seu pedido na Loretto Scarpa foi registrado! ✔️\n\n`+
+      `Acompanhe por aqui — assim que sair para entrega, você vê o entregador no mapa em tempo real:\n${linkRastreio(e)}\n\n`+
+      `Qualquer dúvida é só chamar. 💛`;
+  }
   return `${nome?nome+', o':'O'} seu pedido já foi separado e está em rota de entrega! ✔️\n\nAcompanhe o status da sua entrega em tempo real por aqui:\n${linkRastreio(e)}\n\nQualquer dúvida, entre em contato com o entregador responsável através do "Falar com o entregador", que está disponível no link.`;
+}
+/* ===== o convite pra mandar o rastreio, na hora do cadastro =====
+   O link existe desde sempre, mas dependia de a vendedora lembrar de procurar o botão no
+   card depois. Cadastrou, aparece aqui: um toque manda, um toque fecha. */
+function abrirRastreioPopup(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  fecharRastreioPopup();
+  const num=waNumero(e.contato);
+  const nome=(e.cliente||'').trim().split(/\s+/)[0]||'o cliente';
+  const wa = num ? `https://wa.me/${num}?text=${encodeURIComponent(msgRastreio(e))}` : '';
+  const bg=document.createElement('div'); bg.id='rast-bg'; bg.className='modal-bg open';
+  bg.innerHTML = `<div class="falar-modal rast-modal">
+    <div class="rast-ok">✓ Entrega cadastrada</div>
+    <div class="falar-titulo">Mandar o rastreio para ${esc(nome)}?</div>
+    <div class="falar-sub">Ele acompanha o pedido no mapa, em tempo real, do celular dele.</div>
+    ${num
+      ? `<a class="falar-opt wa" href="${wa}" target="_blank" onclick="marcarRastreioEnviado('${e.id}','wa')">${WA_ICON} Mandar no WhatsApp</a>`
+      : `<div class="rast-semtel">Esta entrega não tem telefone — copie o link e mande por onde falar com ${esc(nome)}.</div>`}
+    <button class="falar-opt" onclick="copiarLinkRastreio('${e.id}')">🔗 Copiar o link</button>
+    <button class="falar-cancel" onclick="fecharRastreioPopup()">Agora não</button>
+  </div>`;
+  bg.addEventListener('click', ev=>{ if(ev.target===bg) fecharRastreioPopup(); });
+  document.body.appendChild(bg);
+}
+function fecharRastreioPopup(){ const el=$('rast-bg'); if(el) el.remove(); }
+/* No card fechado, pra ela varrer a lista e ver quem já recebeu sem abrir um por um. */
+function rastBadge(e){
+  return e && e.rastreioEnviado ? '<span class="badge-rast" title="O cliente já recebeu o link de acompanhar">📍 rastreio enviado</span>' : '';
+}
+function marcarRastreioEnviado(id, via){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  e.rastreioEnviado=Date.now();
+  e.rastreioEnviadoPor=(session&&session.vendedora)||'';
+  persist(); render();
+  fecharRastreioPopup();
+  if(via==='copia') toast('🔗 Link copiado — cole na conversa com o cliente');
+}
+async function copiarLinkRastreio(id){
+  const e=entregas.find(x=>x.id===id); if(!e) return;
+  const url=linkRastreio(e);
+  try{ await navigator.clipboard.writeText(url); marcarRastreioEnviado(id,'copia'); }
+  catch(_){ fecharRastreioPopup(); prompt('Copie o link de rastreio:', url); marcarRastreioEnviado(id,'prompt'); }
 }
 // link de TRANSMISSÃO do entregador (abre a página de rastreio em modo "compartilhar GPS")
 function _chkPayload(s){ let n=0; const x='LSx'+s; for(let i=0;i<x.length;i++) n=(n*31+x.charCodeAt(i))%100000; return n; }
@@ -9634,7 +9693,7 @@ function vcard(e, eta){
   return `<div data-eid="${e.id}" class="vcard ${aberto?'open':'mini'} ${_selv?'sel':''}" style="border-left-color:${accent}">
     <div class="vhead" onclick="toggleVcard('${e.id}')">
       <div class="vhead-content">
-        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${sisTag}${atrasoTag(e)}${timerTag}</div>
+        <div class="vcard-top">${_podeSel?`<button class="vcard-check ${_selv?'on':''}" onclick="event.stopPropagation();toggleSelVend('${e.id}')" aria-label="Selecionar para enviar">${_selv?'✓':''}</button>`:''}${badge}${pagBadge(e)}${e.presente?'<span class="vbadge presente">🎁 Presente</span>':''}${sisTag}${rastBadge(e)}${atrasoTag(e)}${timerTag}</div>
         <div class="vhead-name">${esc(e.cliente)}</div>
         ${track}
       </div>
@@ -9658,7 +9717,7 @@ function vcard(e, eta){
         ${(!!session.geral && podeMexer(e)&&e.status==='aguardando')?`<button class="vbtn primary" onclick="enviarParaEntregador('${e.id}')">🛵 Enviar para entregador</button>`:''}
         ${['entregue','nao_entregue','cancelado'].includes(e.status)
           ? (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgPosVenda(e))}" target="_blank">${WA_ICON} Realizar pós-venda</a>`:'<span class="vbtn disabled">sem telefone</span>')
-          : (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank">📍 Enviar rastreio</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
+          : (waNumero(e.contato)?`<a class="vbtn wa" href="https://wa.me/${waNumero(e.contato)}?text=${encodeURIComponent(msgRastreio(e))}" target="_blank" onclick="marcarRastreioEnviado('${e.id}','wa')">📍 ${e.rastreioEnviado?'Reenviar rastreio ✓':'Enviar rastreio'}</a>`:'<span class="vbtn disabled">sem telefone p/ avisar</span>')}
         ${telEnt(e.entregador)?`<button class="vbtn ghost" onclick="falarEntregador('${e.id}')">${WA_ICON} Falar com o entregador</button>`:''}
         ${e.link?`<a class="vbtn ghost" href="${esc(e.link)}" target="_blank">🧭 Ver no mapa</a>`:''}
         ${(podeMexer(e)&&(e.status==='aguardando'||e.status==='em_rota'))?`<button class="vbtn ghost" onclick="editar('${e.id}')">✎ Editar</button>`:''}
