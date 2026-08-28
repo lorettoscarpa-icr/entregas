@@ -9303,6 +9303,11 @@ function restaurarSessao(){
   if(s.role==='entregador' && !ENT[s.entregador]) return false;
   if(_envioMode && s.role!=='vendedora') return false;   // painel de Envios: só vendedoras/operação
   session = Object.assign({role:null,entregador:null,vendedora:null,geral:false}, s);
+  /* Quem já estava conectado como gestor NÃO passa pela tela de entrada — e sem esta linha
+     ficava preso nos relatórios: a escolha das três portas não aparecia (o login nem abre) e
+     o botão de trocar visão também não, porque a sessão gravada é anterior a ele. Sessão de
+     gestor É gestor: a senha já foi dada quando ela foi criada. */
+  if(session.role==='gestor') session.comoGestor=true;
   if(session.comoGestor) _gestorLiberado=true;   // reabriu o painel: continua podendo trocar de visão
   applyRole();
   // garante autenticação no Firebase (anônima basta pras coleções de entregas) caso a persistência tenha caído
