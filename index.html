@@ -2792,10 +2792,13 @@ function coordFrom(url){
 // melhor link de mapa pro entregador: usa o pin se houver; senão joga o endereço/nome no Google Maps (ele resolve no celular)
 function mapaHref(e){
   if(!e) return '';
-  const txt0 = [e.endereco, e.bairro, e.cidade].filter(Boolean).join(', ').trim();
+  /* Endereço que na verdade é coordenada/link colado não serve de busca no Maps — só polui.
+     Fica de fora do texto, e o bairro/cidade seguram a busca. */
+  const _end = _ehEnderecoEscrito(e.endereco) ? e.endereco : '';
+  const txt0 = [_end, e.bairro, e.cidade].filter(Boolean).join(', ').trim();
   /* Pino aproximado é o centro do SETOR, não a casa. Havendo endereço escrito, ele navega
      melhor que a coordenada: mandar o entregador pro meio do bairro é pior que não mandar. */
-  const aprox = !!(e.coordAprox && String(e.endereco||'').trim());
+  const aprox = !!(e.coordAprox && _end);
   const c = aprox ? null : (e.coord || coordFrom(e.link||''));
   if(c) return `https://www.google.com/maps?q=${c.lat},${c.lng}`;     // 1) tem coordenada → pin exato
   const txt = txt0;
@@ -10078,7 +10081,8 @@ function cardPegar(e){
         ${(e.horarioTipo&&e.horarioHora)?`<span class="pegar-hora">⏰ ${esc(hrTxt(e))}</span>`:''}
         <span class="pegar-vend">👤 ${esc(e.vendedora||'—')} · há ${fmtDur(min)}</span>
       </div>
-      ${e.link?`<a class="pegar-mapa" href="${esc(e.link)}" target="_blank" onclick="event.stopPropagation()">🧭 Ver no mapa</a>`:''}
+      ${(()=>{ /* mesma correção do card da rota: sem link exato, o endereço escrito ainda navega */
+        const h=mapaHref(e); return h?`<a class="pegar-mapa" href="${esc(h)}" target="_blank" onclick="event.stopPropagation()">🧭 Ver no mapa</a>`:''; })()}
     </div>
   </div>`;
 }
@@ -10600,13 +10604,27 @@ let locReqId=null;
 function pedirLocalizacao(id){ _pedirAoCliente(id,'local'); }
 function pedirEndereco(id){ _pedirAoCliente(id,'endereco'); }
 function pedirLocalEndereco(id){ _pedirAoCliente(id,'ambos'); }
+/* Endereço ESCRITO é rua, número, bloco, apartamento — o que o pin não diz.
+   Em 110 entregas da base o campo vinha com a coordenada ou o link colado ("Coordenadas:
+   -16.70, -49.25", "https://maps.app.goo.gl/..."): o cliente mandou o pin e o pin foi parar
+   no campo do endereço. O sistema lia aquilo como endereço, então o entregador chegava no
+   prédio sem saber o apartamento e não tinha como pedir. */
+function _ehEnderecoEscrito(txt){
+  let s=String(txt||'').trim(); if(!s) return false;
+  s=s.replace(/https?:\/\/\S+/gi,' ')
+     .replace(/\bmaps\.(app\.goo\.gl|google\.com)\S*/gi,' ')      // link colado sem o http
+     .replace(/\bcoord(enadas?|s)?\b\s*:?/gi,' ')                 // o rótulo "Coordenadas:"
+     .replace(/-?\d{1,3}[.,]\d{3,}\s*[,;]\s*-?\d{1,3}[.,]\d{3,}/g,' ')   // o par lat,lng
+     .replace(/[^0-9a-zA-Zà-úÀ-Ú]+/g,' ').trim();
+  return s.length>=6;                    // sobrou texto de verdade? então é endereço escrito
+}
 function _tipoPedido(e){
   /* Pino aproximado NÃO é pino. Ele marca o centro do setor, não a casa — e enquanto contava
      como localização o entregador ficava sem saída: sem navegação (o link não é gerado de
      propósito, porque levaria ao meio do bairro) e sem o botão de pedir o pin ao cliente.
      Aconteceu em 54 entregas da base. Com endereço escrito e pino do setor, o que falta é
      justamente a localização — e agora ele consegue pedir. */
-  const temPin=!!(e.link || (coordOf(e) && !e.coordAprox)), temEnd=!!(e.endereco||'').trim();
+  const temPin=!!(e.link || (coordOf(e) && !e.coordAprox)), temEnd=_ehEnderecoEscrito(e.endereco);
   if(!temPin && !temEnd) return 'ambos';
   if(!temPin) return 'local';
   if(!temEnd) return 'endereco';
