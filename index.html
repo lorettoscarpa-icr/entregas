@@ -2792,9 +2792,13 @@ function coordFrom(url){
 // melhor link de mapa pro entregador: usa o pin se houver; senão joga o endereço/nome no Google Maps (ele resolve no celular)
 function mapaHref(e){
   if(!e) return '';
-  const c = e.coord || coordFrom(e.link||'');
+  const txt0 = [e.endereco, e.bairro, e.cidade].filter(Boolean).join(', ').trim();
+  /* Pino aproximado é o centro do SETOR, não a casa. Havendo endereço escrito, ele navega
+     melhor que a coordenada: mandar o entregador pro meio do bairro é pior que não mandar. */
+  const aprox = !!(e.coordAprox && String(e.endereco||'').trim());
+  const c = aprox ? null : (e.coord || coordFrom(e.link||''));
   if(c) return `https://www.google.com/maps?q=${c.lat},${c.lng}`;     // 1) tem coordenada → pin exato
-  const txt = [e.endereco, e.bairro, e.cidade].filter(Boolean).join(', ').trim();
+  const txt = txt0;
   if(txt){                                                            // 2) joga o nome/endereço na busca do Maps (Google resolve no celular)
     const temRegiao = /(goi[âa]nia|aparecida|senador|trindade|goi[áa]s)/i.test(txt);
     const q = txt + (temRegiao ? '' : ' Goiânia GO');
@@ -10546,7 +10550,13 @@ function cardEntregadorView(p,n,fromGps,total){
     </div>
     <div class="ent-acts">
       <button class="ent-btn full" onclick="irAteCliente('${e.id}')" style="background:${e.aCaminhoDe?'rgba(127,174,107,.22)':'rgba(201,169,80,.14)'};color:${e.aCaminhoDe?'#aee0b0':'var(--gold)'};border-color:${e.aCaminhoDe?'rgba(127,174,107,.5)':'rgba(201,169,80,.4)'};font-weight:700">${e.aCaminhoDe?'🛵 Indo até este cliente ✓ — toque pra parar':'🛵 Estou indo até este cliente'}</button>
-      ${e.link ? `<a class="ent-btn map" href="${esc(e.link)}" target="_blank">🧭 Mapa</a>` : ''}
+      ${(()=>{ /* Sem link exato, o endereço escrito ainda navega: o Maps resolve "Rua 6A, 25,
+           Setor Oeste, Goiânia" no celular. Antes o card só olhava e.link, e a entrega com
+           endereço e pino aproximado não oferecia mapa nenhum. */
+        const href=mapaHref(e); if(!href) return '';
+        const exato=!!(e.link || (coordOf(e) && !e.coordAprox));
+        return `<a class="ent-btn map" href="${esc(href)}" target="_blank">${exato?'🧭 Mapa':'🧭 Buscar no mapa pelo endereço'}</a>`;
+      })()}
       ${(()=>{ const t=_tipoPedido(e); return t
         ? `<button class="ent-btn" onclick="${t==='ambos'?'pedirLocalEndereco':t==='endereco'?'pedirEndereco':'pedirLocalizacao'}('${e.id}')" style="background:rgba(142,156,214,.16);color:#aab4e8;border-color:rgba(142,156,214,.4)">${t==='ambos'?'📍 Solicitar localização e endereço':t==='endereco'?'🏠 Solicitar endereço':'📍 Solicitar localização'}</button>`
         : ''; })()}
@@ -10591,7 +10601,12 @@ function pedirLocalizacao(id){ _pedirAoCliente(id,'local'); }
 function pedirEndereco(id){ _pedirAoCliente(id,'endereco'); }
 function pedirLocalEndereco(id){ _pedirAoCliente(id,'ambos'); }
 function _tipoPedido(e){
-  const temPin=!!(e.link||coordOf(e)), temEnd=!!(e.endereco||'').trim();
+  /* Pino aproximado NÃO é pino. Ele marca o centro do setor, não a casa — e enquanto contava
+     como localização o entregador ficava sem saída: sem navegação (o link não é gerado de
+     propósito, porque levaria ao meio do bairro) e sem o botão de pedir o pin ao cliente.
+     Aconteceu em 54 entregas da base. Com endereço escrito e pino do setor, o que falta é
+     justamente a localização — e agora ele consegue pedir. */
+  const temPin=!!(e.link || (coordOf(e) && !e.coordAprox)), temEnd=!!(e.endereco||'').trim();
   if(!temPin && !temEnd) return 'ambos';
   if(!temPin) return 'local';
   if(!temEnd) return 'endereco';
