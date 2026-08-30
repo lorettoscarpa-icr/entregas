@@ -33,7 +33,7 @@
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="app-ver" content="v215">
+<meta name="app-ver" content="v216">
 <title>Loretto Scarpa · Central de Entregas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4a5c2a">
@@ -1591,9 +1591,54 @@
     .brand h1{font-size:23px}
     .pay-opts{grid-template-columns:1fr}
   }
+  /* o que o aviso da Central apontou pisca uma vez: sem isso a pessoa cai na tela certa
+     e continua procurando, que era exatamente a queixa */
+  @keyframes centralAchei{0%{box-shadow:0 0 0 0 rgba(224,179,65,.5)}100%{box-shadow:0 0 0 14px rgba(224,179,65,0)}}
+  .central-achei{animation:centralAchei 1.1s ease-out 2;border-radius:12px}
+  @media (prefers-reduced-motion:reduce){.central-achei{animation:none}}
 </style>
 </head>
 <body>
+<script>
+/* ===== Foco vindo da Central =====
+   A Central manda PARA ONDE ir quando a pessoa toca num aviso: '?foco=x' na primeira
+   abertura, ou centralFoco('x') quando este painel já está de pé no iframe.
+
+   Fica aqui em cima, em bloco próprio, por dois motivos que já morderam: solto no meio
+   do script principal, qualquer erro anterior deixava a função sem existir; e aplicado
+   cedo demais, o boot ainda ia chamar a aba padrão por último e engolir o foco. Então
+   o foco espera o painel avisar que terminou de subir (centralFocoPronto). */
+(function(){
+  var pedido=null, pronto=false;
+  window.centralFoco=function(f){ if(f)pedido=f; aplicar(); };
+  window.centralFocoPronto=function(){
+    pronto=true;
+    try{ var q=new URLSearchParams(location.search).get('foco'); if(q&&!pedido)pedido=q; }catch(e){}
+    aplicar();
+  };
+  /* cada passo por conta própria: trocar de aba e destacar o bloco são coisas
+     independentes, e uma falhando não pode levar a outra junto */
+  function tenta(fn){ try{ fn(); }catch(e){} }
+  function piscar(el){
+    if(!el)return;
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.classList.remove('central-achei'); void el.offsetWidth; el.classList.add('central-achei');
+    setTimeout(function(){ el.classList.remove('central-achei'); },2600);
+  }
+  function alvos(f,pisca){
+    if(f==='pendentes'){ tenta(function(){ switchTab('pendentes'); }); window.scrollTo({top:0,behavior:'smooth'}); return; }
+    if(f==='aguardando'){ tenta(function(){ switchTab('painel'); });
+      var l=document.getElementById('list-aguard');
+      pisca(l&&l.closest?l.closest('.col'):l); }
+  }
+  function aplicar(){
+    if(!pronto||!pedido)return;
+    var f=pedido; pedido=null;
+    try{ alvos(f,piscar); }catch(e){}
+  }
+})();
+</script>
+
 <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
 
 <div class="wrap">
@@ -9386,6 +9431,8 @@ function applyRole(){
     if(rl) rl.innerHTML = `<span class="rb-gestor">Gestor</span> vendo como ` + rl.innerHTML;
   }
   talvezMostrarTutorial();          // mostra o guia no primeiro acesso de cada perfil
+  /* tela montada: agora um foco vindo da Central pode ser aplicado sem ser engolido */
+  try{ if(window.centralFocoPronto) centralFocoPronto(); }catch(e){}
 }
 function logout(){
   try{ localStorage.removeItem('loretto_session'); }catch(_){}   // esquece o "manter conectado"
