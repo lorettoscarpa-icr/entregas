@@ -1539,6 +1539,8 @@
   .junto-pmot{font-size:13.5px;color:var(--text-soft);margin:18px 0 10px;font-weight:600}
   /* trava do GPS na hora de finalizar — abre POR CIMA da janela de pagamento */
   #gps-trava-modal{z-index:90}
+  #gps-trava-modal .junto-txt{text-align:center}
+  #gps-trava-modal .junto-quem:empty{margin:0}
   .gps-trava-link{display:block;width:100%;margin-top:14px;background:none;border:0;cursor:pointer;
     font:inherit;font-size:12.5px;color:var(--text-mute);text-decoration:underline}
   .gps-trava-aviso{font-size:12.5px;color:var(--text-mute);line-height:1.45;margin:0 0 12px}
@@ -2354,7 +2356,7 @@
   <div class="modal junto-modal" onclick="event.stopPropagation()">
     <div class="junto-ico">📍</div>
     <p class="junto-txt">Ligue a localização pra finalizar esta entrega</p>
-    <p class="junto-quem" id="gps-trava-sub">O app precisa saber de onde você está confirmando.</p>
+    <p class="junto-quem" id="gps-trava-sub"></p>
     <div class="junto-acts" id="gps-trava-passo1">
       <button class="btn btn-primary" id="gps-trava-btn" onclick="gpsTravaTentar()">📍 Ligar a localização</button>
       <button class="btn btn-ghost" onclick="gpsTravaFechar()">Agora não</button>
@@ -11143,7 +11145,7 @@ function abrirTravaGps(id){
   _gpsTravaId=id;
   $('gps-trava-passo1').style.display=''; $('gps-trava-passo2').style.display='none';
   $('gps-trava-link').style.display='';
-  $('gps-trava-sub').textContent='O app precisa saber de onde você está confirmando.';
+  $('gps-trava-sub').textContent='';       // só fala quando tem o que explicar
   $('gps-trava-btn').disabled=false; $('gps-trava-btn').textContent='📍 Ligar a localização';
   $('gps-trava-senha').value=''; $('gps-trava-erro').textContent='';
   $('gps-trava-modal').classList.add('open');
